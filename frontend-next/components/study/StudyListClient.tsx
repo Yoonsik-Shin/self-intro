@@ -10,16 +10,21 @@ import {
     ChevronLeft,
     ChevronRight,
     ChevronUp,
+    GitBranch,
     History,
+    List,
     ListTree,
     Loader2,
+    Network,
     X,
 } from 'lucide-react';
 import { SidebarSection } from '@/components/common/SidebarSection';
 import { studyApi, taxonomyApi } from '@/lib/api';
 import type { Study, StudySection, StudyTaxonomyNode, StudyPage } from '@/lib/api/types';
 import { taxonomyBreadcrumbLabel, toTaxonomyNodeMap } from '@/lib/taxonomy';
-import { TaxonomyList } from './TaxonomyList';
+import { StudyCategorySidebar } from './StudyCategorySidebar';
+import { StudyGraphView } from './StudyGraphView';
+import { StudyTreeView } from './StudyTreeView';
 
 import { useResponsiveSidebar } from '@/hooks/useResponsiveSidebar';
 
@@ -85,6 +90,7 @@ export function StudyListClient({
     const [search, setSearch] = useState('');
     const [activeSection, setActiveSection] = useState<StudySection | null>(null);
     const [activeTaxonomyNodeId, setActiveTaxonomyNodeId] = useState<number | null>(null);
+    const [viewMode, setViewMode] = useState<'TREE' | 'LIST' | 'GRAPH'>('TREE');
     const [isNavCollapsed, setIsNavCollapsed] = useResponsiveSidebar(false);
     const [recentlyViewed, setRecentlyViewed] = useState<RecentlyViewedItem[]>([]);
     const [isRecentExpanded, setIsRecentExpanded] = useState(false);
@@ -328,35 +334,62 @@ export function StudyListClient({
                                 </button>
                             ))}
                         </div>
-                        <div className="flex flex-wrap items-center gap-1.5">
-                            <button
-                                onClick={() => setActiveTaxonomyNodeId(null)}
-                                className={`shrink-0 rounded-full px-4 py-1.5 text-xs font-bold transition ${activeTaxonomyNodeId === null ? 'bg-slate-900 text-white' : 'bg-slate-50 text-slate-500 hover:bg-slate-100'}`}
-                            >
-                                전체 (
-                                {taxonomyNodes.reduce((sum, node) => sum + node.studyCount, 0)})
-                            </button>
-                            {taxonomyNodes.map((node) => (
+                    </div>
+                    <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
+                        <input
+                            type="search"
+                            value={search}
+                            onChange={(event) => setSearch(event.target.value)}
+                            placeholder="제목, 본문, 태그, 기술 검색..."
+                            className="w-full rounded-md border border-slate-200 px-4 py-2 text-xs outline-none focus:border-slate-800 focus:ring-2 focus:ring-slate-200 sm:w-72"
+                        />
+                        <div className="flex shrink-0 rounded-md bg-slate-100 p-1">
+                            {(
+                                [
+                                    ['TREE', GitBranch, '트리'],
+                                    ['LIST', List, '리스트'],
+                                    ['GRAPH', Network, '그래프'],
+                                ] as const
+                            ).map(([value, Icon, label]) => (
                                 <button
-                                    key={node.id}
-                                    onClick={() => setActiveTaxonomyNodeId(node.id)}
-                                    className={`shrink-0 rounded-full px-4 py-1.5 text-xs font-bold transition ${activeTaxonomyNodeId === node.id ? 'bg-slate-900 text-white' : 'bg-slate-50 text-slate-500 hover:bg-slate-100'}`}
+                                    key={value}
+                                    type="button"
+                                    onClick={() => setViewMode(value)}
+                                    title={label}
+                                    className={`flex items-center gap-1 rounded-md px-2.5 py-1.5 text-xs font-bold transition ${viewMode === value ? 'bg-white text-slate-950 shadow-sm' : 'text-slate-500'}`}
                                 >
-                                    {node.name} ({node.studyCount})
+                                    <Icon className="h-3.5 w-3.5" />
+                                    <span>{label}</span>
                                 </button>
                             ))}
                         </div>
                     </div>
-                    <input
-                        type="search"
-                        value={search}
-                        onChange={(event) => setSearch(event.target.value)}
-                        placeholder="제목, 본문, 태그, 기술 검색..."
-                        className="w-full rounded-md border border-slate-200 px-4 py-2 text-xs outline-none focus:border-slate-800 focus:ring-2 focus:ring-slate-200 sm:w-72"
-                    />
                 </div>
 
-                <div className="space-y-5">
+                {viewMode === 'TREE' && (
+                    <StudyTreeView
+                        workspaceSlug={workspaceSlug}
+                        previewMode={previewMode}
+                        initialStudies={initialStudies}
+                        search={search}
+                        activeSection={activeSection}
+                        activeTaxonomyNodeId={activeTaxonomyNodeId}
+                    />
+                )}
+
+                {viewMode === 'GRAPH' && (
+                    <StudyGraphView
+                        workspaceSlug={workspaceSlug}
+                        previewMode={previewMode}
+                        initialStudies={initialStudies}
+                        search={search}
+                        activeSection={activeSection}
+                        activeTaxonomyNodeId={activeTaxonomyNodeId}
+                        taxonomyNodesById={taxonomyNodesById}
+                    />
+                )}
+
+                <div className={`space-y-5 ${viewMode !== 'LIST' ? 'hidden' : ''}`}>
                     {studies.length === 0 ? (
                         <div className="rounded-lg border border-slate-200 bg-white py-12 text-center text-sm font-semibold text-slate-400">
                             검색 조건에 맞는 Study가 없습니다.
@@ -476,24 +509,27 @@ export function StudyListClient({
                                 : 'min-[900px]:gap-4 min-[900px]:px-5 min-[900px]:pt-4 min-[900px]:pb-2'
                         }`}
                     >
-                        {taxonomyNodes.length > 0 && (
-                            <SidebarSection
-                                title="카테고리"
-                                icon={ListTree}
-                                isNavCollapsed={isNavCollapsed}
-                                onExpandSidebar={() => setIsNavCollapsed(false)}
-                            >
-                                <TaxonomyList
-                                    nodes={taxonomyNodes}
-                                    activeNodeId={activeTaxonomyNodeId}
-                                    onSelect={setActiveTaxonomyNodeId}
-                                    hideHeader
-                                />
-                            </SidebarSection>
-                        )}
+                        <SidebarSection
+                            title="카테고리"
+                            icon={ListTree}
+                            isNavCollapsed={isNavCollapsed}
+                            onExpandSidebar={() => setIsNavCollapsed(false)}
+                        >
+                            <StudyCategorySidebar
+                                workspaceSlug={workspaceSlug}
+                                previewMode={previewMode}
+                                initialStudies={initialStudies}
+                                activeSection={activeSection}
+                                activeTaxonomyNodeId={activeTaxonomyNodeId}
+                                onSelect={(section, taxonomyNodeId) => {
+                                    setActiveSection(section);
+                                    setActiveTaxonomyNodeId(taxonomyNodeId);
+                                }}
+                            />
+                        </SidebarSection>
 
                         <hr
-                            className={`hidden -mb-1 border-slate-100 ${taxonomyNodes.length > 0 && !isNavCollapsed ? 'min-[900px]:block' : ''}`}
+                            className={`hidden -mb-1 border-slate-100 ${!isNavCollapsed ? 'min-[900px]:block' : ''}`}
                         />
 
                         {recentlyViewed.length > 0 ? (

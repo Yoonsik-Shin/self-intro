@@ -384,24 +384,43 @@ export function StudyDetailClient({ study, basePath = '/study' }: Props) {
                                 )}
 
                                 {study.relatedStudies.length > 0 && (
-                                    <div>
-                                        <h4 className="mb-1 text-[11px] font-black uppercase tracking-wider text-slate-400">
-                                            관련 STUDY
-                                        </h4>
-                                        <div className="space-y-1.5 pl-0.5">
-                                            {study.relatedStudies.map((related) => (
-                                                <Link
-                                                    key={`${related.id}-${related.type}`}
-                                                    href={`${basePath}/${encodeURIComponent(related.slug)}`}
-                                                    className="flex w-full items-start gap-1.5 text-left text-xs font-semibold leading-normal text-slate-600 hover:text-blue-600 group"
-                                                >
-                                                    <span className="shrink-0 font-bold text-slate-400 group-hover:text-blue-600">
-                                                        ▪
-                                                    </span>
-                                                    <span>{related.title}</span>
-                                                </Link>
-                                            ))}
-                                        </div>
+                                    <div className="space-y-3">
+                                        {(
+                                            [
+                                                ['PREREQUISITE', '선수 학습'],
+                                                ['FOLLOW_UP', '다음 글'],
+                                                ['RELATED', '관련 글'],
+                                            ] as const
+                                        ).map(([type, label]) => {
+                                            const items = study.relatedStudies.filter((related) =>
+                                                type === 'RELATED'
+                                                    ? related.type === 'RELATED' ||
+                                                      related.type === 'APPLIED_TO'
+                                                    : related.type === type
+                                            );
+                                            if (items.length === 0) return null;
+                                            return (
+                                                <div key={type}>
+                                                    <h4 className="mb-1 text-[11px] font-black uppercase tracking-wider text-slate-400">
+                                                        {label}
+                                                    </h4>
+                                                    <div className="space-y-1.5 pl-0.5">
+                                                        {items.map((related) => (
+                                                            <Link
+                                                                key={`${related.id}-${related.type}`}
+                                                                href={`${basePath}/${encodeURIComponent(related.slug)}`}
+                                                                className="flex w-full items-start gap-1.5 text-left text-xs font-semibold leading-normal text-slate-600 hover:text-blue-600 group"
+                                                            >
+                                                                <span className="shrink-0 font-bold text-slate-400 group-hover:text-blue-600">
+                                                                    ▪
+                                                                </span>
+                                                                <span>{related.title}</span>
+                                                            </Link>
+                                                        ))}
+                                                    </div>
+                                                </div>
+                                            );
+                                        })}
                                     </div>
                                 )}
 
