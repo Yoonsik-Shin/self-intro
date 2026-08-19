@@ -4,11 +4,12 @@ import { useEffect, useMemo, useState, type FormEvent } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { Plus } from 'lucide-react';
 import { ApiError, skillApi, connectionApi, studyApi, experienceApi } from '@/lib/api';
+import { skillProposalApi } from '@/lib/api/skillProposal';
 import type { Skill } from '@/lib/api/types';
 import { useAuthStore } from '@/store/useAuthStore';
 import { useAdminPreviewStore } from '@/store/useAdminPreviewStore';
-import { SkillBadgeIcon } from '@/lib/SkillBadgeIcon';
 import { SkillGroupSection } from './SkillGroupSection';
+import { SkillWorkbenchPanel } from './SkillWorkbenchPanel';
 import { getSkillCategoryPresentation, skillCategoryPresentations } from './skillPresentation';
 import { AdminPageHeader } from '@/components/admin/common/AdminPageHeader';
 
@@ -35,12 +36,6 @@ const emptySkillForm: SkillForm = {
     experienceIds: [],
     experienceDetailIds: [],
 };
-
-const skillUsageOptions = [
-    { value: 'LEARNING', label: '학습' },
-    { value: 'WORK_EXPERIENCE', label: '실무 경험' },
-    { value: 'PROJECT_USE', label: '프로젝트 활용' },
-];
 
 const skillCategoryFilters = [
     'ALL',
@@ -88,19 +83,17 @@ export function SkillsManagement({ workspaceSlug }: { workspaceSlug: string }) {
         queryKey: ['experiences', workspaceSlug],
         queryFn: () => experienceApi.workspaceList(workspaceSlug),
     });
+    const { data: skillProposals } = useQuery({
+        queryKey: ['skillProposals', workspaceSlug],
+        queryFn: () => skillProposalApi.workspaceList(workspaceSlug),
+    });
 
     const [skillFilter, setSkillFilter] = useState('ALL');
     const [skillSearch, setSkillSearch] = useState('');
-    const [skillStudySearch, setSkillStudySearch] = useState('');
-    const [skillExperienceSearch, setSkillExperienceSearch] = useState('');
-    const [skillDetailSearch, setSkillDetailSearch] = useState('');
     const [skillEditingId, setSkillEditingId] = useState<number | null>(null);
     const [skillForm, setSkillForm] = useState<SkillForm>(emptySkillForm);
     const [isSkillFormOpen, setIsSkillFormOpen] = useState(false);
     const setSkillDraft = useAdminPreviewStore((s) => s.setSkillDraft);
-    const selectedCatalogSkill = catalogSkills.find(
-        (catalogSkill) => catalogSkill.id === skillForm.catalogSkillId
-    );
 
     // 라이브 프리뷰 패널이 저장 전 초안을 메인페이지 기술 스택 영역에 반영할 수 있도록 발행한다.
     useEffect(() => {
@@ -152,27 +145,6 @@ export function SkillsManagement({ workspaceSlug }: { workspaceSlug: string }) {
         };
     }, [filteredSkills]);
 
-    const connectionStudies = (studies ?? []).filter(
-        (study) =>
-            !skillStudySearch || study.title.toLowerCase().includes(skillStudySearch.toLowerCase())
-    );
-    const connectionExperiences = (experiencesList ?? []).filter(
-        (experience) =>
-            !skillExperienceSearch ||
-            experience.title.toLowerCase().includes(skillExperienceSearch.toLowerCase()) ||
-            experience.type.toLowerCase().includes(skillExperienceSearch.toLowerCase())
-    );
-    const connectionDetails = (experiencesList ?? [])
-        .flatMap((experience) =>
-            experience.details.map((detail) => ({ ...detail, experienceTitle: experience.title }))
-        )
-        .filter(
-            (detail) =>
-                !skillDetailSearch ||
-                detail.content.toLowerCase().includes(skillDetailSearch.toLowerCase()) ||
-                detail.experienceTitle.toLowerCase().includes(skillDetailSearch.toLowerCase())
-        );
-
     const createSkillMutation = useMutation({
         mutationFn: async (form: SkillForm) => {
             const { studyIds, experienceIds, experienceDetailIds } = form;
@@ -200,8 +172,6 @@ export function SkillsManagement({ workspaceSlug }: { workspaceSlug: string }) {
             queryClient.invalidateQueries({ queryKey: ['studies'] });
             queryClient.invalidateQueries({ queryKey: ['experiences'] });
             queryClient.invalidateQueries({ queryKey: ['introduction'] });
-            setSkillForm(emptySkillForm);
-            setIsSkillFormOpen(false);
         },
         onError: handleMutationError,
     });
@@ -231,7 +201,6 @@ export function SkillsManagement({ workspaceSlug }: { workspaceSlug: string }) {
             queryClient.invalidateQueries({ queryKey: ['introduction'] });
             setSkillEditingId(null);
             setSkillForm(emptySkillForm);
-            setIsSkillFormOpen(false);
         },
         onError: handleMutationError,
     });
@@ -274,28 +243,74 @@ export function SkillsManagement({ workspaceSlug }: { workspaceSlug: string }) {
         },
     });
 
+    const proposeSkillMutation = useMutation({
+        mutationFn: (payload: { name: string; category: string }) =>
+            skillProposalApi.propose(workspaceSlug, {
+                name: payload.name,
+                category: payload.category,
+                skillLevel: '중급',
+                usageType: 'LEARNING',
+                isCore: false,
+                displayOrder: 0,
+            }),
+        onSuccess: () => {
+            queryClient.invalidateQueries({ queryKey: ['skillProposals', workspaceSlug] });
+        },
+        onError: (error) => {
+            handleMutationError(error);
+            window.alert(
+                error instanceof ApiError ? error.message : '기술 제안을 등록하지 못했습니다.'
+            );
+        },
+    });
+
     const deleteSkillMutation = useMutation({
         mutationFn: (id: number) => skillApi.workspaceRemove(workspaceSlug, id),
-        onSuccess: () => {
+        onSuccess: (_data, id) => {
             queryClient.invalidateQueries({ queryKey: ['skills'] });
             queryClient.invalidateQueries({ queryKey: ['introduction'] });
+            setSkillEditingId((current) => (current === id ? null : current));
         },
         onError: handleMutationError,
     });
 
-    const handleSkillSubmit = (e: FormEvent<HTMLFormElement>) => {
+    const handleSkillEditSubmit = (e: FormEvent<HTMLFormElement>) => {
         e.preventDefault();
         if (skillEditingId !== null) {
             updateSkillMutation.mutate({ id: skillEditingId, payload: skillForm });
-        } else {
-            createSkillMutation.mutate(skillForm);
         }
+    };
+
+    const handleQuickAddSkill = (catalogSkill: Skill) => {
+        createSkillMutation.mutate({
+            ...emptySkillForm,
+            catalogSkillId: catalogSkill.id,
+            name: catalogSkill.name,
+            category: catalogSkill.category,
+            badgeKey: catalogSkill.badgeKey,
+            badgeColor: catalogSkill.badgeColor,
+        });
+    };
+
+    const handlePropose = (name: string, category: string) => {
+        proposeSkillMutation.mutate({ name, category });
     };
 
     const handleSkillDelete = (id: number) => {
         if (window.confirm('정말 이 기술 스택을 삭제하시겠습니까?')) {
             deleteSkillMutation.mutate(id);
         }
+    };
+
+    const closeSkillPanel = () => {
+        setIsSkillFormOpen(false);
+        setSkillEditingId(null);
+        setSkillForm(emptySkillForm);
+    };
+
+    const deselectSkillEditing = () => {
+        setSkillEditingId(null);
+        setSkillForm(emptySkillForm);
     };
 
     const openSkillEditor = async (skill: Skill) => {
@@ -342,415 +357,111 @@ export function SkillsManagement({ workspaceSlug }: { workspaceSlug: string }) {
                 }
             />
 
-            <div className="sticky top-14 z-20 flex flex-col sm:flex-row gap-3 items-center justify-between bg-white/95 p-4 rounded-2xl border border-slate-200 shadow-sm backdrop-blur-xl animate-fadeIn">
-                <div className="flex flex-wrap gap-1.5 w-full sm:w-auto">
+            <div className="sticky top-14 z-20 flex flex-col sm:flex-row gap-2.5 items-center justify-between bg-white/95 p-2.5 rounded-xl border border-slate-200 shadow-sm backdrop-blur-xl animate-fadeIn">
+                <div className="flex flex-wrap gap-1 w-full sm:w-auto">
                     {skillCategoryFilters.map((cat) => (
                         <button
                             key={cat}
                             onClick={() => setSkillFilter(cat)}
-                            className={`px-3 py-1.5 text-sm font-bold rounded-lg transition ${skillFilter === cat ? 'bg-slate-900 text-white shadow-sm' : 'bg-slate-50 text-slate-500 hover:bg-slate-100 hover:text-slate-800 border border-slate-100'}`}
+                            className={`px-2.5 py-1 text-xs font-bold rounded-lg transition ${skillFilter === cat ? 'bg-slate-900 text-white shadow-sm' : 'bg-slate-50 text-slate-500 hover:bg-slate-100 hover:text-slate-800 border border-slate-100'}`}
                         >
                             {skillCategoryFilterLabels[cat]}
                         </button>
                     ))}
                 </div>
-                <div className="w-full sm:w-64">
+                <div className="w-full sm:w-56">
                     <input
                         type="text"
                         placeholder="기술명 검색..."
                         value={skillSearch}
                         onChange={(e) => setSkillSearch(e.target.value)}
-                        className="w-full rounded-xl border border-slate-200 px-3.5 py-2 text-sm transition focus:border-slate-800 focus:outline-none bg-slate-50/50"
+                        className="w-full rounded-lg border border-slate-200 px-3 py-1.5 text-xs transition focus:border-slate-800 focus:outline-none bg-slate-50/50"
                     />
                 </div>
             </div>
 
             {isSkillFormOpen && (
-                <form
-                    onSubmit={handleSkillSubmit}
-                    className="space-y-4 rounded-2xl border border-slate-200 bg-white p-6 shadow-sm"
-                >
-                    <h3 className="text-base font-black text-slate-800">
-                        {skillEditingId !== null
-                            ? 'Workspace 기술 정보 수정'
-                            : '카탈로그 기술 추가'}
-                    </h3>
-                    <div>
-                        {skillEditingId === null ? (
-                            <div>
-                                <label className="mb-1.5 block text-xs font-bold uppercase tracking-wider text-slate-400">
-                                    공통 기술 카탈로그
-                                </label>
-                                <select
-                                    required
-                                    value={skillForm.catalogSkillId ?? ''}
-                                    onChange={(event) => {
-                                        if (!event.target.value) {
-                                            setSkillForm((current) => ({
-                                                ...current,
-                                                catalogSkillId: null,
-                                                name: '',
-                                                category: 'ETC',
-                                                badgeKey: '',
-                                                badgeColor: '',
-                                            }));
-                                            return;
-                                        }
-                                        const catalogSkillId = Number(event.target.value);
-                                        const catalogSkill = catalogSkills.find(
-                                            (skill) => skill.id === catalogSkillId
-                                        );
-                                        setSkillForm((current) => ({
-                                            ...current,
-                                            catalogSkillId,
-                                            name: catalogSkill?.name ?? '',
-                                            category: catalogSkill?.category ?? 'ETC',
-                                            badgeKey: catalogSkill?.badgeKey ?? '',
-                                            badgeColor: catalogSkill?.badgeColor ?? '',
-                                        }));
-                                    }}
-                                    className="w-full rounded-xl border border-slate-200 px-4 py-2.5 text-sm transition focus:border-slate-800 focus:outline-none focus:ring-2 focus:ring-slate-200"
-                                >
-                                    <option value="">기술을 선택해 주세요</option>
-                                    {availableCatalogSkills.map((skill) => (
-                                        <option key={skill.id} value={skill.id}>
-                                            {skill.name} ·{' '}
-                                            {getSkillCategoryPresentation(skill.category).label}
-                                        </option>
-                                    ))}
-                                </select>
-                            </div>
-                        ) : null}
-
-                        {selectedCatalogSkill ? (
-                            <div className="mt-3 flex items-center gap-3 rounded-2xl border border-slate-200 bg-slate-50 p-4">
-                                <SkillBadgeIcon
-                                    name={selectedCatalogSkill.name}
-                                    badgeKey={selectedCatalogSkill.badgeKey}
-                                    badgeColor={selectedCatalogSkill.badgeColor}
-                                    className="h-9 w-9"
-                                />
-                                <div className="min-w-0">
-                                    <p className="font-black text-slate-900">
-                                        {selectedCatalogSkill.name}
-                                    </p>
-                                    <p className="text-xs font-semibold text-slate-500">
-                                        {
-                                            getSkillCategoryPresentation(
-                                                selectedCatalogSkill.category
-                                            ).label
-                                        }
-                                    </p>
-                                </div>
-                            </div>
-                        ) : null}
-                        <p className="mt-2 text-xs font-medium text-slate-500">
-                            이름·분류·뱃지는 플랫폼 공통 카탈로그 정의입니다. 이 Workspace에서는
-                            실무 수준, 사용 맥락과 경험 메모만 관리합니다.
-                        </p>
-                    </div>
-
-                    <div className="grid grid-cols-1 gap-4 sm:grid-cols-4">
-                        <div>
-                            <label className="mb-1.5 block text-xs font-bold uppercase tracking-wider text-slate-400">
-                                실무 수준
-                            </label>
-                            <input
-                                type="text"
-                                value={skillForm.skillLevel}
-                                placeholder="예: 중급, 고급, 상"
-                                onChange={(e) =>
-                                    setSkillForm({ ...skillForm, skillLevel: e.target.value })
-                                }
-                                className="w-full rounded-xl border border-slate-200 px-4 py-2.5 text-sm transition focus:border-slate-800 focus:outline-none focus:ring-2 focus:ring-slate-200"
-                            />
-                        </div>
-                        <div>
-                            <label className="mb-1.5 block text-xs font-bold uppercase tracking-wider text-slate-400">
-                                사용 버전
-                            </label>
-                            <input
-                                type="text"
-                                value={skillForm.skillVersion}
-                                placeholder="예: 21, 3.3, 19"
-                                onChange={(e) =>
-                                    setSkillForm({ ...skillForm, skillVersion: e.target.value })
-                                }
-                                className="w-full rounded-xl border border-slate-200 px-4 py-2.5 text-sm transition focus:border-slate-800 focus:outline-none focus:ring-2 focus:ring-slate-200"
-                            />
-                        </div>
-                        <div>
-                            <label className="mb-1.5 block text-xs font-bold uppercase tracking-wider text-slate-400">
-                                활용 맥락
-                            </label>
-                            <select
-                                value={skillForm.usageType}
-                                onChange={(e) =>
-                                    setSkillForm({ ...skillForm, usageType: e.target.value })
-                                }
-                                className="w-full rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-sm transition focus:border-slate-800 focus:outline-none focus:ring-2 focus:ring-slate-200"
-                            >
-                                {skillUsageOptions.map((option) => (
-                                    <option key={option.value} value={option.value}>
-                                        {option.label}
-                                    </option>
-                                ))}
-                            </select>
-                        </div>
-                        <div>
-                            <label className="mb-1.5 block text-xs font-bold uppercase tracking-wider text-slate-400">
-                                정렬 순서
-                            </label>
-                            <input
-                                type="number"
-                                required
-                                value={skillForm.displayOrder}
-                                onChange={(e) =>
-                                    setSkillForm({
-                                        ...skillForm,
-                                        displayOrder: Number(e.target.value),
-                                    })
-                                }
-                                className="w-full rounded-xl border border-slate-200 px-4 py-2.5 text-sm transition focus:border-slate-800 focus:outline-none focus:ring-2 focus:ring-slate-200"
-                            />
-                        </div>
-                        <div className="flex items-center pt-5">
-                            <label className="flex items-center gap-2 cursor-pointer">
-                                <input
-                                    type="checkbox"
-                                    checked={skillForm.isCore}
-                                    onChange={(e) =>
-                                        setSkillForm({ ...skillForm, isCore: e.target.checked })
-                                    }
-                                    className="h-4 w-4 rounded border-slate-300 text-slate-900 focus:ring-slate-800"
-                                />
-                                <span className="text-xs font-bold text-slate-600 uppercase">
-                                    핵심기술로 표시
-                                </span>
-                            </label>
-                        </div>
-                    </div>
-
-                    <div>
-                        <label className="mb-1.5 block text-xs font-bold uppercase tracking-wider text-slate-400">
-                            경험 메모
-                        </label>
-                        <textarea
-                            rows={3}
-                            value={skillForm.comment}
-                            placeholder="이 기술을 어느 수준으로, 어디에 활용했는지 짧게 남깁니다."
-                            onChange={(e) =>
-                                setSkillForm({ ...skillForm, comment: e.target.value })
-                            }
-                            className="w-full rounded-xl border border-slate-200 px-4 py-2.5 text-sm transition focus:border-slate-800 focus:outline-none focus:ring-2 focus:ring-slate-200"
-                        />
-                    </div>
-
-                    <div className="grid gap-4 lg:grid-cols-3">
-                        <div className="rounded-xl border border-slate-200 bg-slate-50/50 p-4">
-                            <label className="mb-2 block text-xs font-bold uppercase tracking-wider text-slate-400">
-                                관련 Study · {skillForm.studyIds.length}개
-                            </label>
-                            <input
-                                type="search"
-                                value={skillStudySearch}
-                                onChange={(event) => setSkillStudySearch(event.target.value)}
-                                placeholder="Study 제목 검색"
-                                className="mb-2 w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-xs outline-none focus:border-slate-800"
-                            />
-                            <div className="max-h-48 space-y-1.5 overflow-auto">
-                                {connectionStudies.map((study) => (
-                                    <label
-                                        key={study.id}
-                                        className="flex cursor-pointer items-start gap-2 rounded-lg border border-slate-200 bg-white p-2 text-xs"
-                                    >
-                                        <input
-                                            type="checkbox"
-                                            checked={skillForm.studyIds.includes(study.id)}
-                                            onChange={() =>
-                                                setSkillForm((current) => ({
-                                                    ...current,
-                                                    studyIds: current.studyIds.includes(study.id)
-                                                        ? current.studyIds.filter(
-                                                              (id) => id !== study.id
-                                                          )
-                                                        : [...current.studyIds, study.id],
-                                                }))
-                                            }
-                                            className="mt-0.5"
-                                        />
-                                        <span className="font-semibold text-slate-700">
-                                            {study.title}
-                                        </span>
-                                    </label>
-                                ))}
-                            </div>
-                        </div>
-
-                        <div className="rounded-xl border border-slate-200 bg-slate-50/50 p-4">
-                            <label className="mb-2 block text-xs font-bold uppercase tracking-wider text-slate-400">
-                                관련 프로젝트·이력 · {skillForm.experienceIds.length}개
-                            </label>
-                            <input
-                                type="search"
-                                value={skillExperienceSearch}
-                                onChange={(event) => setSkillExperienceSearch(event.target.value)}
-                                placeholder="제목 또는 유형 검색"
-                                className="mb-2 w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-xs outline-none focus:border-slate-800"
-                            />
-                            <div className="max-h-48 space-y-1.5 overflow-auto">
-                                {connectionExperiences.map((experience) => (
-                                    <label
-                                        key={experience.id}
-                                        className="flex cursor-pointer items-start gap-2 rounded-lg border border-slate-200 bg-white p-2 text-xs"
-                                    >
-                                        <input
-                                            type="checkbox"
-                                            checked={skillForm.experienceIds.includes(
-                                                experience.id
-                                            )}
-                                            onChange={() =>
-                                                setSkillForm((current) => ({
-                                                    ...current,
-                                                    experienceIds: current.experienceIds.includes(
-                                                        experience.id
-                                                    )
-                                                        ? current.experienceIds.filter(
-                                                              (id) => id !== experience.id
-                                                          )
-                                                        : [...current.experienceIds, experience.id],
-                                                }))
-                                            }
-                                            className="mt-0.5"
-                                        />
-                                        <span>
-                                            <b className="mr-1 text-slate-400">{experience.type}</b>
-                                            {experience.title}
-                                        </span>
-                                    </label>
-                                ))}
-                            </div>
-                        </div>
-
-                        <div className="rounded-xl border border-slate-200 bg-slate-50/50 p-4">
-                            <label className="mb-2 block text-xs font-bold uppercase tracking-wider text-slate-400">
-                                관련 경력 상세 · {skillForm.experienceDetailIds.length}개
-                            </label>
-                            <input
-                                type="search"
-                                value={skillDetailSearch}
-                                onChange={(event) => setSkillDetailSearch(event.target.value)}
-                                placeholder="경력 또는 상세 내용 검색"
-                                className="mb-2 w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-xs outline-none focus:border-slate-800"
-                            />
-                            <div className="max-h-48 space-y-1.5 overflow-auto">
-                                {connectionDetails.map((detail) => (
-                                    <label
-                                        key={detail.id}
-                                        className="flex cursor-pointer items-start gap-2 rounded-lg border border-slate-200 bg-white p-2 text-xs"
-                                    >
-                                        <input
-                                            type="checkbox"
-                                            checked={skillForm.experienceDetailIds.includes(
-                                                detail.id
-                                            )}
-                                            onChange={() =>
-                                                setSkillForm((current) => ({
-                                                    ...current,
-                                                    experienceDetailIds:
-                                                        current.experienceDetailIds.includes(
-                                                            detail.id
-                                                        )
-                                                            ? current.experienceDetailIds.filter(
-                                                                  (id) => id !== detail.id
-                                                              )
-                                                            : [
-                                                                  ...current.experienceDetailIds,
-                                                                  detail.id,
-                                                              ],
-                                                }))
-                                            }
-                                            className="mt-0.5"
-                                        />
-                                        <span>
-                                            <b className="block text-slate-400">
-                                                {detail.experienceTitle}
-                                            </b>
-                                            {detail.content}
-                                        </span>
-                                    </label>
-                                ))}
-                            </div>
-                        </div>
-                    </div>
-
-                    <div className="flex justify-end gap-3 pt-2">
-                        <button
-                            type="button"
-                            onClick={() => setIsSkillFormOpen(false)}
-                            className="rounded-xl border border-slate-200 px-5 py-2.5 text-sm font-bold text-slate-500 transition hover:bg-slate-50 hover:text-slate-800"
-                        >
-                            취소
-                        </button>
-                        <button
-                            type="submit"
-                            disabled={
-                                createSkillMutation.isPending || updateSkillMutation.isPending
-                            }
-                            className="rounded-xl bg-slate-900 px-5 py-2.5 text-sm font-bold text-white shadow-md hover:bg-slate-800 disabled:opacity-50"
-                        >
-                            {skillEditingId !== null ? '수정 완료' : '추가 완료'}
-                        </button>
-                    </div>
-                </form>
+                <SkillWorkbenchPanel
+                    skillsList={skillsList}
+                    availableCatalogSkills={availableCatalogSkills}
+                    skillEditingId={skillEditingId}
+                    skillForm={skillForm}
+                    setSkillForm={setSkillForm}
+                    studies={studies}
+                    experiencesList={experiencesList}
+                    onQuickAdd={handleQuickAddSkill}
+                    quickAddPendingId={
+                        createSkillMutation.isPending
+                            ? (createSkillMutation.variables?.catalogSkillId ?? null)
+                            : null
+                    }
+                    onSelectSkill={(skill) => {
+                        void openSkillEditor(skill);
+                    }}
+                    onDeselect={deselectSkillEditing}
+                    onSaveEdit={handleSkillEditSubmit}
+                    onDeleteSkill={handleSkillDelete}
+                    onClose={closeSkillPanel}
+                    isSaving={updateSkillMutation.isPending}
+                    proposals={skillProposals}
+                    onPropose={handlePropose}
+                    isProposing={proposeSkillMutation.isPending}
+                />
             )}
 
-            <div className="flex flex-wrap items-center gap-x-3 gap-y-2 rounded-xl border border-slate-200 bg-white px-4 py-3 text-xs shadow-sm">
-                <span className="font-black text-slate-400">현재 결과</span>
-                <span className="rounded bg-slate-900 px-2 py-1 font-black text-white">
-                    전체 {filteredSkillSummary.total}
-                </span>
-                <span className="border-l border-slate-200 pl-3 font-bold text-slate-600">
-                    Core <b className="text-slate-900">{filteredSkillSummary.core}</b>
-                </span>
-                <span className="border-l border-slate-200 pl-3 font-bold text-slate-500">
-                    실무 경험 <b className="text-slate-800">{filteredSkillSummary.work}</b>
-                </span>
-                <span className="border-l border-slate-200 pl-3 font-bold text-slate-500">
-                    프로젝트 활용 <b className="text-slate-800">{filteredSkillSummary.project}</b>
-                </span>
-                <span className="border-l border-slate-200 pl-3 font-bold text-slate-500">
-                    학습 <b className="text-slate-800">{filteredSkillSummary.learning}</b>
-                </span>
-            </div>
+            {!isSkillFormOpen && (
+                <>
+                    <div className="flex flex-wrap items-center gap-x-3 gap-y-1 rounded-lg border border-slate-200 bg-white px-3 py-2 text-xs shadow-sm">
+                        <span className="font-black text-slate-400">현재 결과</span>
+                        <span className="rounded bg-slate-900 px-2 py-1 font-black text-white">
+                            전체 {filteredSkillSummary.total}
+                        </span>
+                        <span className="border-l border-slate-200 pl-3 font-bold text-slate-600">
+                            Core <b className="text-slate-900">{filteredSkillSummary.core}</b>
+                        </span>
+                        <span className="border-l border-slate-200 pl-3 font-bold text-slate-500">
+                            실무 경험 <b className="text-slate-800">{filteredSkillSummary.work}</b>
+                        </span>
+                        <span className="border-l border-slate-200 pl-3 font-bold text-slate-500">
+                            프로젝트 활용{' '}
+                            <b className="text-slate-800">{filteredSkillSummary.project}</b>
+                        </span>
+                        <span className="border-l border-slate-200 pl-3 font-bold text-slate-500">
+                            학습 <b className="text-slate-800">{filteredSkillSummary.learning}</b>
+                        </span>
+                    </div>
 
-            {groupedFilteredSkills.length > 0 ? (
-                <div className="space-y-4">
-                    {groupedFilteredSkills.map(({ category, skills }) => (
-                        <SkillGroupSection
-                            key={category.key}
-                            category={category}
-                            skills={skills}
-                            onEdit={(skill) => {
-                                void openSkillEditor(skill);
-                            }}
-                            onDelete={handleSkillDelete}
-                            onToggleCore={(skill) => toggleCoreSkillMutation.mutate(skill)}
-                            updatingCoreSkillId={
-                                toggleCoreSkillMutation.isPending
-                                    ? toggleCoreSkillMutation.variables?.id
-                                    : undefined
-                            }
-                        />
-                    ))}
-                </div>
-            ) : (
-                <div className="rounded-2xl border border-dashed border-slate-300 bg-white px-6 py-14 text-center">
-                    <p className="text-sm font-black text-slate-600">
-                        조건에 맞는 기술이 없습니다.
-                    </p>
-                    <p className="mt-1 text-xs text-slate-400">카테고리나 검색어를 변경해보세요.</p>
-                </div>
+                    {groupedFilteredSkills.length > 0 ? (
+                        <div className="space-y-4">
+                            {groupedFilteredSkills.map(({ category, skills }) => (
+                                <SkillGroupSection
+                                    key={category.key}
+                                    category={category}
+                                    skills={skills}
+                                    onEdit={(skill) => {
+                                        void openSkillEditor(skill);
+                                    }}
+                                    onDelete={handleSkillDelete}
+                                    onToggleCore={(skill) => toggleCoreSkillMutation.mutate(skill)}
+                                    updatingCoreSkillId={
+                                        toggleCoreSkillMutation.isPending
+                                            ? toggleCoreSkillMutation.variables?.id
+                                            : undefined
+                                    }
+                                />
+                            ))}
+                        </div>
+                    ) : (
+                        <div className="rounded-2xl border border-dashed border-slate-300 bg-white px-6 py-14 text-center">
+                            <p className="text-sm font-black text-slate-600">
+                                조건에 맞는 기술이 없습니다.
+                            </p>
+                            <p className="mt-1 text-xs text-slate-400">
+                                카테고리나 검색어를 변경해보세요.
+                            </p>
+                        </div>
+                    )}
+                </>
             )}
         </div>
     );

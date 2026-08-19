@@ -2,10 +2,18 @@ package com.selfintro.modules.skill.application;
 
 import com.selfintro.modules.competency.domain.repository.CompetencyRepository;
 import com.selfintro.modules.experience.domain.repository.ExperienceRepository;
+import com.selfintro.modules.identity.domain.Workspace;
+import com.selfintro.modules.identity.domain.WorkspaceRepository;
 import com.selfintro.modules.skill.domain.entity.Skill;
+import com.selfintro.modules.skill.domain.entity.SkillProposal;
 import com.selfintro.modules.skill.domain.entity.WorkspaceSkill;
+import com.selfintro.modules.skill.domain.enums.SkillReviewStatus;
+import com.selfintro.modules.skill.domain.repository.SkillProposalRepository;
 import com.selfintro.modules.skill.domain.repository.SkillRepository;
 import com.selfintro.modules.skill.domain.repository.WorkspaceSkillRepository;
+import com.selfintro.modules.skill.presentation.dto.SkillProposalRequest;
+import com.selfintro.modules.skill.presentation.dto.SkillProposalResponse;
+import com.selfintro.modules.skill.presentation.dto.SkillProposalReviewRequest;
 import com.selfintro.modules.skill.presentation.dto.SkillRequest;
 import com.selfintro.modules.skill.presentation.dto.SkillResponse;
 import com.selfintro.modules.skill.presentation.dto.WorkspaceSkillCreateRequest;
@@ -24,6 +32,8 @@ public class SkillService {
 
     private final SkillRepository skillRepository;
     private final WorkspaceSkillRepository workspaceSkillRepository;
+    private final SkillProposalRepository skillProposalRepository;
+    private final WorkspaceRepository workspaceRepository;
     private final StudyRepository studyRepository;
     private final ExperienceRepository experienceRepository;
     private final CompetencyRepository competencyRepository;
@@ -143,5 +153,99 @@ public class SkillService {
             throw new IllegalArgumentException("존재하지 않는 기술 스택입니다.");
         }
         skillRepository.deleteById(id);
+    }
+
+    @Transactional
+    public SkillProposalResponse proposeSkill(Long workspaceId, SkillProposalRequest request) {
+        if (skillRepository.findByName(request.name()).isPresent()) {
+            throw new IllegalArgumentException("이미 공통 카탈로그에 있는 기술입니다.");
+        }
+        if (skillProposalRepository
+                .findByWorkspaceIdAndNameIgnoreCase(workspaceId, request.name())
+                .isPresent()) {
+            throw new IllegalArgumentException("이미 같은 이름으로 제안한 기술이 있습니다.");
+        }
+        SkillProposal proposal =
+                SkillProposal.propose(
+                        workspaceId,
+                        request.name(),
+                        request.category(),
+                        request.skillLevel(),
+                        request.skillVersion(),
+                        request.comment(),
+                        request.usageType(),
+                        request.badgeKey(),
+                        request.badgeColor(),
+                        request.isCore(),
+                        request.displayOrder());
+        return SkillProposalResponse.from(skillProposalRepository.save(proposal));
+    }
+
+    public List<SkillProposalResponse> getWorkspaceProposals(Long workspaceId) {
+        return skillProposalRepository.findAllByWorkspaceIdOrderByCreatedAtDesc(workspaceId).stream()
+                .map(SkillProposalResponse::from)
+                .toList();
+    }
+
+    public List<SkillProposalResponse> getPendingProposals() {
+        return skillProposalRepository
+                .findAllByReviewStatusOrderByCreatedAtAsc(SkillReviewStatus.PENDING_REVIEW)
+                .stream()
+                .map(
+                        proposal -> {
+                            Workspace workspace =
+                                    workspaceRepository.findById(proposal.getWorkspaceId()).orElse(null);
+                            return SkillProposalResponse.from(
+                                    proposal,
+                                    workspace == null ? null : workspace.getName(),
+                                    workspace == null ? null : workspace.getSlug());
+                        })
+                .toList();
+    }
+
+    @Transactional
+    @CacheEvict(value = "bff:introduction", allEntries = true)
+    public SkillProposalResponse reviewProposal(
+            Long proposalId, Long reviewerUserId, SkillProposalReviewRequest request) {
+        if (request.reviewStatus() == SkillReviewStatus.PENDING_REVIEW) {
+            throw new IllegalArgumentException("심사 결과는 승인 또는 반려만 가능합니다.");
+        }
+        SkillProposal proposal =
+                skillProposalRepository
+                        .findById(proposalId)
+                        .orElseThrow(() -> new IllegalArgumentException("존재하지 않는 제안입니다."));
+
+        if (request.reviewStatus() == SkillReviewStatus.REJECTED) {
+            proposal.reject(reviewerUserId, request.rejectionReason());
+            return SkillProposalResponse.from(proposal);
+        }
+
+        Skill catalogSkill =
+                skillRepository
+                        .findByName(proposal.getName())
+                        .orElseGet(
+                                () ->
+                                        skillRepository.save(
+                                                Skill.createCatalog(
+                                                        proposal.getName(),
+                                                        proposal.getCategory(),
+                                                        proposal.getBadgeKey(),
+                                                        proposal.getBadgeColor())));
+        if (workspaceSkillRepository
+                .findByWorkspaceIdAndSkillId(proposal.getWorkspaceId(), catalogSkill.getId())
+                .isEmpty()) {
+            workspaceSkillRepository.save(
+                    WorkspaceSkill.create(
+                            proposal.getWorkspaceId(),
+                            catalogSkill,
+                            proposal.getSkillLevel(),
+                            proposal.getSkillVersion(),
+                            proposal.getComment(),
+                            proposal.getUsageType(),
+                            proposal.isCore(),
+                            proposal.getDisplayOrder()));
+        }
+        proposal.approve(reviewerUserId, catalogSkill.getId());
+        return SkillProposalResponse.from(proposal);
     }
 }

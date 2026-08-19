@@ -112,6 +112,9 @@ const JobCatalogPermissionOperations = dynamic(() =>
         (module) => module.JobCatalogPermissionOperations
     )
 );
+const SkillProposalOperations = dynamic(() =>
+    import('./skills/SkillProposalOperations').then((module) => module.SkillProposalOperations)
+);
 const JobApplicationManagement = dynamic(() =>
     import('./job-application/JobApplicationManagement').then(
         (module) => module.JobApplicationManagement
@@ -185,6 +188,7 @@ type TabId =
     | 'PORTFOLIO'
     | 'JOB_APPLICATIONS'
     | 'JOB_CATALOG_OPERATIONS'
+    | 'SKILL_PROPOSAL_OPERATIONS'
     | 'LEARNING_RESOURCES'
     | 'TAXONOMY';
 
@@ -403,6 +407,14 @@ const ADMIN_MENU_GROUPS: AdminMenuGroup[] = [
                 operatorSection: '공통 데이터 운영',
             },
             {
+                id: 'SKILL_PROPOSAL_OPERATIONS',
+                label: '기술 카탈로그 심사',
+                description:
+                    'Workspace가 제안한 새 기술을 검토해 공통 카탈로그 등록 여부를 결정합니다.',
+                icon: Sparkles,
+                operatorSection: '공통 데이터 운영',
+            },
+            {
                 id: 'TAXONOMY',
                 label: '공통 카테고리 원본',
                 description: '모든 Workspace가 참조하는 분류 체계 원본을 관리합니다.',
@@ -540,6 +552,7 @@ export function AdminDashboardShell({ workspaceSlug }: { workspaceSlug: string }
                 'PORTFOLIO',
                 'JOB_APPLICATIONS',
                 'JOB_CATALOG_OPERATIONS',
+                'SKILL_PROPOSAL_OPERATIONS',
                 'LEARNING_RESOURCES',
                 'TAXONOMY',
             ];
@@ -1369,6 +1382,9 @@ export function AdminDashboardShell({ workspaceSlug }: { workspaceSlug: string }
                             )}
                             {isPlatformOperator && activeTab === 'JOB_CATALOG_OPERATIONS' && (
                                 <JobCatalogPermissionOperations />
+                            )}
+                            {isPlatformOperator && activeTab === 'SKILL_PROPOSAL_OPERATIONS' && (
+                                <SkillProposalOperations />
                             )}
                             {activeTab === 'LEARNING_RESOURCES' && (
                                 <WorkspaceLearningResourceManagement

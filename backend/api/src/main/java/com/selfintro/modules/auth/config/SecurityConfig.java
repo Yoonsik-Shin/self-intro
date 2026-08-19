@@ -111,6 +111,8 @@ public class SecurityConfig {
                                         .requestMatchers(
                                                 "/api/workspaces/*/skills",
                                                 "/api/workspaces/*/skills/**",
+                                                "/api/workspaces/*/skill-proposals",
+                                                "/api/workspaces/*/skill-proposals/**",
                                                 "/api/workspaces/*/competencies",
                                                 "/api/workspaces/*/competencies/**",
                                                 "/api/workspaces/*/experiences/manage",
