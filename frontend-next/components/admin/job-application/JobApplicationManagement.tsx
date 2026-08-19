@@ -17,7 +17,6 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import { adminDetailMarkdownComponents } from '@/lib/markdown';
-import { parseJobplanetClipboard } from '@/lib/jobplanet';
 import {
     AlertTriangle,
     ArrowRight,
@@ -75,7 +74,6 @@ import type {
     JobPostingSettingRequest,
     JobPostingStatus,
     JobPostingStatusEvent,
-    JobplanetLookup,
     WorkspaceJobApplicationRequest,
     WorkspacePrivateJobPostingRequest,
 } from '@/lib/api/types';
@@ -584,13 +582,15 @@ function JobplanetScoreBadge({
     rating,
     reviewCount,
     companyUrl,
+    showPlaceholder = false,
 }: {
     rating: number | null | undefined;
     reviewCount?: number | null;
     companyUrl?: string | null;
+    showPlaceholder?: boolean;
 }) {
     if (rating === null || rating === undefined) {
-        return <span className="text-slate-300">—</span>;
+        return showPlaceholder ? <span className="text-slate-300">—</span> : null;
     }
 
     const badge = (
@@ -1880,296 +1880,6 @@ function PrintTemplatesPanel({
     );
 }
 
-function JobplanetEditor({
-    lookup,
-    onCancel,
-    onSaved,
-}: {
-    lookup: JobplanetLookup;
-    onCancel: () => void;
-    onSaved: () => void;
-}) {
-    const [companyName, setCompanyName] = useState(
-        lookup.jobplanetCompanyName ?? lookup.companyName
-    );
-    const [rating, setRating] = useState(lookup.rating === null ? '' : String(lookup.rating));
-    const [reviewCount, setReviewCount] = useState(
-        lookup.reviewCount === null ? '' : String(lookup.reviewCount)
-    );
-    const [companyUrl, setCompanyUrl] = useState(lookup.companyUrl ?? '');
-    const [importText, setImportText] = useState('');
-    const [importNotice, setImportNotice] = useState<string | null>(null);
-    const saveMutation = useMutation({
-        mutationFn: () =>
-            jobPostingApi.saveJobplanet(lookup.jobPostingId, {
-                companyName: companyName.trim(),
-                rating: Number(rating),
-                reviewCount: reviewCount.trim() ? Number(reviewCount) : null,
-                companyUrl: companyUrl.trim(),
-            }),
-        onSuccess: onSaved,
-        onError: (error) =>
-            alert(
-                error instanceof ApiError ? error.message : '잡플래닛 정보를 저장하지 못했습니다.'
-            ),
-    });
-    const canSave =
-        companyName.trim().length > 0 &&
-        companyUrl.trim().length > 0 &&
-        rating.trim().length > 0 &&
-        Number(rating) >= 0 &&
-        Number(rating) <= 5;
-
-    function applyClipboardText(text: string) {
-        const parsed = parseJobplanetClipboard(text, companyName || lookup.companyName);
-        if (parsed.found.length === 0) {
-            setImportNotice(
-                '평점·리뷰 수·잡플래닛 URL을 찾지 못했습니다. 복사 범위를 확인해주세요.'
-            );
-            return;
-        }
-        if (parsed.found.includes('companyName')) setCompanyName(parsed.companyName);
-        if (parsed.rating !== null) setRating(String(parsed.rating));
-        if (parsed.reviewCount !== null) setReviewCount(String(parsed.reviewCount));
-        if (parsed.companyUrl) setCompanyUrl(parsed.companyUrl);
-
-        const labels = parsed.found.map((field) => {
-            if (field === 'rating') return '평점';
-            if (field === 'reviewCount') return '리뷰 수';
-            if (field === 'companyUrl') return 'URL';
-            return '기업명';
-        });
-        setImportNotice(`${labels.join(' · ')} 항목을 자동으로 채웠습니다.`);
-    }
-
-    async function importFromClipboard() {
-        try {
-            const text = await navigator.clipboard.readText();
-            setImportText(text);
-            applyClipboardText(text);
-        } catch {
-            setImportNotice('클립보드를 읽지 못했습니다. 아래 입력란에 직접 붙여넣어 주세요.');
-        }
-    }
-
-    return (
-        <div className="space-y-2 rounded-xl border border-amber-200 bg-amber-50/60 p-3">
-            <div className="rounded-lg border border-dashed border-amber-300 bg-white/80 p-2.5">
-                <div className="flex items-start justify-between gap-3">
-                    <div>
-                        <p className="text-[11px] font-extrabold text-amber-700">
-                            클립보드에서 자동 채우기
-                        </p>
-                        <p className="mt-0.5 text-[10px] leading-4 text-slate-500">
-                            잡플래닛 기업 페이지의 회사명·평점·리뷰 수 영역이나 주소창 URL을 복사해
-                            가져오세요. 여러 번 가져오면 찾은 항목만 덮어씁니다.
-                        </p>
-                    </div>
-                    <button
-                        type="button"
-                        onClick={importFromClipboard}
-                        className="flex shrink-0 items-center gap-1 rounded-lg bg-amber-500 px-2.5 py-1.5 text-[11px] font-bold text-white hover:bg-amber-600"
-                    >
-                        <Clipboard className="h-3.5 w-3.5" />
-                        클립보드 가져오기
-                    </button>
-                </div>
-                <textarea
-                    value={importText}
-                    onChange={(event) => setImportText(event.target.value)}
-                    onPaste={(event) => {
-                        const pasted = event.clipboardData.getData('text/plain');
-                        if (pasted) setTimeout(() => applyClipboardText(pasted), 0);
-                    }}
-                    placeholder="여기에 잡플래닛에서 복사한 내용이나 기업 페이지 URL을 붙여넣어도 됩니다."
-                    className="mt-2 h-16 w-full resize-y rounded-lg border border-slate-200 bg-white px-2.5 py-1.5 text-[11px] text-slate-700 outline-none focus:border-amber-400"
-                />
-                <div className="mt-1 flex items-center justify-between gap-2">
-                    <p
-                        className={`text-[10px] font-semibold ${importNotice?.includes('찾지 못') || importNotice?.includes('못했습니다') ? 'text-rose-500' : 'text-emerald-600'}`}
-                    >
-                        {importNotice}
-                    </p>
-                    <button
-                        type="button"
-                        disabled={!importText.trim()}
-                        onClick={() => applyClipboardText(importText)}
-                        className="shrink-0 rounded-md border border-amber-200 bg-white px-2 py-0.5 text-[10px] font-bold text-amber-700 disabled:opacity-40"
-                    >
-                        붙여넣은 내용 분석
-                    </button>
-                </div>
-            </div>
-            <div className="grid grid-cols-2 gap-2">
-                <label className="col-span-2 text-[11px] font-bold text-slate-500">
-                    잡플래닛 기업명
-                    <input
-                        value={companyName}
-                        onChange={(event) => setCompanyName(event.target.value)}
-                        className="mt-1 w-full rounded-lg border border-slate-200 bg-white px-2.5 py-1.5 text-xs text-slate-800 outline-none focus:border-amber-400"
-                    />
-                </label>
-                <label className="text-[11px] font-bold text-slate-500">
-                    평점 (0~5)
-                    <input
-                        type="number"
-                        min="0"
-                        max="5"
-                        step="0.1"
-                        value={rating}
-                        onChange={(event) => setRating(event.target.value)}
-                        className="mt-1 w-full rounded-lg border border-slate-200 bg-white px-2.5 py-1.5 text-xs text-slate-800 outline-none focus:border-amber-400"
-                    />
-                </label>
-                <label className="text-[11px] font-bold text-slate-500">
-                    리뷰 수
-                    <input
-                        type="number"
-                        min="0"
-                        value={reviewCount}
-                        onChange={(event) => setReviewCount(event.target.value)}
-                        className="mt-1 w-full rounded-lg border border-slate-200 bg-white px-2.5 py-1.5 text-xs text-slate-800 outline-none focus:border-amber-400"
-                    />
-                </label>
-                <label className="col-span-2 text-[11px] font-bold text-slate-500">
-                    기업 페이지 URL
-                    <input
-                        type="url"
-                        placeholder="https://www.jobplanet.co.kr/companies/..."
-                        value={companyUrl}
-                        onChange={(event) => setCompanyUrl(event.target.value)}
-                        className="mt-1 w-full rounded-lg border border-slate-200 bg-white px-2.5 py-1.5 text-xs text-slate-800 outline-none focus:border-amber-400"
-                    />
-                </label>
-            </div>
-            <div className="flex justify-end gap-2">
-                <button
-                    type="button"
-                    onClick={onCancel}
-                    className="rounded-lg border border-slate-200 bg-white px-2.5 py-1 text-xs font-bold text-slate-500"
-                >
-                    취소
-                </button>
-                <button
-                    type="button"
-                    disabled={!canSave || saveMutation.isPending}
-                    onClick={() => saveMutation.mutate()}
-                    className="flex items-center gap-1 rounded-lg bg-amber-500 px-2.5 py-1 text-xs font-bold text-white disabled:opacity-40"
-                >
-                    {saveMutation.isPending && <Loader2 className="h-3 w-3 animate-spin" />}
-                    저장
-                </button>
-            </div>
-        </div>
-    );
-}
-
-function JobplanetReputationCard({ jobPostingId }: { jobPostingId: number }) {
-    const queryClient = useQueryClient();
-    const [editing, setEditing] = useState(false);
-    const queryKey = ['jobPostings', jobPostingId, 'jobplanet'] as const;
-    const { data: lookup, isLoading } = useQuery({
-        queryKey,
-        queryFn: () => jobPostingApi.getJobplanet(jobPostingId),
-    });
-    const clearMutation = useMutation({
-        mutationFn: () => jobPostingApi.clearJobplanet(jobPostingId),
-        onSuccess: () => {
-            setEditing(false);
-            queryClient.invalidateQueries({ queryKey });
-            queryClient.invalidateQueries({ queryKey: ['jobPostings'] });
-        },
-    });
-    const refresh = () => {
-        setEditing(false);
-        queryClient.invalidateQueries({ queryKey });
-        queryClient.invalidateQueries({ queryKey: ['jobPostings'] });
-    };
-
-    if (isLoading || !lookup) {
-        return <div className="h-16 animate-pulse rounded-xl bg-slate-100" />;
-    }
-    if (editing) {
-        return (
-            <JobplanetEditor
-                key={`${lookup.checkedAt ?? 'new'}-${lookup.companyUrl ?? ''}`}
-                lookup={lookup}
-                onCancel={() => setEditing(false)}
-                onSaved={refresh}
-            />
-        );
-    }
-
-    return (
-        <div className="rounded-xl border border-slate-200 bg-slate-50 p-3">
-            <div className="flex items-center justify-between gap-3">
-                <div className="min-w-0">
-                    <p className="text-[11px] font-extrabold uppercase tracking-wide text-slate-400">
-                        Jobplanet
-                    </p>
-                    {lookup.companyUrl ? (
-                        <div className="mt-0.5 flex items-baseline gap-2">
-                            <a
-                                href={lookup.companyUrl}
-                                target="_blank"
-                                rel="noreferrer"
-                                className="truncate text-sm font-extrabold text-slate-800 hover:text-amber-600"
-                            >
-                                {lookup.jobplanetCompanyName}
-                            </a>
-                            {lookup.rating !== null && (
-                                <span className="shrink-0 text-lg font-black text-amber-500">
-                                    {lookup.rating.toFixed(1)}
-                                </span>
-                            )}
-                            {lookup.reviewCount !== null && (
-                                <span className="shrink-0 text-[10px] font-semibold text-slate-400">
-                                    리뷰 {lookup.reviewCount.toLocaleString()}개
-                                </span>
-                            )}
-                        </div>
-                    ) : (
-                        <p className="mt-0.5 text-xs font-semibold text-slate-500">
-                            아직 확인된 기업 평점이 없습니다.
-                        </p>
-                    )}
-                </div>
-                <div className="flex shrink-0 gap-1.5">
-                    <a
-                        href={lookup.searchUrl}
-                        target="_blank"
-                        rel="noreferrer"
-                        className="flex items-center gap-1 rounded-lg border border-amber-200 bg-white px-2 py-1 text-[11px] font-bold text-amber-600"
-                    >
-                        <ExternalLink className="h-3 w-3" /> 검색
-                    </a>
-                    <button
-                        type="button"
-                        onClick={() => setEditing(true)}
-                        className="rounded-lg border border-slate-200 bg-white px-2 py-1 text-[11px] font-bold text-slate-600"
-                    >
-                        {lookup.companyUrl ? '수정' : '가져오기'}
-                    </button>
-                    {lookup.companyUrl && (
-                        <button
-                            type="button"
-                            disabled={clearMutation.isPending}
-                            onClick={() => {
-                                if (confirm('저장된 잡플래닛 정보를 삭제할까요?')) {
-                                    clearMutation.mutate();
-                                }
-                            }}
-                            className="rounded-lg border border-rose-200 bg-white px-2 py-1 text-[11px] font-bold text-rose-500 disabled:opacity-40"
-                        >
-                            삭제
-                        </button>
-                    )}
-                </div>
-            </div>
-        </div>
-    );
-}
-
 function GapProjectDocumentsPanel({
     workspaceSlug,
     jobPostingId,
@@ -2185,6 +1895,7 @@ function GapProjectDocumentsPanel({
     const { data: documents = [], isLoading } = useQuery({
         queryKey,
         queryFn: () => jobPostingApi.workspaceGapProjectDocuments(workspaceSlug, jobPostingId),
+        retry: false,
     });
     const selected = documents.find((document) => document.id === selectedId) ?? documents[0];
     const aiModel = useAiModelStore((state) => state.modelKey);
@@ -2423,6 +2134,7 @@ export function JobApplicationManagement({
         JobPostingPositionChoiceRequest[]
     >([]);
     const [showManualPositionChoices, setShowManualPositionChoices] = useState(false);
+    const [isPermissionModalOpen, setIsPermissionModalOpen] = useState(false);
     const [isSingleIngesting, setIsSingleIngesting] = useState(false);
     const [singleIngestElapsedSeconds, setSingleIngestElapsedSeconds] = useState(0);
     const [bulkUrls, setBulkUrls] = useState<string[]>(['', '', '', '', '']);
@@ -3413,6 +3125,7 @@ export function JobApplicationManagement({
         setDetectedPositions(null);
         setPositionChoiceDraft([]);
         setShowManualPositionChoices(false);
+        setIsPermissionModalOpen(false);
         // 다중 수집이 진행 중일 때 닫으면 URL 입력값/진행 현황은 남겨둔다 — 다시 열었을 때
         // openCreateDrawer가 이어서 보여준다.
         if (!isBulkIngesting) {
@@ -4117,6 +3830,7 @@ export function JobApplicationManagement({
                                                                             companyUrl={
                                                                                 candidate.jobplanetCompanyUrl
                                                                             }
+                                                                            showPlaceholder
                                                                         />
                                                                     </td>
                                                                     <td
@@ -4505,6 +4219,7 @@ export function JobApplicationManagement({
                                                                             companyUrl={
                                                                                 item.jobplanetCompanyUrl
                                                                             }
+                                                                            showPlaceholder
                                                                         />
                                                                     </td>
                                                                     <td
@@ -5113,9 +4828,20 @@ export function JobApplicationManagement({
                                         <div className="space-y-4">
                                             <div className="flex items-start justify-between gap-2">
                                                 <div>
-                                                    <p className="text-lg font-black text-slate-900">
-                                                        {drawerItem.companyName}
-                                                    </p>
+                                                    <div className="flex flex-wrap items-baseline gap-2">
+                                                        <p className="text-lg font-black text-slate-900">
+                                                            {drawerItem.companyName}
+                                                        </p>
+                                                        <JobplanetScoreBadge
+                                                            rating={drawerItem.jobplanetRating}
+                                                            reviewCount={
+                                                                drawerItem.jobplanetReviewCount
+                                                            }
+                                                            companyUrl={
+                                                                drawerItem.jobplanetCompanyUrl
+                                                            }
+                                                        />
+                                                    </div>
                                                     <p className="mt-0.5 text-sm text-slate-500">
                                                         {drawerItem.positionChoices.length > 0 && (
                                                             <span className="mr-1.5 inline-flex items-center rounded-full bg-slate-100 px-1.5 py-0.5 text-[10px] font-extrabold text-slate-500">
@@ -5164,10 +4890,42 @@ export function JobApplicationManagement({
                                                 )}
                                             </div>
 
-                                            <JobPostingPermissionReviewPanel
-                                                key={`${drawerItem.id}-${drawerItem.permissionReviewedAt ?? 'unreviewed'}-${drawerItem.updatedAt}`}
-                                                posting={drawerItem}
-                                            />
+                                            {isPermissionModalOpen && (
+                                                <div
+                                                    className="fixed inset-0 z-[60] flex items-center justify-center bg-slate-950/40 p-4 backdrop-blur-xs"
+                                                    onClick={() => setIsPermissionModalOpen(false)}
+                                                >
+                                                    <div
+                                                        className="relative max-h-[90vh] w-full max-w-xl overflow-y-auto rounded-2xl bg-white p-5 shadow-2xl"
+                                                        onClick={(event) => event.stopPropagation()}
+                                                    >
+                                                        <div className="mb-4 flex items-center justify-between border-b border-slate-100 pb-3">
+                                                            <div>
+                                                                <h3 className="text-base font-black text-slate-900">
+                                                                    공통 카탈로그 공유 권한 심사
+                                                                </h3>
+                                                                <p className="text-xs text-slate-500">
+                                                                    {drawerItem.companyName} ·{' '}
+                                                                    {drawerItem.positionTitle}
+                                                                </p>
+                                                            </div>
+                                                            <button
+                                                                type="button"
+                                                                onClick={() =>
+                                                                    setIsPermissionModalOpen(false)
+                                                                }
+                                                                className="rounded-lg p-1.5 text-slate-400 hover:bg-slate-100 hover:text-slate-700"
+                                                            >
+                                                                <X className="h-5 w-5" />
+                                                            </button>
+                                                        </div>
+                                                        <JobPostingPermissionReviewPanel
+                                                            key={`${drawerItem.id}-${drawerItem.permissionReviewedAt ?? 'unreviewed'}-${drawerItem.updatedAt}`}
+                                                            posting={drawerItem}
+                                                        />
+                                                    </div>
+                                                </div>
+                                            )}
 
                                             {detectedPositions?.jobPostingId === drawerItem.id && (
                                                 <div className="rounded-xl border border-amber-200 bg-amber-50 p-3">
@@ -5213,12 +4971,40 @@ export function JobApplicationManagement({
                                                 </div>
                                             )}
 
-                                            <JobplanetReputationCard
-                                                key={`jobplanet-${drawerItem.id}`}
-                                                jobPostingId={drawerItem.id}
-                                            />
-
                                             <dl className="grid grid-cols-2 gap-x-3 gap-y-3 text-sm">
+                                                <div>
+                                                    <dt className="font-bold text-slate-500">
+                                                        카탈로그 공유
+                                                    </dt>
+                                                    <dd className="mt-0.5 flex items-center gap-1.5">
+                                                        <span
+                                                            className={`rounded-full px-2 py-0.5 text-[11px] font-extrabold ${
+                                                                drawerItem.sharedCatalogEligible
+                                                                    ? 'bg-emerald-100 text-emerald-700'
+                                                                    : drawerItem.permissionReviewStatus ===
+                                                                        'REJECTED'
+                                                                      ? 'bg-rose-100 text-rose-700'
+                                                                      : 'bg-amber-100 text-amber-700'
+                                                            }`}
+                                                        >
+                                                            {drawerItem.sharedCatalogEligible
+                                                                ? '공개 승인'
+                                                                : drawerItem.permissionReviewStatus ===
+                                                                    'REJECTED'
+                                                                  ? '공유 불가'
+                                                                  : '비공개'}
+                                                        </span>
+                                                        <button
+                                                            type="button"
+                                                            onClick={() =>
+                                                                setIsPermissionModalOpen(true)
+                                                            }
+                                                            className="rounded border border-slate-200 bg-white px-1.5 py-0.5 text-[10px] font-bold text-slate-600 shadow-2xs transition hover:bg-slate-50 hover:text-slate-900"
+                                                        >
+                                                            심사
+                                                        </button>
+                                                    </dd>
+                                                </div>
                                                 <div>
                                                     <dt className="font-bold text-slate-500">
                                                         출처
