@@ -4,9 +4,8 @@
 // 후에도 다시 업로드하지 않고 쓸 수 있게 한다. 서버/워크스페이스 계정에 저장하는 게
 // 아니라 "이 브라우저"에만 남는다 — 다른 기기·브라우저에서는 다시 업로드해야 한다.
 //
-// TODO(print-fonts): 지금은 브라우저 로컬(IndexedDB) 저장뿐이다. 나중엔 워크스페이스
-// 계정에 폰트 파일을 업로드해 두고 어느 기기에서 접속해도 쓸 수 있게 하는 서버 저장
-// 기능(파일 업로드 API + 오브젝트 스토리지 + per-user 폰트 목록 관리)을 붙여야 한다.
+// TODO(print-fonts): 지금은 브라우저 로컬(IndexedDB) 저장뿐이다. 워크스페이스
+// 계정 단위 서버 저장으로 확장하는 방향은 docs/print-custom-font-server-storage-todo.md 참고.
 
 const DB_NAME = 'print-custom-fonts';
 const STORE_NAME = 'fonts';

@@ -9,6 +9,8 @@ import {
     ListChecks,
     Lock,
     Plus,
+    Search,
+    X as XIcon,
 } from 'lucide-react';
 import type { LucideIcon } from 'lucide-react';
 import { useTouchDrag } from '@/hooks/useTouchDrag';
@@ -310,6 +312,20 @@ function NavTreeNode({
     );
 }
 
+/** 항목 자신의 라벨이 검색어와 맞으면 하위 항목 전부를 그대로 보여주고(맥락 유지),
+ *  자신은 안 맞아도 하위 항목 중 하나라도 맞으면 그 매칭된 가지만 남긴다. */
+function filterNavItems(items: PrintPreviewNavItem[], query: string): PrintPreviewNavItem[] {
+    const filterOne = (item: PrintPreviewNavItem): PrintPreviewNavItem | null => {
+        if (item.label.toLowerCase().includes(query)) return item;
+        if (!item.children || item.children.length === 0) return null;
+        const filteredChildren = item.children
+            .map(filterOne)
+            .filter((child): child is PrintPreviewNavItem => child !== null);
+        return filteredChildren.length > 0 ? { ...item, children: filteredChildren } : null;
+    };
+    return items.map(filterOne).filter((item): item is PrintPreviewNavItem => item !== null);
+}
+
 function collectIdsWithChildren(items: PrintPreviewNavItem[]): string[] {
     let ids: string[] = [];
     items.forEach((it) => {
@@ -346,6 +362,12 @@ export function PrintPreviewNav({
         ...itemGroups.map((g) => g.sectionId),
         ...itemGroups.flatMap((g) => collectIdsWithChildren(g.items)),
     ]);
+    const [searchQuery, setSearchQuery] = useState('');
+    const normalizedQuery = searchQuery.trim().toLowerCase();
+    const isSearching = normalizedQuery.length > 0;
+    // 검색 중엔 접힌 상태를 무시하고 전부 펼쳐서 보여준다 — 검색이 끝나면
+    // (searchQuery를 지우면) 사용자가 이전에 접어둔 상태로 그대로 돌아간다.
+    const collapsedIdsForRender = isSearching ? [] : collapsedIds;
 
     const touchSectionDrag = useTouchDrag({
         onDragStart: (id) => setDraggedSectionId(id),
@@ -498,14 +520,57 @@ export function PrintPreviewNav({
                 </div>
             </div>
 
+            <div className="relative shrink-0 border-b border-slate-800 px-3 py-2">
+                <Search className="pointer-events-none absolute left-5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-slate-500" />
+                <input
+                    type="text"
+                    value={searchQuery}
+                    onChange={(event) => setSearchQuery(event.target.value)}
+                    placeholder="항목 검색 (경력, 프로젝트, 자격증...)"
+                    className="w-full rounded-md border border-slate-700 bg-slate-800 py-1.5 pl-7 pr-7 text-[11px] font-semibold text-slate-100 placeholder:text-slate-500 focus:border-blue-400 focus:outline-none"
+                />
+                {isSearching && (
+                    <button
+                        type="button"
+                        onClick={() => setSearchQuery('')}
+                        className="absolute right-5 top-1/2 grid h-4 w-4 -translate-y-1/2 place-items-center rounded-full text-slate-500 hover:text-white"
+                        title="검색어 지우기"
+                        aria-label="검색어 지우기"
+                    >
+                        <XIcon className="h-3.5 w-3.5" />
+                    </button>
+                )}
+            </div>
+
             <div className="flex-1 overflow-y-auto p-2.5 space-y-2">
+                {isSearching &&
+                    !sections.some((sec) => {
+                        const rawItems = itemsBySection.get(sec.id)?.items ?? [];
+                        return (
+                            sec.label.toLowerCase().includes(normalizedQuery) ||
+                            filterNavItems(rawItems, normalizedQuery).length > 0
+                        );
+                    }) && (
+                        <p className="px-2 py-6 text-center text-[11px] font-semibold text-slate-500">
+                            &quot;{searchQuery}&quot;와 일치하는 항목이 없습니다.
+                        </p>
+                    )}
                 {sections.map((sec) => {
                     const excluded = excludedIds.includes(sec.id);
                     const isLocked = lockedSectionIds.includes(sec.id);
                     const group = itemsBySection.get(sec.id);
-                    const items = group?.items ?? [];
+                    const rawItems = group?.items ?? [];
+                    // 섹션 이름 자체가 검색어와 맞으면 하위 항목은 전부 보여주고(맥락
+                    // 유지), 아니면 하위 항목 중 맞는 가지만 남긴다. 섹션 이름도 안
+                    // 맞고 맞는 하위 항목도 없으면 이 섹션 자체를 통째로 건너뛴다.
+                    const sectionLabelMatches =
+                        !isSearching || sec.label.toLowerCase().includes(normalizedQuery);
+                    const items = sectionLabelMatches
+                        ? rawItems
+                        : filterNavItems(rawItems, normalizedQuery);
+                    if (isSearching && !sectionLabelMatches && items.length === 0) return null;
                     const hasItems = items.length > 0;
-                    const isCollapsed = collapsedIds.includes(sec.id);
+                    const isCollapsed = collapsedIdsForRender.includes(sec.id);
                     const isDraggingThis = draggedSectionId === sec.id;
                     const isOverThis = dragOverSectionId === sec.id;
                     const itemIds = items.map((it) => it.id);
@@ -631,7 +696,7 @@ export function PrintPreviewNav({
                                                 scopeId={group.scopeId}
                                                 siblingIds={itemIds}
                                                 excludedIds={excludedIds}
-                                                collapsedIds={collapsedIds}
+                                                collapsedIds={collapsedIdsForRender}
                                                 onToggleCollapse={toggleCollapsed}
                                                 onToggle={onToggle}
                                                 onReorderItem={onReorderItem}

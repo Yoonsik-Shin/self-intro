@@ -1002,6 +1002,54 @@ export function PrintCanvas({
             ),
         [resolvedIntroData, store.itemOrderOverrides]
     );
+
+    // "직접 조정하기"로 완전히 새 템플릿을 시작할 때 쓰는 기본 제외 목록 — 경력/
+    // 프로젝트/자격증/핵심역량이 쌓일수록 전부 기본 노출되면 편집하기 버거워지므로
+    // (실사용 요청), 각 섹션에서 이미 최신순/우선순위순으로 정렬된 목록의 앞쪽
+    // N개만 남기고 나머지는 기본 제외 상태로 시작한다. 회사/프로젝트 같은 상위
+    // 항목뿐 아니라, 회사 하나 안에 딸린 프로젝트의 세부 불릿(career-detail)도
+    // 한 프로젝트에 10개 넘게 쌓일 수 있어 똑같이 앞쪽 N개만 남긴다. 자식(프로젝트/
+    // 상세)은 부모 id 하나만 제외해도 printableAtoms 빌더가 함께 걸러낸다.
+    const DEFAULT_CORE_CAREER_COUNT = 2;
+    const DEFAULT_CORE_CAREER_PROJECT_COUNT = 2;
+    const DEFAULT_CORE_PROJECT_COUNT = 2;
+    const DEFAULT_CORE_CREDENTIAL_COUNT = 2;
+    const DEFAULT_CORE_COMPETENCY_COUNT = 3;
+    const DEFAULT_CORE_DETAIL_COUNT = 5;
+    const buildDefaultCoreExcludedIds = useCallback(
+        () => [
+            ...orderedCareerCards
+                .slice(DEFAULT_CORE_CAREER_COUNT)
+                .map((c) => `career-company:${c.id}`),
+            ...orderedCareerCards.flatMap((c) =>
+                c.projects
+                    .slice(DEFAULT_CORE_CAREER_PROJECT_COUNT)
+                    .map((p) => `career-project:${p.id}`)
+            ),
+            ...orderedCareerCards.flatMap((c) =>
+                c.projects
+                    .slice(0, DEFAULT_CORE_CAREER_PROJECT_COUNT)
+                    .flatMap((p) =>
+                        (p.details ?? [])
+                            .slice(DEFAULT_CORE_DETAIL_COUNT)
+                            .map((d) => `career-detail:${d.id}`)
+                    )
+            ),
+            ...orderedMilestones.slice(DEFAULT_CORE_PROJECT_COUNT).map((m) => `project:${m.id}`),
+            ...orderedMilestones.flatMap((m) =>
+                (m.details ?? [])
+                    .slice(DEFAULT_CORE_DETAIL_COUNT)
+                    .map((d) => `project-detail:${d.id}`)
+            ),
+            ...orderedCredentialExperiences
+                .slice(DEFAULT_CORE_CREDENTIAL_COUNT)
+                .map((c) => `credential:${c.id}`),
+            ...orderedCompetencies
+                .slice(DEFAULT_CORE_COMPETENCY_COUNT)
+                .map((c) => `competency:${c.id}`),
+        ],
+        [orderedCareerCards, orderedMilestones, orderedCredentialExperiences, orderedCompetencies]
+    );
     const orderedCoverLetterItems = useMemo(() => {
         const merged = [...coverLetterItems, ...addedCoverLetterItems].map((item) => {
             const override = coverLetterOverrides[item.id];
@@ -4041,6 +4089,7 @@ export function PrintCanvas({
                         onClose={() => setModeModalOpen(false)}
                         onManual={() => {
                             store.resetManual();
+                            store.setExcludedIds(buildDefaultCoreExcludedIds());
                             setActiveTemplate(null);
                             setActiveTemplateName('기본 이력서');
                             setContentOverrides({});
