@@ -2,7 +2,9 @@ package com.selfintro.jobposting.application;
 
 import com.selfintro.modules.jobposting.domain.entity.JobPosting;
 import com.selfintro.modules.jobposting.domain.entity.WorkspaceJobApplication;
+import com.selfintro.modules.jobposting.domain.enums.JobPostingStatus;
 import com.selfintro.modules.jobposting.domain.repository.JobPostingPositionChoiceRepository;
+import com.selfintro.modules.jobposting.domain.repository.JobPostingRepository;
 import com.selfintro.modules.jobposting.domain.repository.JobPostingSourceImageRepository;
 import com.selfintro.modules.jobposting.domain.repository.JobPostingSourceUrlRepository;
 import com.selfintro.modules.jobposting.domain.repository.WorkspaceJobApplicationRepository;
@@ -20,6 +22,7 @@ import org.springframework.transaction.annotation.Transactional;
 public class WorkspaceJobApplicationMatchingService {
 
     private final WorkspaceJobApplicationRepository applicationRepository;
+    private final JobPostingRepository jobPostingRepository;
     private final JobMatchingService matchingService;
     private final JobPostingSourceUrlRepository sourceUrlRepository;
     private final JobPostingPositionChoiceRepository positionChoiceRepository;
@@ -30,10 +33,7 @@ public class WorkspaceJobApplicationMatchingService {
         WorkspaceJobApplication application =
                 applicationRepository
                         .findByWorkspaceIdAndJobPostingId(workspaceId, jobPostingId)
-                        .orElseThrow(
-                                () ->
-                                        new EntityNotFoundException(
-                                                "Workspace 지원 건을 찾을 수 없습니다: " + jobPostingId));
+                        .orElseGet(() -> createApplicationForCandidate(workspaceId, jobPostingId));
         JobPosting posting = application.getJobPosting();
         JobMatchingService.MatchResult match =
                 matchingService.evaluate(
@@ -46,6 +46,33 @@ public class WorkspaceJobApplicationMatchingService {
                         posting.getId()),
                 positionChoiceRepository.findByJobPostingIdOrderByRankOrderAsc(posting.getId()),
                 sourceImageRepository.findByJobPostingIdOrderByDisplayOrderAsc(posting.getId()));
+    }
+
+    private WorkspaceJobApplication createApplicationForCandidate(
+            Long workspaceId, Long jobPostingId) {
+        JobPosting posting =
+                jobPostingRepository
+                        .findById(jobPostingId)
+                        .orElseThrow(
+                                () ->
+                                        new EntityNotFoundException(
+                                                "채용 공고를 찾을 수 없습니다: " + jobPostingId));
+        if (posting.getOwnerWorkspaceId() != null
+                && !posting.getOwnerWorkspaceId().equals(workspaceId)) {
+            throw new EntityNotFoundException("Workspace 지원 건을 찾을 수 없습니다: " + jobPostingId);
+        }
+        LocalDateTime now = LocalDateTime.now();
+        JobPostingStatus initialStatus =
+                posting.getStatus() != null ? posting.getStatus() : JobPostingStatus.SAVED;
+        return applicationRepository.save(
+                WorkspaceJobApplication.create(
+                        workspaceId,
+                        posting,
+                        initialStatus,
+                        posting.getAppliedAt(),
+                        null,
+                        null,
+                        now));
     }
 
     private String matchingText(JobPosting posting) {

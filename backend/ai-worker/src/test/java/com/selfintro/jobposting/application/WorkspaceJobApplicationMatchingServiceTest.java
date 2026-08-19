@@ -2,6 +2,7 @@ package com.selfintro.jobposting.application;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.verify;
@@ -13,6 +14,7 @@ import com.selfintro.modules.jobposting.domain.entity.WorkspaceJobApplication;
 import com.selfintro.modules.jobposting.domain.enums.JobPostingSource;
 import com.selfintro.modules.jobposting.domain.enums.JobPostingStatus;
 import com.selfintro.modules.jobposting.domain.repository.JobPostingPositionChoiceRepository;
+import com.selfintro.modules.jobposting.domain.repository.JobPostingRepository;
 import com.selfintro.modules.jobposting.domain.repository.JobPostingSourceImageRepository;
 import com.selfintro.modules.jobposting.domain.repository.JobPostingSourceUrlRepository;
 import com.selfintro.modules.jobposting.domain.repository.WorkspaceJobApplicationRepository;
@@ -31,6 +33,7 @@ import org.springframework.test.util.ReflectionTestUtils;
 class WorkspaceJobApplicationMatchingServiceTest {
 
     @Mock private WorkspaceJobApplicationRepository applicationRepository;
+    @Mock private JobPostingRepository jobPostingRepository;
     @Mock private JobMatchingService matchingService;
     @Mock private JobPostingSourceUrlRepository sourceUrlRepository;
     @Mock private JobPostingPositionChoiceRepository positionChoiceRepository;
@@ -39,6 +42,7 @@ class WorkspaceJobApplicationMatchingServiceTest {
     private WorkspaceJobApplicationMatchingService service() {
         return new WorkspaceJobApplicationMatchingService(
                 applicationRepository,
+                jobPostingRepository,
                 matchingService,
                 sourceUrlRepository,
                 positionChoiceRepository,
@@ -104,9 +108,34 @@ class WorkspaceJobApplicationMatchingServiceTest {
     }
 
     @Test
+    void createsApplicationAndMatchesWhenNotAlreadySavedInWorkspace() {
+        Long workspaceId = 21L;
+        JobPosting posting = posting(101L);
+        when(applicationRepository.findByWorkspaceIdAndJobPostingId(workspaceId, 101L))
+                .thenReturn(Optional.empty());
+        when(jobPostingRepository.findById(101L)).thenReturn(Optional.of(posting));
+        when(applicationRepository.save(any(WorkspaceJobApplication.class)))
+                .thenAnswer(invocation -> invocation.getArgument(0));
+        when(matchingService.evaluate(eq(workspaceId), eq("백엔드 개발자"), anyString()))
+                .thenReturn(new JobMatchingService.MatchResult(90, "적합합니다."));
+        when(sourceUrlRepository.findByJobPostingIdOrderByPrimaryDescCreatedAtAsc(101L))
+                .thenReturn(List.of());
+        when(positionChoiceRepository.findByJobPostingIdOrderByRankOrderAsc(101L))
+                .thenReturn(List.of());
+        when(sourceImageRepository.findByJobPostingIdOrderByDisplayOrderAsc(101L))
+                .thenReturn(List.of());
+
+        JobPostingResponse response = service().rematch(workspaceId, 101L);
+
+        assertThat(response.matchScore()).isEqualTo(90);
+        verify(applicationRepository).save(any(WorkspaceJobApplication.class));
+    }
+
+    @Test
     void rejectsAJobApplicationThatBelongsToAnotherWorkspaceBeforeMatching() {
         when(applicationRepository.findByWorkspaceIdAndJobPostingId(22L, 101L))
                 .thenReturn(Optional.empty());
+        when(jobPostingRepository.findById(101L)).thenReturn(Optional.empty());
 
         assertThatThrownBy(() -> service().rematch(22L, 101L))
                 .isInstanceOf(EntityNotFoundException.class);
