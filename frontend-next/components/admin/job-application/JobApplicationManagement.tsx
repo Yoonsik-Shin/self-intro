@@ -2254,7 +2254,9 @@ export function JobApplicationManagement({
 
     useLayoutEffect(() => {
         if (viewMode !== 'BOARD') return;
-        window.scrollTo({ top: 0, behavior: 'instant' as ScrollBehavior });
+        document
+            .querySelector('[data-admin-scroll-region]')
+            ?.scrollTo({ top: 0, behavior: 'instant' as ScrollBehavior });
         const calculateBoardHeight = () => {
             if (!boardRef.current) return;
             const rect = boardRef.current.getBoundingClientRect();

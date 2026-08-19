@@ -24,6 +24,21 @@ body {
     color: var(--foreground);
 }
 
+/* 스크롤바 유무로 콘텐츠 높이가 뷰포트 경계를 넘나들 때마다(비동기 데이터 로딩,
+   탭 전환 등) 세로 스크롤바가 나타났다 사라졌다 하며 전체 페이지가 스크롤바 폭만큼
+   좌우로 미세하게 흔들리는 현상을 막는다 — 스크롤바 자리를 항상 미리 확보해둔다. */
+html {
+    scrollbar-gutter: stable;
+}
+
+/* 콘텐츠 끝(또는 빈 여백)에서 트랙패드로 계속 스크롤하면 브라우저가 전체 페이지를
+   탄성(rubber-band)으로 살짝 튕기는데, sticky 헤더·nav와 겹쳐 "모든 요소가 미세하게
+   같이 스크롤되는" 것처럼 보인다. 문서 레벨 바운스를 꺼서 그 튕김 자체를 없앤다. */
+html,
+body {
+    overscroll-behavior-y: none;
+}
+
 /* Hide scrollbar for Chrome, Safari and Opera */
 .scrollbar-none::-webkit-scrollbar {
     display: none;

@@ -783,8 +783,8 @@ export function AdminDashboardShell({ workspaceSlug }: { workspaceSlug: string }
     }, [previewWidth]);
 
     return (
-        <main className="min-h-screen bg-[#f8fafc] text-slate-800">
-            <header className="sticky top-0 z-30 flex items-center justify-between border-b border-slate-200/70 bg-white/90 px-4 py-3 shadow-sm backdrop-blur-xl">
+        <main className="flex h-screen flex-col overflow-hidden bg-[#f8fafc] text-slate-800">
+            <header className="z-30 flex shrink-0 items-center justify-between border-b border-slate-200/70 bg-white/90 px-4 py-3 shadow-sm backdrop-blur-xl">
                 <div className="flex items-center gap-3">
                     <div>
                         <h1 className="text-base font-black text-slate-900">
@@ -1035,10 +1035,10 @@ export function AdminDashboardShell({ workspaceSlug }: { workspaceSlug: string }
                 </div>
             </header>
 
-            <div className="flex items-start">
-                <div className="min-w-0 flex-1">
+            <div className="flex min-h-0 flex-1">
+                <div className="min-h-0 min-w-0 flex-1 overflow-hidden">
                     <div
-                        className="grid w-full grid-cols-1 gap-6 px-4 py-6 transition-[grid-template-columns] duration-300 ease-in-out sm:px-6 lg:px-8"
+                        className="grid h-full min-h-0 w-full grid-cols-1 gap-6 px-4 py-6 transition-[grid-template-columns] duration-300 ease-in-out sm:px-6 lg:px-8"
                         style={{
                             gridTemplateColumns: isSidebarCollapsed
                                 ? '64px minmax(0, 1fr)'
@@ -1046,7 +1046,7 @@ export function AdminDashboardShell({ workspaceSlug }: { workspaceSlug: string }
                         }}
                     >
                         <aside
-                            className={`sticky top-20 isolate self-start max-h-[calc(100vh-6rem)] min-w-0 overflow-x-hidden overflow-y-auto overscroll-contain transition-all duration-300 ease-in-out [scrollbar-width:none] [&::-webkit-scrollbar]:hidden ${isSidebarCollapsed ? 'rounded-2xl border border-slate-200 bg-white shadow-sm' : ''}`}
+                            className={`isolate min-h-0 min-w-0 overflow-x-hidden overflow-y-auto transition-all duration-300 ease-in-out [scrollbar-width:none] [&::-webkit-scrollbar]:hidden ${isSidebarCollapsed ? 'rounded-2xl border border-slate-200 bg-white shadow-sm' : ''}`}
                         >
                             <div
                                 className={
@@ -1209,7 +1209,10 @@ export function AdminDashboardShell({ workspaceSlug }: { workspaceSlug: string }
                             </nav>
                         </aside>
 
-                        <section className="min-w-0 space-y-6">
+                        <section
+                            data-admin-scroll-region
+                            className="min-h-0 min-w-0 space-y-6 overflow-y-auto overflow-x-hidden pr-1"
+                        >
                             {activeTab === 'WORKSPACE_HOME' && (
                                 <>
                                     {currentWorkspace && (
@@ -1398,9 +1401,8 @@ export function AdminDashboardShell({ workspaceSlug }: { workspaceSlug: string }
 
                 {isPreviewOpen && (
                     <div
-                        className={`relative shrink-0 self-start overflow-hidden border-l border-slate-200 bg-white lg:sticky lg:top-20 ${isResizingPreview ? '' : 'transition-[width] duration-300 ease-in-out'}`}
+                        className={`relative h-full shrink-0 overflow-hidden border-l border-slate-200 bg-white ${isResizingPreview ? '' : 'transition-[width] duration-300 ease-in-out'}`}
                         style={{
-                            height: 'calc(100vh - 5rem)',
                             width: isPreviewVisible ? effectivePreviewWidth : 0,
                         }}
                     >

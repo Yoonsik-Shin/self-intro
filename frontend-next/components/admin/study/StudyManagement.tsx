@@ -1320,7 +1320,9 @@ export function StudyManagement({
                             history: 'push',
                             fromStudyId: selectedStudyId,
                         });
-                        window.scrollTo({ top: 0, behavior: 'smooth' });
+                        document
+                            .querySelector('[data-admin-scroll-region]')
+                            ?.scrollTo({ top: 0, behavior: 'smooth' });
                     }}
                 />
             )}
