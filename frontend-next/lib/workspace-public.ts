@@ -2,7 +2,7 @@ import 'server-only';
 import { notFound } from 'next/navigation';
 import { ApiError } from '@/lib/api/errors';
 import { serverGet } from '@/lib/api/server';
-import type { IntroductionResponse, Study, StudyPage } from '@/lib/api/types';
+import type { IntroductionResponse, Study, StudyPage, StudyTaxonomyNode } from '@/lib/api/types';
 
 export type PublicWorkspaceSlugResolution = {
     requestedSlug: string;
@@ -43,6 +43,16 @@ export async function getWorkspaceStudies(workspaceSlug: string): Promise<StudyP
     } catch (error) {
         if (error instanceof ApiError && error.status === 404) notFound();
         throw error;
+    }
+}
+
+export async function getWorkspaceTaxonomy(workspaceSlug: string): Promise<StudyTaxonomyNode[]> {
+    try {
+        return await serverGet<StudyTaxonomyNode[]>(
+            `/api/workspaces/${encodeURIComponent(workspaceSlug)}/study-taxonomy`
+        );
+    } catch {
+        return [];
     }
 }
 
