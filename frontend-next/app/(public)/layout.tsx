@@ -1,5 +1,6 @@
 import { SiteHeader } from '@/components/nav/SiteHeader';
 import { PreviewModeBanner } from '@/components/nav/PreviewModeBanner';
+import { DonationWidget } from '@/components/donation/DonationWidget';
 
 export default function PublicLayout({ children }: { children: React.ReactNode }) {
     return (
@@ -7,6 +8,7 @@ export default function PublicLayout({ children }: { children: React.ReactNode }
             <SiteHeader />
             <PreviewModeBanner />
             {children}
+            <DonationWidget />
         </main>
     );
 }

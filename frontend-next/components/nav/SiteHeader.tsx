@@ -10,7 +10,6 @@ import {
     ChevronDown,
     ChevronRight,
     Eye,
-    Heart,
     Home,
     LogIn,
     LogOut,
@@ -22,10 +21,9 @@ import {
     UserPlus,
     X,
 } from 'lucide-react';
-import { donationApi, visitorApi } from '@/lib/api';
+import { visitorApi } from '@/lib/api';
 import { usePrintStore } from '@/store/usePrintStore';
 import { useAuthStore } from '@/store/useAuthStore';
-import { DonationModal } from '@/components/donation/DonationModal';
 
 type NavPage = {
     href: string;
@@ -85,7 +83,6 @@ export function SiteHeader() {
     const [isPageMenuOpen, setIsPageMenuOpen] = useState(false);
     const [isAccountMenuOpen, setIsAccountMenuOpen] = useState(false);
     const accountMenuRef = useRef<HTMLDivElement>(null);
-    const [isDonationOpen, setDonationOpen] = useState(false);
     const isAuthenticated = useAuthStore((state) => state.isAuthenticated);
     const isCheckingSession = useAuthStore((state) => state.isChecking);
     const checkSession = useAuthStore((state) => state.checkSession);
@@ -143,13 +140,6 @@ export function SiteHeader() {
     const canManageCurrentWorkspace = Boolean(
         workspaceMembership && ['OWNER', 'ADMIN', 'EDITOR'].includes(workspaceMembership.role)
     );
-
-    const { data: donationConfig } = useQuery({
-        queryKey: ['donationConfig'],
-        queryFn: donationApi.config,
-        enabled: !isPreviewMode && isWorkspacePublicArea,
-    });
-    const isDonationEnabled = donationConfig?.enabled === true;
 
     // 관리자 라이브 프리뷰(iframe) 안에서는 방문 기록을 남기지 않는다 — 실제 방문자 통계를 왜곡하지 않기 위함.
     const { data: visitorSummary } = useQuery({
@@ -213,19 +203,9 @@ export function SiteHeader() {
                 </div>
 
                 <div className="flex shrink-0 items-center gap-2">
-                    {isWorkspacePublicArea &&
-                        !isCheckingSession &&
-                        isAuthenticated &&
-                        canManageCurrentWorkspace && (
-                            <Link
-                                href={`${workspaceBase}/manage`}
-                                className="inline-flex h-9 items-center justify-center gap-1.5 rounded-md bg-slate-950 px-3 text-sm font-black text-white shadow-sm shadow-slate-800/20 transition hover:bg-slate-800"
-                                title="Workspace 관리"
-                            >
-                                <ShieldCheck className="h-3.5 w-3.5" />
-                                <span className="hidden min-[1100px]:inline">Workspace 관리</span>
-                            </Link>
-                        )}
+                    {/* 데스크톱 "Workspace 관리" 버튼은 계정 드롭다운의 "내 Workspace" 목록(현재
+                        workspace는 "관리 화면 열기"로 안내)과 기능이 겹쳐서 여기서는 없앰 —
+                        모바일 드로어 쪽은 그 드롭다운 자체가 안 보이므로 그대로 유지. */}
                     {isPlatformArea &&
                         !isCheckingSession &&
                         isAuthenticated &&
@@ -239,7 +219,7 @@ export function SiteHeader() {
                                 <span className="hidden min-[1100px]:inline">플랫폼 운영</span>
                             </Link>
                         )}
-                    {isPlatformArea && !isCheckingSession && !isAuthenticated && (
+                    {!isCheckingSession && !isAuthenticated && (
                         <>
                             <Link
                                 href="/login"
@@ -261,26 +241,14 @@ export function SiteHeader() {
                             </Link>
                         </>
                     )}
-                    {visitorSummary && (
-                        <span className="inline-flex items-center gap-1.5 rounded-md border border-slate-200 bg-slate-50 px-2 py-1.5 text-xs font-bold text-slate-500 sm:px-2.5">
+                    {visitorSummary && canManageCurrentWorkspace && (
+                        <span className="inline-flex items-center gap-1.5 px-1 text-xs font-semibold text-slate-400">
                             <Eye className="h-3.5 w-3.5" />
                             <span className="hidden sm:inline">
                                 오늘 {visitorSummary.todayVisitors.toLocaleString()} ·{' '}
                             </span>
                             누적 {visitorSummary.totalVisitors.toLocaleString()}
                         </span>
-                    )}
-
-                    {isDonationEnabled && (
-                        <button
-                            type="button"
-                            onClick={() => setDonationOpen(true)}
-                            className="inline-flex h-9 items-center justify-center gap-1.5 rounded-md bg-blue-600 px-3 text-sm font-bold text-white shadow-sm shadow-blue-500/20 transition hover:bg-blue-700 hover:shadow-md active:scale-95"
-                            title="후원하기"
-                        >
-                            <Heart className="h-3.5 w-3.5 fill-white text-white" />
-                            <span className="hidden min-[1100px]:inline">후원하기</span>
-                        </button>
                     )}
 
                     {isIntro && (
@@ -303,7 +271,7 @@ export function SiteHeader() {
                                         ? 'border-slate-900 bg-slate-900 text-white'
                                         : 'border-slate-200 bg-slate-50 text-slate-700 hover:border-slate-300'
                                 }`}
-                                title="계정과 내 Workspace 확인"
+                                title={`${me?.nickname || me?.username || '계정'} · 계정과 내 Workspace 확인`}
                                 aria-haspopup="menu"
                                 aria-expanded={isAccountMenuOpen}
                             >
@@ -318,9 +286,6 @@ export function SiteHeader() {
                                         .slice(0, 1)
                                         .toUpperCase()}
                                 </span>
-                                <span className="hidden max-w-28 truncate px-1 text-xs font-black min-[1100px]:block">
-                                    {me?.nickname || me?.username}
-                                </span>
                                 <ChevronDown
                                     className={`mr-1 h-3.5 w-3.5 transition-transform ${isAccountMenuOpen ? 'rotate-180' : ''}`}
                                 />
@@ -331,20 +296,27 @@ export function SiteHeader() {
                                     role="menu"
                                     className="absolute right-0 top-full z-50 mt-2 w-[min(24rem,calc(100vw-2rem))] overflow-hidden rounded-lg border border-slate-700 bg-slate-950 text-white shadow-lg"
                                 >
-                                    <div className="border-b border-slate-800 p-4">
-                                        <p className="text-xs font-bold text-slate-400">
-                                            현재 로그인 계정
-                                        </p>
-                                        <p className="mt-2 truncate text-sm font-black text-white">
-                                            {me?.nickname || '이름 없음'}
-                                        </p>
-                                        <p className="mt-0.5 break-all text-xs text-slate-300">
-                                            {me?.username}
-                                        </p>
+                                    <div className="flex items-center gap-3 bg-slate-900 p-4">
+                                        <span className="grid h-10 w-10 shrink-0 place-items-center rounded-full bg-blue-600 text-sm font-black text-white">
+                                            {(me?.nickname || me?.username || '?')
+                                                .slice(0, 1)
+                                                .toUpperCase()}
+                                        </span>
+                                        <div className="min-w-0">
+                                            <p className="text-[11px] font-bold uppercase tracking-wide text-slate-400">
+                                                현재 로그인 계정
+                                            </p>
+                                            <p className="mt-0.5 truncate text-sm font-black text-white">
+                                                {me?.nickname || '이름 없음'}
+                                            </p>
+                                            <p className="truncate text-xs text-slate-400">
+                                                {me?.username}
+                                            </p>
+                                        </div>
                                     </div>
 
-                                    <div className="border-b border-slate-800 p-3">
-                                        <p className="px-1 pb-2 text-xs font-bold text-slate-400">
+                                    <div className="bg-slate-950 p-3">
+                                        <p className="px-1 pb-2 text-[11px] font-bold uppercase tracking-wide text-slate-500">
                                             내 Workspace
                                         </p>
                                         <div className="max-h-64 space-y-1 overflow-y-auto">
@@ -368,9 +340,9 @@ export function SiteHeader() {
                                                             onClick={() =>
                                                                 setIsAccountMenuOpen(false)
                                                             }
-                                                            className="group flex items-center gap-3 rounded-md border border-slate-800 bg-slate-900 px-3 py-3 transition hover:border-slate-600 hover:bg-slate-800 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-400"
+                                                            className="group flex items-center gap-3 rounded-md bg-slate-800 px-3 py-3 transition hover:bg-slate-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-400"
                                                         >
-                                                            <span className="grid h-9 w-9 shrink-0 place-items-center rounded-md border border-slate-700 bg-slate-950 text-slate-300">
+                                                            <span className="grid h-9 w-9 shrink-0 place-items-center rounded-md bg-slate-950 text-slate-300">
                                                                 <Briefcase className="h-4 w-4" />
                                                             </span>
                                                             <span className="min-w-0 flex-1">
@@ -402,7 +374,7 @@ export function SiteHeader() {
                                                     href="/onboarding/workspace"
                                                     role="menuitem"
                                                     onClick={() => setIsAccountMenuOpen(false)}
-                                                    className="group flex items-center justify-between gap-2 rounded-md border border-slate-800 bg-slate-900 px-3 py-3 text-sm font-black text-white transition hover:border-slate-600 hover:bg-slate-800"
+                                                    className="group flex items-center justify-between gap-2 rounded-md bg-slate-800 px-3 py-3 text-sm font-black text-white transition hover:bg-slate-700"
                                                 >
                                                     <span className="flex items-center gap-2">
                                                         <Briefcase className="h-4 w-4" />첫
@@ -418,7 +390,7 @@ export function SiteHeader() {
                                         href="/account"
                                         role="menuitem"
                                         onClick={() => setIsAccountMenuOpen(false)}
-                                        className="flex w-full items-center justify-center gap-2 border-b border-slate-800 px-4 py-3 text-sm font-black text-slate-200 transition hover:bg-slate-800 hover:text-white"
+                                        className="flex w-full items-center justify-center gap-2 bg-slate-900 px-4 py-3 text-sm font-black text-slate-200 transition hover:bg-slate-800 hover:text-white"
                                     >
                                         <User className="h-4 w-4" />
                                         계정 설정
@@ -428,7 +400,7 @@ export function SiteHeader() {
                                         type="button"
                                         role="menuitem"
                                         onClick={() => void logout()}
-                                        className="flex w-full items-center justify-center gap-2 px-4 py-3 text-sm font-black text-red-400 transition hover:bg-red-950/50 hover:text-red-300"
+                                        className="flex w-full items-center justify-center gap-2 bg-red-950 px-4 py-3 text-sm font-black text-red-300 transition hover:bg-red-900 hover:text-red-200"
                                     >
                                         <LogOut className="h-4 w-4" />
                                         로그아웃
@@ -482,7 +454,7 @@ export function SiteHeader() {
                                     <Link
                                         href={`${workspaceBase}/manage`}
                                         onClick={() => setIsPageMenuOpen(false)}
-                                        className="flex w-full items-center justify-center gap-2 rounded-md bg-slate-950 px-3 py-2.5 text-sm font-black text-white"
+                                        className="flex w-full items-center justify-center gap-2 rounded-md border border-slate-200 bg-white px-3 py-2.5 text-sm font-black text-slate-700"
                                     >
                                         <ShieldCheck className="h-4 w-4" />
                                         Workspace 관리
@@ -621,6 +593,29 @@ export function SiteHeader() {
                                 </button>
                             </div>
                         )}
+                        {!isPlatformArea && !isCheckingSession && !isAuthenticated && (
+                            <div className="mt-1 grid gap-2 border-t border-slate-100 pt-3">
+                                <Link
+                                    href="/login"
+                                    onClick={() => setIsPageMenuOpen(false)}
+                                    className="flex w-full items-center justify-center gap-2 rounded-md border border-slate-200 bg-white px-3 py-2.5 text-sm font-black text-slate-700"
+                                >
+                                    <LogIn className="h-4 w-4" />
+                                    로그인
+                                </Link>
+                                <Link
+                                    href="/signup"
+                                    onClick={() => setIsPageMenuOpen(false)}
+                                    className="flex w-full items-center justify-center gap-2 rounded-md bg-slate-950 px-3 py-2.5 text-sm font-black text-white"
+                                >
+                                    <UserPlus className="h-4 w-4" />
+                                    초대받아 가입하기
+                                </Link>
+                                <p className="text-center text-[11px] font-semibold text-slate-400">
+                                    현재 초대받은 사용자만 가입할 수 있습니다.
+                                </p>
+                            </div>
+                        )}
                         {isIntro && (
                             <button
                                 onClick={() => {
@@ -636,8 +631,6 @@ export function SiteHeader() {
                     </nav>
                 </div>
             )}
-
-            {isDonationOpen && <DonationModal onClose={() => setDonationOpen(false)} />}
         </header>
     );
 }

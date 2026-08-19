@@ -1,6 +1,7 @@
 import type { Metadata } from 'next';
 import { permanentRedirect } from 'next/navigation';
 import { SiteHeader } from '@/components/nav/SiteHeader';
+import { DonationWidget } from '@/components/donation/DonationWidget';
 import { StudyListClient } from '@/components/study/StudyListClient';
 import {
     getCanonicalWorkspaceSlug,
@@ -31,6 +32,7 @@ export default async function WorkspaceStudyPage({ params }: Props) {
     return (
         <main className="min-h-screen bg-[#f8fafc] pb-6 text-slate-800">
             <SiteHeader />
+            <DonationWidget />
             <div className="relative mx-auto max-w-[1500px] px-4 py-6 sm:px-6">
                 <StudyListClient
                     initialStudies={studies}

@@ -2,6 +2,7 @@ import type { Metadata } from 'next';
 import { permanentRedirect } from 'next/navigation';
 import { ExperienceListClient } from '@/components/experience/ExperienceListClient';
 import { SiteHeader } from '@/components/nav/SiteHeader';
+import { DonationWidget } from '@/components/donation/DonationWidget';
 import { getCanonicalWorkspaceSlug, getWorkspaceIntroduction } from '@/lib/workspace-public';
 
 export const dynamic = 'force-dynamic';
@@ -26,6 +27,7 @@ export default async function WorkspaceExperiencePage({ params }: Props) {
     return (
         <main className="min-h-screen bg-[#f8fafc] pb-6 text-slate-800">
             <SiteHeader />
+            <DonationWidget />
             <div className="relative mx-auto max-w-[1500px] px-4 py-6 sm:px-6">
                 <ExperienceListClient
                     experiences={experiences}

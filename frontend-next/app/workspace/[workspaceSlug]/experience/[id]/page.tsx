@@ -2,6 +2,7 @@ import type { Metadata } from 'next';
 import { notFound, permanentRedirect } from 'next/navigation';
 import { ExperienceDetailClient } from '@/components/experience/ExperienceDetailClient';
 import { SiteHeader } from '@/components/nav/SiteHeader';
+import { DonationWidget } from '@/components/donation/DonationWidget';
 import { getWorkspaceExperienceBundle } from '@/lib/workspace-experience';
 import { getCanonicalWorkspaceSlug } from '@/lib/workspace-public';
 
@@ -33,6 +34,7 @@ export default async function WorkspaceExperienceDetailPage({ params }: Props) {
     return (
         <main className="min-h-screen bg-[#f8fafc] pb-6 text-slate-800">
             <SiteHeader />
+            <DonationWidget />
             <div className="relative mx-auto max-w-[1500px] px-4 py-6 sm:px-6">
                 <ExperienceDetailClient
                     {...bundle}
