@@ -262,60 +262,74 @@ export function SiteHeader() {
                         </button>
                     )}
                     {!isCheckingSession && isAuthenticated && (
-                        <div className="relative hidden sm:block" ref={accountMenuRef}>
+                        <div className="relative ml-1 hidden sm:block" ref={accountMenuRef}>
                             <button
                                 type="button"
                                 onClick={() => setIsAccountMenuOpen((open) => !open)}
-                                className={`flex h-9 items-center gap-1 rounded-md border p-1 text-left transition ${
-                                    isAccountMenuOpen
-                                        ? 'border-slate-900 bg-slate-900 text-white'
-                                        : 'border-slate-200 bg-slate-50 text-slate-700 hover:border-slate-300'
+                                className={`flex items-center gap-2 rounded-lg border border-slate-900 bg-slate-900 px-2.5 py-1.5 text-left text-white transition ${
+                                    isAccountMenuOpen ? 'bg-slate-800' : 'hover:bg-slate-800'
                                 }`}
-                                title={`${me?.nickname || me?.username || '계정'} · 계정과 내 Workspace 확인`}
+                                title="현재 로그인 계정 확인"
                                 aria-haspopup="menu"
                                 aria-expanded={isAccountMenuOpen}
                             >
-                                <span
-                                    className={`grid h-7 w-7 place-items-center rounded-md text-[10px] font-black ${
-                                        isAccountMenuOpen
-                                            ? 'bg-white/15 text-white'
-                                            : 'bg-slate-900 text-white'
-                                    }`}
-                                >
+                                <span className="grid h-6 w-6 shrink-0 place-items-center rounded-md bg-white/15 text-[10px] font-black text-white">
                                     {(me?.nickname || me?.username || '?')
                                         .slice(0, 1)
                                         .toUpperCase()}
                                 </span>
+                                <span className="hidden min-w-0 min-[1100px]:block">
+                                    <span className="block max-w-32 truncate text-xs font-black">
+                                        {me?.nickname || '로그인 계정'}
+                                    </span>
+                                    <span className="block max-w-40 truncate text-[10px] text-white/60">
+                                        계정 정보
+                                    </span>
+                                </span>
                                 <ChevronDown
-                                    className={`mr-1 h-3.5 w-3.5 transition-transform ${isAccountMenuOpen ? 'rotate-180' : ''}`}
+                                    className={`h-3.5 w-3.5 shrink-0 transition-transform ${isAccountMenuOpen ? 'rotate-180' : ''}`}
                                 />
                             </button>
 
                             {isAccountMenuOpen && (
                                 <section
                                     role="menu"
-                                    className="absolute right-0 top-full z-50 mt-2 w-[min(24rem,calc(100vw-2rem))] overflow-hidden rounded-lg border border-slate-700 bg-slate-950 text-white shadow-lg"
+                                    className="absolute right-0 top-full z-50 mt-2 w-[min(24rem,calc(100vw-2rem))] overflow-hidden rounded-2xl border border-slate-700 bg-slate-950 text-white shadow-2xl shadow-slate-950/30 ring-1 ring-black/5"
                                 >
-                                    <div className="flex items-center gap-3 bg-slate-900 p-4">
-                                        <span className="grid h-10 w-10 shrink-0 place-items-center rounded-full bg-blue-600 text-sm font-black text-white">
-                                            {(me?.nickname || me?.username || '?')
-                                                .slice(0, 1)
-                                                .toUpperCase()}
-                                        </span>
-                                        <div className="min-w-0">
-                                            <p className="text-[11px] font-bold uppercase tracking-wide text-slate-400">
-                                                현재 로그인 계정
-                                            </p>
-                                            <p className="mt-0.5 truncate text-sm font-black text-white">
-                                                {me?.nickname || '이름 없음'}
-                                            </p>
-                                            <p className="truncate text-xs text-slate-400">
-                                                {me?.username}
-                                            </p>
-                                        </div>
+                                    <div className="border-b border-slate-800 p-4">
+                                        <p className="text-[10px] font-black uppercase tracking-[0.14em] text-slate-400">
+                                            현재 로그인 계정
+                                        </p>
+                                        <p className="mt-2 truncate text-sm font-black text-white">
+                                            {me?.nickname || '이름 없음'}
+                                        </p>
+                                        <p className="mt-0.5 break-all text-xs text-slate-300">
+                                            {me?.username}
+                                        </p>
                                     </div>
 
-                                    <div className="bg-slate-950 p-3">
+                                    <dl className="space-y-3 border-b border-slate-800 p-4 text-xs">
+                                        <div className="flex items-start justify-between gap-4">
+                                            <dt className="font-bold text-slate-400">
+                                                Workspace 역할
+                                            </dt>
+                                            <dd className="font-black text-white">
+                                                {workspaceMembership?.role ?? '없음'}
+                                            </dd>
+                                        </div>
+                                        <div className="flex items-start justify-between gap-4">
+                                            <dt className="font-bold text-slate-400">
+                                                플랫폼 역할
+                                            </dt>
+                                            <dd className="max-w-40 text-right font-black text-white">
+                                                {me?.platformRoles.length
+                                                    ? me.platformRoles.join(', ')
+                                                    : '일반 계정'}
+                                            </dd>
+                                        </div>
+                                    </dl>
+
+                                    <div className="border-b border-slate-800 p-3">
                                         <p className="px-1 pb-2 text-[11px] font-bold uppercase tracking-wide text-slate-500">
                                             내 Workspace
                                         </p>
@@ -340,9 +354,9 @@ export function SiteHeader() {
                                                             onClick={() =>
                                                                 setIsAccountMenuOpen(false)
                                                             }
-                                                            className="group flex items-center gap-3 rounded-md bg-slate-800 px-3 py-3 transition hover:bg-slate-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-400"
+                                                            className="group flex items-center gap-3 rounded-md border border-slate-800 bg-slate-800/50 px-3 py-3 transition hover:border-slate-700 hover:bg-slate-800 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-500"
                                                         >
-                                                            <span className="grid h-9 w-9 shrink-0 place-items-center rounded-md bg-slate-950 text-slate-300">
+                                                            <span className="grid h-9 w-9 shrink-0 place-items-center rounded-md bg-slate-900 text-slate-300">
                                                                 <Briefcase className="h-4 w-4" />
                                                             </span>
                                                             <span className="min-w-0 flex-1">
@@ -354,7 +368,7 @@ export function SiteHeader() {
                                                                     <span aria-hidden="true">
                                                                         ·
                                                                     </span>
-                                                                    <span className="text-slate-200">
+                                                                    <span className="text-slate-300">
                                                                         {isCurrent
                                                                             ? '현재 열람 중'
                                                                             : canManage
@@ -363,7 +377,7 @@ export function SiteHeader() {
                                                                     </span>
                                                                 </span>
                                                             </span>
-                                                            <span className="ml-auto grid h-8 w-8 shrink-0 place-items-center text-slate-400 transition group-hover:text-white">
+                                                            <span className="ml-auto grid h-8 w-8 shrink-0 place-items-center text-slate-500 transition group-hover:text-white">
                                                                 <ChevronRight className="h-4 w-4 transition-transform group-hover:translate-x-0.5" />
                                                             </span>
                                                         </Link>
@@ -374,7 +388,7 @@ export function SiteHeader() {
                                                     href="/onboarding/workspace"
                                                     role="menuitem"
                                                     onClick={() => setIsAccountMenuOpen(false)}
-                                                    className="group flex items-center justify-between gap-2 rounded-md bg-slate-800 px-3 py-3 text-sm font-black text-white transition hover:bg-slate-700"
+                                                    className="group flex items-center justify-between gap-2 rounded-md border border-slate-800 bg-slate-800/50 px-3 py-3 text-sm font-black text-white transition hover:border-slate-700 hover:bg-slate-800"
                                                 >
                                                     <span className="flex items-center gap-2">
                                                         <Briefcase className="h-4 w-4" />첫
@@ -390,7 +404,7 @@ export function SiteHeader() {
                                         href="/account"
                                         role="menuitem"
                                         onClick={() => setIsAccountMenuOpen(false)}
-                                        className="flex w-full items-center justify-center gap-2 bg-slate-900 px-4 py-3 text-sm font-black text-slate-200 transition hover:bg-slate-800 hover:text-white"
+                                        className="flex w-full items-center justify-center gap-2 border-b border-slate-800 px-4 py-3 text-sm font-black text-slate-200 transition hover:bg-slate-800 hover:text-white"
                                     >
                                         <User className="h-4 w-4" />
                                         계정 설정
@@ -400,7 +414,7 @@ export function SiteHeader() {
                                         type="button"
                                         role="menuitem"
                                         onClick={() => void logout()}
-                                        className="flex w-full items-center justify-center gap-2 bg-red-950 px-4 py-3 text-sm font-black text-red-300 transition hover:bg-red-900 hover:text-red-200"
+                                        className="flex w-full items-center justify-center gap-2 px-4 py-3 text-sm font-black text-red-400 transition hover:bg-red-950/50 hover:text-red-300"
                                     >
                                         <LogOut className="h-4 w-4" />
                                         로그아웃
