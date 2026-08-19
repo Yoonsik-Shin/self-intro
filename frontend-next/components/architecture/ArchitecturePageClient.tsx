@@ -1,8 +1,7 @@
 'use client';
 
-import { useEffect, useState, useMemo } from 'react';
+import { useState, useMemo } from 'react';
 import Link from 'next/link';
-import { useRouter } from 'next/navigation';
 import {
     Activity,
     ArrowRight,
@@ -260,7 +259,6 @@ function resolveStudyLink(fullText: string): {
 }
 
 export function ArchitecturePageClient({ overview, layers }: Props) {
-    const router = useRouter();
     const [isSectionNavCollapsed, setIsSectionNavCollapsed] = useState(false);
     const [diagramViewMode, setDiagramViewMode] = useState<'visual' | 'terminal'>('visual');
     const [selectedCategory, setSelectedCategory] = useState<string>('all');
@@ -269,13 +267,6 @@ export function ArchitecturePageClient({ overview, layers }: Props) {
     const isCheckingSession = useAuthStore((state) => state.isChecking);
     const me = useAuthStore((state) => state.me);
     const currentWorkspace = me?.workspaces[0];
-
-    useEffect(() => {
-        if (isCheckingSession || !isAuthenticated) return;
-        router.replace(
-            currentWorkspace ? `/workspace/${currentWorkspace.slug}` : '/onboarding/workspace'
-        );
-    }, [currentWorkspace, isAuthenticated, isCheckingSession, router]);
 
     // 필터 카테고리 탭 목록 생성
     const categories = useMemo(() => {
@@ -294,16 +285,6 @@ export function ArchitecturePageClient({ overview, layers }: Props) {
         if (selectedCategory === 'all') return layers;
         return layers.filter((layer) => String(layer.id) === selectedCategory);
     }, [layers, selectedCategory]);
-
-    if (!isCheckingSession && isAuthenticated) {
-        return (
-            <div className="flex min-h-[60vh] items-center justify-center text-sm font-bold text-slate-500">
-                {currentWorkspace
-                    ? '내 공개 Workspace로 이동 중…'
-                    : '첫 Workspace 생성으로 이동 중…'}
-            </div>
-        );
-    }
 
     const handleCopyDiagram = () => {
         if (!overview?.diagramText) return;
