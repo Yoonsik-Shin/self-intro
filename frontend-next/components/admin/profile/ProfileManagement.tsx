@@ -179,17 +179,12 @@ export function ProfileManagement({ workspaceSlug }: { workspaceSlug: string }) 
                             htmlFor="profile-job-title"
                             className="mb-1.5 block text-xs font-bold uppercase tracking-wider text-slate-400"
                         >
-                            희망 직무 타이틀{' '}
-                            <span className="text-red-600" aria-hidden="true">
-                                *
-                            </span>
+                            희망 직무 타이틀
                         </label>
                         <input
                             id="profile-job-title"
                             type="text"
-                            required
                             data-field-label="희망 직무 타이틀"
-                            aria-describedby="profile-required-help"
                             value={profileForm.jobTitle}
                             onChange={(e) =>
                                 setProfileForm({ ...profileForm, jobTitle: e.target.value })
@@ -202,17 +197,12 @@ export function ProfileManagement({ workspaceSlug }: { workspaceSlug: string }) 
                             htmlFor="profile-status-badge"
                             className="mb-1.5 block text-xs font-bold uppercase tracking-wider text-slate-400"
                         >
-                            활동 배지 상태 텍스트{' '}
-                            <span className="text-red-600" aria-hidden="true">
-                                *
-                            </span>
+                            활동 배지 상태 텍스트
                         </label>
                         <input
                             id="profile-status-badge"
                             type="text"
-                            required
                             data-field-label="활동 배지 상태 텍스트"
-                            aria-describedby="profile-required-help"
                             value={profileForm.statusBadgeText}
                             onChange={(e) =>
                                 setProfileForm({ ...profileForm, statusBadgeText: e.target.value })
@@ -267,17 +257,12 @@ export function ProfileManagement({ workspaceSlug }: { workspaceSlug: string }) 
                             htmlFor="profile-core-stack"
                             className="mb-1.5 block text-xs font-bold uppercase tracking-wider text-slate-400"
                         >
-                            핵심 기술 요약 문구 (예: Java / Node.js...){' '}
-                            <span className="text-red-600" aria-hidden="true">
-                                *
-                            </span>
+                            핵심 기술 요약 문구 (예: Java / Node.js...)
                         </label>
                         <input
                             id="profile-core-stack"
                             type="text"
-                            required
                             data-field-label="핵심 기술 요약 문구"
-                            aria-describedby="profile-required-help"
                             value={profileForm.coreStackSummary}
                             onChange={(e) =>
                                 setProfileForm({ ...profileForm, coreStackSummary: e.target.value })
@@ -293,17 +278,12 @@ export function ProfileManagement({ workspaceSlug }: { workspaceSlug: string }) 
                             htmlFor="profile-github-url"
                             className="mb-1.5 block text-xs font-bold uppercase tracking-wider text-slate-400"
                         >
-                            GitHub 주소{' '}
-                            <span className="text-red-600" aria-hidden="true">
-                                *
-                            </span>
+                            GitHub 주소
                         </label>
                         <input
                             id="profile-github-url"
                             type="url"
-                            required
                             data-field-label="GitHub 주소"
-                            aria-describedby="profile-required-help"
                             value={profileForm.githubUrl}
                             onChange={(e) =>
                                 setProfileForm({ ...profileForm, githubUrl: e.target.value })
@@ -321,6 +301,7 @@ export function ProfileManagement({ workspaceSlug }: { workspaceSlug: string }) 
                         <input
                             id="profile-email"
                             type="email"
+                            data-field-label="이메일"
                             value={profileForm.email}
                             onChange={(e) =>
                                 setProfileForm({ ...profileForm, email: e.target.value })
@@ -337,7 +318,10 @@ export function ProfileManagement({ workspaceSlug }: { workspaceSlug: string }) 
                         </label>
                         <input
                             id="profile-phone"
-                            type="text"
+                            type="tel"
+                            data-field-label="연락처"
+                            pattern="0\d{1,2}-?\d{3,4}-?\d{4}"
+                            title="숫자로만 입력하거나 010-1234-5678 형식으로 입력해 주세요."
                             value={profileForm.phone}
                             onChange={(e) =>
                                 setProfileForm({ ...profileForm, phone: e.target.value })

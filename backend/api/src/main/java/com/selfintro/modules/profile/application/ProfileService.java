@@ -27,6 +27,12 @@ public class ProfileService {
     @Transactional
     @CacheEvict(value = "bff:introduction", allEntries = true)
     public Profile upsert(Long workspaceId, ProfileRequest request) {
+        String jobTitle = request.jobTitle() == null ? "" : request.jobTitle().trim();
+        String coreStackSummary =
+                request.coreStackSummary() == null ? "" : request.coreStackSummary().trim();
+        String statusBadgeText =
+                request.statusBadgeText() == null ? "" : request.statusBadgeText().trim();
+        String githubUrl = request.githubUrl() == null ? "" : request.githubUrl().trim();
         String email = request.email() == null ? "" : request.email().trim();
         String phone = request.phone() == null ? "" : request.phone().trim();
         Optional<Profile> existing = profileRepository.findByWorkspaceId(workspaceId);
@@ -35,11 +41,11 @@ public class ProfileService {
             profile.update(
                     request.name(),
                     request.nameEn(),
-                    request.jobTitle(),
+                    jobTitle,
                     request.bio(),
-                    request.coreStackSummary(),
-                    request.statusBadgeText(),
-                    request.githubUrl(),
+                    coreStackSummary,
+                    statusBadgeText,
+                    githubUrl,
                     email,
                     phone,
                     request.publicEmail(),
@@ -51,11 +57,11 @@ public class ProfileService {
                             workspaceId,
                             request.name(),
                             request.nameEn(),
-                            request.jobTitle(),
+                            jobTitle,
                             request.bio(),
-                            request.coreStackSummary(),
-                            request.statusBadgeText(),
-                            request.githubUrl(),
+                            coreStackSummary,
+                            statusBadgeText,
+                            githubUrl,
                             email,
                             phone,
                             request.publicEmail(),
