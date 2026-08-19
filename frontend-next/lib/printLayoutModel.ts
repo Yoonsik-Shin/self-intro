@@ -58,6 +58,62 @@ export type OutputPlacement = {
  * 강제하지 않으며, 사용자가 명시적으로 "N페이지로 강제"를 누른 경우에만 pageLocked가 true다.
  * 따라서 Notion식 좌우 배치와 강제 페이지 override는 같은 객체를 쓰되 서로 독립적으로 동작한다.
  */
+/** 문서 전체 톤(폰트 패밀리). 고딕/명조/모노 3종 — 새 값을 추가하면 반드시
+ *  PRINT_FONT_STACKS(app/globals.css 또는 PrintCanvas.tsx)에도 짝을 맞춰야 한다. */
+export type PrintFontFamily = 'PRETENDARD' | 'NOTO_SERIF_KR' | 'NANUM_GOTHIC_CODING';
+export const PRINT_FONT_FAMILIES: PrintFontFamily[] = [
+    'PRETENDARD',
+    'NOTO_SERIF_KR',
+    'NANUM_GOTHIC_CODING',
+];
+/** 실제 렌더에 쓰는 CSS font-family 스택. .resume-page에 인라인 스타일로 적용된다. */
+export const PRINT_FONT_STACKS: Record<PrintFontFamily, string> = {
+    PRETENDARD: "'Pretendard', 'Plus Jakarta Sans', sans-serif",
+    NOTO_SERIF_KR: "'Noto Serif KR', serif",
+    NANUM_GOTHIC_CODING: "'Nanum Gothic Coding', monospace",
+};
+export const PRINT_FONT_FAMILY_LABELS: Record<PrintFontFamily, string> = {
+    PRETENDARD: '고딕',
+    NOTO_SERIF_KR: '명조',
+    NANUM_GOTHIC_CODING: '모노',
+};
+/** 자유 텍스트 입력 대신 고르는, 한글을 지원하는 구글 폰트 중 검증된 추가 목록 —
+ *  전부 실제 fonts.google.com에 등록된 이름이라 오타로 인한 로딩 실패가 없다. */
+export const PRINT_ADDITIONAL_GOOGLE_FONTS: string[] = [
+    'Noto Sans KR',
+    'Nanum Gothic',
+    'Nanum Myeongjo',
+    'Nanum Pen Script',
+    'Gowun Dodum',
+    'Gowun Batang',
+    'IBM Plex Sans KR',
+    'Gothic A1',
+    'Do Hyeon',
+    'Jua',
+    'Black Han Sans',
+    'Song Myung',
+    'Stylish',
+    'Poor Story',
+    'East Sea Dokdo',
+    'Gaegu',
+    'Yeon Sung',
+    'Single Day',
+];
+const MAX_CUSTOM_FONT_FAMILY_LENGTH = 60;
+
+export function isPresetPrintFontFamily(value: string): value is PrintFontFamily {
+    return (PRINT_FONT_FAMILIES as string[]).includes(value);
+}
+
+/** outputLayout.fontFamily(프리셋 토큰 또는 사용자가 입력한 구글 폰트 이름)를
+ *  실제 CSS font-family 스택으로 바꾼다. React의 style prop은 문자열을 DOM
+ *  스타일 프로퍼티로 직접 대입하므로(마크업 문자열 삽입이 아님) 사용자 입력을
+ *  그대로 써도 CSS/HTML 인젝션 위험은 없다. */
+export function resolvePrintFontStack(fontFamily: string): string {
+    if (isPresetPrintFontFamily(fontFamily)) return PRINT_FONT_STACKS[fontFamily];
+    return `'${fontFamily}', 'Pretendard', sans-serif`;
+}
+
 export type OutputLayout = {
     schemaVersion: number;
     pages: OutputPage[];
@@ -67,6 +123,9 @@ export type OutputLayout = {
     pageMargins: OutputPageMargins;
     /** 문서 전체 타이포그래피 배율. 1은 템플릿 기본 크기다. */
     fontScale: number;
+    /** 문서 전체 톤(폰트). PRINT_FONT_FAMILIES 중 하나(프리셋)이거나, 사용자가
+     *  직접 입력한 구글 폰트 이름(커스텀)이다. 기본은 고딕(Pretendard). */
+    fontFamily: string;
 };
 
 export type StoredPrintLayoutSettings = {
@@ -122,6 +181,7 @@ export function createDefaultOutputLayout(): OutputLayout {
         placements: [],
         pageMargins: { ...DEFAULT_OUTPUT_PAGE_MARGINS },
         fontScale: 1,
+        fontFamily: 'PRETENDARD',
     };
 }
 
@@ -571,6 +631,10 @@ export function normalizeOutputLayout(value: unknown): OutputLayout {
             0.8,
             1.3
         ),
+        fontFamily:
+            typeof value.fontFamily === 'string' && value.fontFamily.trim().length > 0
+                ? value.fontFamily.trim().slice(0, MAX_CUSTOM_FONT_FAMILY_LENGTH)
+                : 'PRETENDARD',
     };
 }
 

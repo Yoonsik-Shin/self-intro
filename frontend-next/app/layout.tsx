@@ -27,6 +27,11 @@ export default function RootLayout({
                     href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/static/pretendard.min.css"
                     crossOrigin="anonymous"
                 />
+                {/* PDF 인쇄 문서 전체 톤(폰트) 선택지 — 고딕(Pretendard) 외 명조/모노 옵션 */}
+                <link
+                    href="https://fonts.googleapis.com/css2?family=Noto+Serif+KR:wght@400;500;600;700&family=Nanum+Gothic+Coding:wght@400;700&display=swap"
+                    rel="stylesheet"
+                />
                 <script
                     async
                     src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-6825696073869286"

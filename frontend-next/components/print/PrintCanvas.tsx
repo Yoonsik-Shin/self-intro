@@ -43,6 +43,7 @@ import {
     reorderablePrintSections,
 } from '@/lib/printSections';
 import { generateUniqueLocalName, getLocalSaves, saveLocal } from '@/lib/printTemplateLocal';
+import { loadAllCustomFontsIntoDocument } from '@/lib/customFontStorage';
 import { useTouchDrag } from '@/hooks/useTouchDrag';
 import { randomId } from '@/lib/uuid';
 import {
@@ -55,6 +56,8 @@ import {
     pruneEmptyOutputRows,
     rebalancePageOverflow,
     replaceOutputPageComposition,
+    resolvePrintFontStack,
+    isPresetPrintFontFamily,
     type OutputLayout,
     type OutputRow,
 } from '@/lib/printLayoutModel';
@@ -1047,6 +1050,35 @@ export function PrintCanvas({
             ...layoutSettings,
         });
     }, [sanitizedInitialTemplate?.id]);
+
+    // 이전에 업로드해 브라우저에 저장해 둔 폰트를, 설정 패널을 열지 않은 채로
+    // 인쇄해도 반영되도록 마운트 시점에 미리 document.fonts에 등록해 둔다.
+    useEffect(() => {
+        void loadAllCustomFontsIntoDocument();
+    }, []);
+
+    // 사용자가 프리셋(고딕/명조/모노) 외에 구글 폰트 이름을 직접 입력하면, 그 폰트는
+    // app/layout.tsx에 미리 <link>로 로드돼 있지 않으므로 여기서 동적으로 불러온다.
+    // 폰트 이름별로 <link> id를 둬서, 세션 중 여러 커스텀 폰트를 오갔을 때 중복
+    // 삽입 없이 이미 불러온 폰트는 재사용한다.
+    useEffect(() => {
+        const fontFamily = store.outputLayout.fontFamily;
+        if (isPresetPrintFontFamily(fontFamily)) return;
+        // 업로드한 폰트 파일은 이름 앞에 'Uploaded-'를 붙여 관리한다(handleFontFileUpload
+        // 참고) — 구글 폰트가 아니므로 시도할 필요가 없다. document.fonts.check()로
+        // "이미 로드됐는지" 판단하려 했었는데, 이 API는 요청한 폰트가 실제로는 없어도
+        // 브라우저가 대체 폰트로라도 렌더 가능하면 true를 돌려주는 경우가 있어(크로미움
+        // 확인됨) 신뢰할 수 없었다 — 그래서 몇몇 폰트만 랜덤하게 안 불러와졌다(실제
+        // 발생 확인됨). id 존재 여부만으로 판단하는 게 훨씬 확실하다.
+        if (fontFamily.startsWith('Uploaded-')) return;
+        const linkId = `print-custom-font-${encodeURIComponent(fontFamily)}`;
+        if (document.getElementById(linkId)) return;
+        const link = document.createElement('link');
+        link.id = linkId;
+        link.rel = 'stylesheet';
+        link.href = `https://fonts.googleapis.com/css2?family=${encodeURIComponent(fontFamily)}:wght@400;700&display=swap`;
+        document.head.appendChild(link);
+    }, [store.outputLayout.fontFamily]);
 
     // 캔버스 마우스 휠 + Ctrl/Cmd로 줌 조절
     useEffect(() => {
@@ -3803,6 +3835,9 @@ export function PrintCanvas({
                                             zoom: store.zoom,
                                             '--print-line-height': store.lineHeight,
                                             '--print-font-scale': store.outputLayout.fontScale,
+                                            fontFamily: resolvePrintFontStack(
+                                                store.outputLayout.fontFamily
+                                            ),
                                         } as CSSProperties
                                     }
                                 >

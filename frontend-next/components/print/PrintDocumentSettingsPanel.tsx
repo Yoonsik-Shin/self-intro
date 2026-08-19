@@ -1,8 +1,22 @@
 'use client';
 
-import { useRef, useState, type PointerEvent as ReactPointerEvent } from 'react';
-import { Settings, X } from 'lucide-react';
+import { useEffect, useRef, useState, type PointerEvent as ReactPointerEvent } from 'react';
+import { Settings, X, Trash2 } from 'lucide-react';
 import { usePrintStore } from '@/store/usePrintStore';
+import {
+    type CustomFontMeta,
+    listCustomFonts,
+    loadAllCustomFontsIntoDocument,
+    removeCustomFont,
+    saveCustomFont,
+} from '@/lib/customFontStorage';
+import {
+    PRINT_FONT_FAMILIES,
+    PRINT_FONT_FAMILY_LABELS,
+    PRINT_FONT_STACKS,
+    PRINT_ADDITIONAL_GOOGLE_FONTS,
+    isPresetPrintFontFamily,
+} from '@/lib/printLayoutModel';
 
 type DocumentSettingsTab = 'paper' | 'typography' | 'composition' | 'view' | 'template';
 
@@ -68,6 +82,42 @@ export function PrintDocumentSettingsPanel({
 }) {
     const store = usePrintStore();
     const [documentSettingsTab, setDocumentSettingsTab] = useState<DocumentSettingsTab>('paper');
+    const [fontUploadError, setFontUploadError] = useState<string | null>(null);
+    const [savedCustomFonts, setSavedCustomFonts] = useState<CustomFontMeta[]>([]);
+
+    const refreshSavedCustomFonts = () => {
+        void listCustomFonts().then(setSavedCustomFonts);
+    };
+
+    // 이전에 업로드해 IndexedDB에 저장해 둔 폰트를 매번 다시 올릴 필요 없이
+    // 패널을 열 때 document.fonts에 다시 등록해 둔다.
+    useEffect(() => {
+        void loadAllCustomFontsIntoDocument().then(refreshSavedCustomFonts);
+    }, []);
+
+    const handleFontFileUpload = async (file: File) => {
+        setFontUploadError(null);
+        const baseName = file.name.replace(/\.[^.]+$/, '');
+        const familyName = `Uploaded-${baseName.replace(/[^a-zA-Z0-9가-힣_-]/g, '') || 'font'}`;
+        try {
+            const buffer = await file.arrayBuffer();
+            const fontFace = new FontFace(familyName, buffer);
+            await fontFace.load();
+            document.fonts.add(fontFace);
+            store.setFontFamily(familyName);
+            await saveCustomFont(familyName, file.name, buffer);
+            refreshSavedCustomFonts();
+        } catch {
+            setFontUploadError(
+                '폰트 파일을 불러오지 못했습니다. ttf/otf/woff 파일이 맞는지 확인해주세요.'
+            );
+        }
+    };
+
+    const handleRemoveSavedFont = async (name: string) => {
+        await removeCustomFont(name);
+        refreshSavedCustomFonts();
+    };
     const [documentSettingsWidth, setDocumentSettingsWidth] = useState(288);
     const documentSettingsResizeRef = useRef<{
         pointerId: number;
@@ -214,9 +264,121 @@ export function PrintDocumentSettingsPanel({
                     <section>
                         <h2 className="text-xs font-black">타이포그래피</h2>
                         <p className="mt-1 text-[10px] leading-relaxed text-slate-400">
-                            모든 페이지 본문에 적용되는 읽기 간격입니다.
+                            문서 전체 톤과 모든 페이지 본문에 적용되는 읽기 간격입니다.
                         </p>
-                        <label className="mt-4 block rounded-md border border-slate-800 bg-slate-900 p-3">
+                        <div className="mt-4 rounded-md border border-slate-800 bg-slate-900 p-3">
+                            <span className="text-[10px] font-black text-slate-300">
+                                전체 폰트 톤
+                            </span>
+                            <div className="mt-3 grid grid-cols-3 gap-1.5">
+                                {PRINT_FONT_FAMILIES.map((family) => (
+                                    <button
+                                        key={family}
+                                        type="button"
+                                        onClick={() => store.setFontFamily(family)}
+                                        aria-pressed={store.outputLayout.fontFamily === family}
+                                        style={{ fontFamily: PRINT_FONT_STACKS[family] }}
+                                        className={`rounded-md border px-2 py-2.5 text-sm font-bold transition ${
+                                            store.outputLayout.fontFamily === family
+                                                ? 'border-blue-400 bg-blue-600 text-white'
+                                                : 'border-slate-700 bg-slate-800 text-slate-300 hover:border-slate-500 hover:text-white'
+                                        }`}
+                                    >
+                                        {PRINT_FONT_FAMILY_LABELS[family]}
+                                    </button>
+                                ))}
+                            </div>
+                            <select
+                                value={
+                                    PRINT_ADDITIONAL_GOOGLE_FONTS.includes(
+                                        store.outputLayout.fontFamily
+                                    )
+                                        ? store.outputLayout.fontFamily
+                                        : ''
+                                }
+                                onChange={(event) => {
+                                    if (event.target.value) store.setFontFamily(event.target.value);
+                                }}
+                                className="mt-2.5 w-full rounded-md border border-slate-700 bg-slate-800 px-2 py-1.5 text-[10px] font-bold text-slate-200 focus:border-blue-400 focus:outline-none"
+                            >
+                                <option value="" disabled>
+                                    더 많은 구글 폰트에서 고르기
+                                </option>
+                                {PRINT_ADDITIONAL_GOOGLE_FONTS.map((name) => (
+                                    <option key={name} value={name}>
+                                        {name}
+                                    </option>
+                                ))}
+                            </select>
+                            {!isPresetPrintFontFamily(store.outputLayout.fontFamily) && (
+                                <p className="mt-1.5 text-[9px] font-bold text-blue-300">
+                                    현재 적용: {store.outputLayout.fontFamily}
+                                </p>
+                            )}
+                        </div>
+                        <div className="mt-3 rounded-md border border-slate-800 bg-slate-900 p-3">
+                            <span className="text-[10px] font-black text-slate-300">
+                                내 컴퓨터에서 폰트 파일 업로드
+                            </span>
+                            <input
+                                type="file"
+                                accept=".ttf,.otf,.woff,.woff2"
+                                onChange={(event) => {
+                                    const file = event.target.files?.[0];
+                                    if (file) void handleFontFileUpload(file);
+                                    event.target.value = '';
+                                }}
+                                className="mt-2 block w-full text-[10px] text-slate-300 file:mr-2 file:rounded-md file:border-0 file:bg-slate-700 file:px-2.5 file:py-1.5 file:text-[10px] file:font-black file:text-white file:transition hover:file:bg-slate-600"
+                            />
+                            {fontUploadError && (
+                                <p className="mt-1.5 text-[9px] font-bold text-rose-400">
+                                    {fontUploadError}
+                                </p>
+                            )}
+                            {savedCustomFonts.length > 0 && (
+                                <div className="mt-2.5 space-y-1">
+                                    {savedCustomFonts.map((font) => (
+                                        <div
+                                            key={font.name}
+                                            className="flex items-center gap-1.5 rounded-md border border-slate-700 bg-slate-800 px-2 py-1.5"
+                                        >
+                                            <button
+                                                type="button"
+                                                onClick={() => store.setFontFamily(font.name)}
+                                                aria-pressed={
+                                                    store.outputLayout.fontFamily === font.name
+                                                }
+                                                className={`min-w-0 flex-1 truncate text-left text-[10px] font-bold ${
+                                                    store.outputLayout.fontFamily === font.name
+                                                        ? 'text-blue-300'
+                                                        : 'text-slate-300 hover:text-white'
+                                                }`}
+                                                title={font.fileName}
+                                            >
+                                                {font.fileName}
+                                            </button>
+                                            <button
+                                                type="button"
+                                                onClick={() =>
+                                                    void handleRemoveSavedFont(font.name)
+                                                }
+                                                className="shrink-0 grid h-6 w-6 place-items-center rounded-md text-slate-400 transition hover:bg-red-950/50 hover:text-red-400"
+                                                title="삭제"
+                                                aria-label="삭제"
+                                            >
+                                                <Trash2 className="h-3.5 w-3.5" />
+                                            </button>
+                                        </div>
+                                    ))}
+                                </div>
+                            )}
+                            <p className="mt-1.5 text-[9px] leading-relaxed text-slate-500">
+                                업로드한 폰트는 이 브라우저에 저장되어 새로고침해도 다시 올릴 필요
+                                없이 위 목록에서 다시 고를 수 있습니다. 다른 기기·브라우저에서는
+                                다시 업로드해야 합니다.
+                            </p>
+                        </div>
+                        <label className="mt-3 block rounded-md border border-slate-800 bg-slate-900 p-3">
                             <span className="flex items-center justify-between text-[10px] font-black text-slate-300">
                                 전체 글자 크기
                                 <strong className="text-blue-300">
@@ -255,12 +417,13 @@ export function PrintDocumentSettingsPanel({
                         <button
                             type="button"
                             onClick={() => {
+                                store.setFontFamily('PRETENDARD');
                                 store.setFontScale(1);
                                 store.setLineHeight(1.625);
                             }}
                             className="mt-3 h-9 w-full rounded-md border border-slate-700 text-[10px] font-black text-slate-200 transition hover:bg-slate-800"
                         >
-                            기본 글자·줄 간격으로 초기화
+                            기본 폰트·글자·줄 간격으로 초기화
                         </button>
                     </section>
                 )}

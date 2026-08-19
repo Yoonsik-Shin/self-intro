@@ -105,6 +105,7 @@ type PrintState = {
     mergeRows: (rowAId: string, rowBId: string) => void;
     setPageMargins: (margins: Partial<OutputPageMargins>) => void;
     setFontScale: (value: number) => void;
+    setFontFamily: (value: string) => void;
     addRow: (pageIndex: number, columnCount: number) => void;
     setRowColumnCount: (rowId: string, columnCount: number) => void;
     setRowGap: (rowId: string, gapMm: number) => void;
@@ -401,6 +402,14 @@ export const usePrintStore = create<PrintState>((set, get) => ({
             outputLayout: normalizeOutputLayout({
                 ...state.outputLayout,
                 fontScale: value,
+            }),
+        })),
+
+    setFontFamily: (value) =>
+        set((state) => ({
+            outputLayout: normalizeOutputLayout({
+                ...state.outputLayout,
+                fontFamily: value,
             }),
         })),
 
