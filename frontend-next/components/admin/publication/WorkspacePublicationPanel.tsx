@@ -77,7 +77,7 @@ export function WorkspacePublicationPanel({ workspaceSlug, role, onPreview }: Pr
     };
 
     return (
-        <section className="rounded-3xl border border-slate-200 bg-white p-8 shadow-sm">
+        <div className="space-y-6">
             <AdminPageHeader
                 eyebrow="Publication"
                 title={
@@ -154,118 +154,121 @@ export function WorkspacePublicationPanel({ workspaceSlug, role, onPreview }: Pr
                     </>
                 }
             />
-            <div className="mt-5 max-w-2xl">
-                <div className="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-xs font-semibold leading-6 text-slate-600">
-                    <p>
-                        <strong className="text-slate-950">독립 revision:</strong> 프로필 구성과
-                        경험 구성은 각각 불변 revision으로 저장된 뒤 전체 공개본이 두 revision을
-                        고정합니다.
-                    </p>
-                    <p className="mt-1">
-                        <strong className="text-slate-950">전체 공개본 snapshot:</strong> 학습
-                        기록·탐색 카테고리는 별도 revision 없이 이 버전에 함께 복사됩니다.
-                        포트폴리오는 사례 revision이 준비되고 경험 구성에서 선택된 경우에만
-                        포함됩니다.
-                    </p>
+            <section className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
+                <div className="max-w-2xl">
+                    <div className="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-xs font-semibold leading-6 text-slate-600">
+                        <p>
+                            <strong className="text-slate-950">독립 revision:</strong> 프로필 구성과
+                            경험 구성은 각각 불변 revision으로 저장된 뒤 전체 공개본이 두 revision을
+                            고정합니다.
+                        </p>
+                        <p className="mt-1">
+                            <strong className="text-slate-950">전체 공개본 snapshot:</strong> 학습
+                            기록·탐색 카테고리는 별도 revision 없이 이 버전에 함께 복사됩니다.
+                            포트폴리오는 사례 revision이 준비되고 경험 구성에서 선택된 경우에만
+                            포함됩니다.
+                        </p>
+                    </div>
+                    {error && (
+                        <p className="mt-3 text-sm font-bold text-red-600">
+                            {error instanceof Error
+                                ? error.message
+                                : '발행 상태를 처리하지 못했습니다.'}
+                        </p>
+                    )}
                 </div>
-                {error && (
-                    <p className="mt-3 text-sm font-bold text-red-600">
-                        {error instanceof Error
-                            ? error.message
-                            : '발행 상태를 처리하지 못했습니다.'}
+                <div className="mt-7 grid gap-4 lg:grid-cols-2">
+                    <div
+                        className={`rounded-2xl border p-5 ${
+                            published
+                                ? 'border-emerald-200 bg-emerald-50/70'
+                                : 'border-slate-200 bg-slate-50'
+                        }`}
+                    >
+                        <div className="flex items-start gap-3">
+                            <span
+                                className={`mt-0.5 rounded-xl p-2 ${
+                                    published
+                                        ? 'bg-emerald-600 text-white'
+                                        : 'bg-slate-200 text-slate-600'
+                                }`}
+                            >
+                                <Radio className="h-4 w-4" />
+                            </span>
+                            <div className="min-w-0">
+                                <p className="text-xs font-black uppercase tracking-[0.12em] text-slate-500">
+                                    현재 방문자 공개 상태
+                                </p>
+                                {statusQuery.isLoading ? (
+                                    <p className="mt-2 flex items-center gap-2 text-sm font-bold text-slate-500">
+                                        <LoaderCircle className="h-4 w-4 animate-spin" /> 상태 확인
+                                        중
+                                    </p>
+                                ) : published && status?.revisionNumber ? (
+                                    <>
+                                        <p className="mt-2 text-lg font-black text-emerald-800">
+                                            v{status.revisionNumber} 공개 중
+                                        </p>
+                                        <p className="mt-1 text-xs font-semibold text-emerald-800/80">
+                                            {publishedAt ?? '발행 시각 정보 없음'} · 방문자는 이
+                                            불변 snapshot을 봅니다.
+                                        </p>
+                                    </>
+                                ) : status?.hasPublishedRevision ? (
+                                    <>
+                                        <p className="mt-2 text-lg font-black text-slate-800">
+                                            공개 중지됨
+                                        </p>
+                                        <p className="mt-1 text-xs font-semibold text-slate-600">
+                                            최근 발행본 v{status.revisionNumber}은 보존 중이지만
+                                            방문자 URL에는 노출되지 않습니다.
+                                        </p>
+                                    </>
+                                ) : (
+                                    <>
+                                        <p className="mt-2 text-lg font-black text-slate-800">
+                                            아직 공개된 버전 없음
+                                        </p>
+                                        <p className="mt-1 text-xs font-semibold text-slate-600">
+                                            첫 버전을 발행하기 전까지 방문자 URL에는 콘텐츠가
+                                            노출되지 않습니다.
+                                        </p>
+                                    </>
+                                )}
+                            </div>
+                        </div>
+                    </div>
+                    <div className="rounded-2xl border border-indigo-200 bg-indigo-50/60 p-5">
+                        <div className="flex items-start gap-3">
+                            <span className="mt-0.5 rounded-xl bg-indigo-600 p-2 text-white">
+                                <FilePenLine className="h-4 w-4" />
+                            </span>
+                            <div className="min-w-0">
+                                <p className="text-xs font-black uppercase tracking-[0.12em] text-indigo-700">
+                                    관리 중인 공개 초안
+                                </p>
+                                <p className="mt-2 text-lg font-black text-slate-900">
+                                    저장 내용은 아직 방문자에게 반영되지 않음
+                                </p>
+                                <p className="mt-1 text-xs font-semibold leading-5 text-slate-600">
+                                    초안 미리보기로 구성을 확인한 뒤 새 버전을 발행하세요. 발행하기
+                                    전까지 방문자는{' '}
+                                    {published && status?.revisionNumber
+                                        ? `현재 공개본 v${status.revisionNumber}`
+                                        : '공개 페이지 없음 상태'}
+                                    을 계속 봅니다.
+                                </p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                {!canPublish && (
+                    <p className="mt-5 rounded-2xl bg-amber-50 px-4 py-3 text-sm font-semibold text-amber-800">
+                        발행과 공개 중지는 Workspace OWNER 또는 ADMIN만 할 수 있습니다.
                     </p>
                 )}
-            </div>
-            <div className="mt-7 grid gap-4 lg:grid-cols-2">
-                <div
-                    className={`rounded-2xl border p-5 ${
-                        published
-                            ? 'border-emerald-200 bg-emerald-50/70'
-                            : 'border-slate-200 bg-slate-50'
-                    }`}
-                >
-                    <div className="flex items-start gap-3">
-                        <span
-                            className={`mt-0.5 rounded-xl p-2 ${
-                                published
-                                    ? 'bg-emerald-600 text-white'
-                                    : 'bg-slate-200 text-slate-600'
-                            }`}
-                        >
-                            <Radio className="h-4 w-4" />
-                        </span>
-                        <div className="min-w-0">
-                            <p className="text-xs font-black uppercase tracking-[0.12em] text-slate-500">
-                                현재 방문자 공개 상태
-                            </p>
-                            {statusQuery.isLoading ? (
-                                <p className="mt-2 flex items-center gap-2 text-sm font-bold text-slate-500">
-                                    <LoaderCircle className="h-4 w-4 animate-spin" /> 상태 확인 중
-                                </p>
-                            ) : published && status?.revisionNumber ? (
-                                <>
-                                    <p className="mt-2 text-lg font-black text-emerald-800">
-                                        v{status.revisionNumber} 공개 중
-                                    </p>
-                                    <p className="mt-1 text-xs font-semibold text-emerald-800/80">
-                                        {publishedAt ?? '발행 시각 정보 없음'} · 방문자는 이 불변
-                                        snapshot을 봅니다.
-                                    </p>
-                                </>
-                            ) : status?.hasPublishedRevision ? (
-                                <>
-                                    <p className="mt-2 text-lg font-black text-slate-800">
-                                        공개 중지됨
-                                    </p>
-                                    <p className="mt-1 text-xs font-semibold text-slate-600">
-                                        최근 발행본 v{status.revisionNumber}은 보존 중이지만 방문자
-                                        URL에는 노출되지 않습니다.
-                                    </p>
-                                </>
-                            ) : (
-                                <>
-                                    <p className="mt-2 text-lg font-black text-slate-800">
-                                        아직 공개된 버전 없음
-                                    </p>
-                                    <p className="mt-1 text-xs font-semibold text-slate-600">
-                                        첫 버전을 발행하기 전까지 방문자 URL에는 콘텐츠가 노출되지
-                                        않습니다.
-                                    </p>
-                                </>
-                            )}
-                        </div>
-                    </div>
-                </div>
-                <div className="rounded-2xl border border-indigo-200 bg-indigo-50/60 p-5">
-                    <div className="flex items-start gap-3">
-                        <span className="mt-0.5 rounded-xl bg-indigo-600 p-2 text-white">
-                            <FilePenLine className="h-4 w-4" />
-                        </span>
-                        <div className="min-w-0">
-                            <p className="text-xs font-black uppercase tracking-[0.12em] text-indigo-700">
-                                관리 중인 공개 초안
-                            </p>
-                            <p className="mt-2 text-lg font-black text-slate-900">
-                                저장 내용은 아직 방문자에게 반영되지 않음
-                            </p>
-                            <p className="mt-1 text-xs font-semibold leading-5 text-slate-600">
-                                초안 미리보기로 구성을 확인한 뒤 새 버전을 발행하세요. 발행하기
-                                전까지 방문자는{' '}
-                                {published && status?.revisionNumber
-                                    ? `현재 공개본 v${status.revisionNumber}`
-                                    : '공개 페이지 없음 상태'}
-                                을 계속 봅니다.
-                            </p>
-                        </div>
-                    </div>
-                </div>
-            </div>
-            {!canPublish && (
-                <p className="mt-5 rounded-2xl bg-amber-50 px-4 py-3 text-sm font-semibold text-amber-800">
-                    발행과 공개 중지는 Workspace OWNER 또는 ADMIN만 할 수 있습니다.
-                </p>
-            )}
-            <div className="mt-8 border-t border-slate-200 pt-7">
+            </section>
+            <section className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
                 <div className="flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
                     <div>
                         <div className="flex items-center gap-2 text-slate-950">
@@ -357,7 +360,7 @@ export function WorkspacePublicationPanel({ workspaceSlug, role, onPreview }: Pr
                         아직 발행된 revision이 없습니다.
                     </p>
                 )}
-            </div>
-        </section>
+            </section>
+        </div>
     );
 }

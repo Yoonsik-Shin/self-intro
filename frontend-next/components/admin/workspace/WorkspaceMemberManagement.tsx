@@ -68,7 +68,7 @@ export function WorkspaceMemberManagement({ workspaceSlug, role }: Props) {
 
     return (
         <section className="space-y-6">
-            <header className="rounded-3xl border border-slate-200 bg-white p-8 shadow-sm">
+            <div>
                 <AdminPageHeader
                     eyebrow="Workspace Access"
                     title="멤버·역할 관리"
@@ -82,7 +82,7 @@ export function WorkspaceMemberManagement({ workspaceSlug, role }: Props) {
                                 : '멤버 정보를 불러오지 못했습니다.')}
                     </p>
                 )}
-            </header>
+            </div>
 
             <div className="grid gap-6 xl:grid-cols-2">
                 <RecentReauthenticationStatus description="초대·역할·제거·소유권 변경에는 최근 10분 안의 비밀번호 확인이 필요합니다." />

@@ -141,7 +141,7 @@ export function ExperienceTreeManagement({ workspaceSlug }: { workspaceSlug: str
 
     return (
         <div className="space-y-5">
-            <header className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
+            <div>
                 <AdminPageHeader
                     headingAs="h1"
                     eyebrow="원본 기록"
@@ -195,7 +195,7 @@ export function ExperienceTreeManagement({ workspaceSlug }: { workspaceSlug: str
                         </div>
                     ))}
                 </div>
-            </header>
+            </div>
             <div className="grid min-h-[680px] gap-4 xl:grid-cols-[320px_minmax(0,1fr)]">
                 <aside className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
                     <label className="mb-4 flex items-center gap-2 rounded-xl border border-slate-200 px-3 py-2">

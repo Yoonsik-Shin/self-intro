@@ -3,6 +3,7 @@
 import { useQuery } from '@tanstack/react-query';
 import { ArrowRight, BookOpen, BriefcaseBusiness, Cpu, Radio, Sparkles } from 'lucide-react';
 import { workspaceApi } from '@/lib/api/workspace';
+import { AdminPageHeader } from '@/components/admin/common/AdminPageHeader';
 
 export type WorkspaceHomeDestination =
     'EXPERIENCE' | 'STUDY' | 'SKILLS' | 'COMPETENCIES' | 'JOB_APPLICATIONS' | 'PUBLICATION';
@@ -81,23 +82,16 @@ export function WorkspaceHomeDashboard({
 
     return (
         <section className="space-y-6">
-            <header className="rounded-3xl border border-slate-200 bg-gradient-to-br from-white to-slate-50 p-7 shadow-sm sm:p-8">
-                <span className="text-xs font-black uppercase tracking-[0.16em] text-indigo-600">
-                    Workspace Home
-                </span>
-                <div className="mt-3 flex flex-wrap items-end justify-between gap-4">
-                    <div>
-                        <h2 className="text-2xl font-black text-slate-950">{workspaceName}</h2>
-                        <p className="mt-2 max-w-2xl text-sm leading-6 text-slate-600">
-                            원본 기록부터 공개본과 지원 현황까지, 현재 Workspace의 상태를 한눈에
-                            확인합니다. 각 카드를 누르면 해당 관리 화면으로 이동합니다.
-                        </p>
-                    </div>
+            <AdminPageHeader
+                eyebrow="Workspace Home"
+                title={workspaceName}
+                description="원본 기록부터 공개본과 지원 현황까지, 현재 Workspace의 상태를 한눈에 확인합니다. 각 카드를 누르면 해당 관리 화면으로 이동합니다."
+                actions={
                     <span className="rounded-full border border-slate-200 bg-white px-3 py-1.5 text-xs font-black text-slate-600">
                         {workspaceRole}
                     </span>
-                </div>
-            </header>
+                }
+            />
 
             <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
                 <SummaryCard
