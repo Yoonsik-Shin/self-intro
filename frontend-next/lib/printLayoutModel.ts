@@ -463,6 +463,15 @@ export function normalizeOutputLayout(value: unknown): OutputLayout {
         })
         .filter((region): region is OutputRegion => region !== null);
     const normalizedRegionIds = new Set(normalizedRegions.map((region) => region.id));
+    // row.order는 같은 페이지 안에서만 의미 있는 값이다(페이지마다 0부터 다시
+    // 매겨짐). pageId를 안 보고 order만으로 전역 정렬하면 서로 다른 페이지의
+    // 행이 우연히 같은 order 값을 가질 때 뒤섞여, 원래 페이지별로 묶여 있던
+    // rows 배열 순서가 (내용은 그대로인데) 매번 다르게 재배열된다(실제 발생
+    // 확인됨 — undo/redo가 outputLayout을 복원할 때마다 이 정규화를 거치면서
+    // 배열 순서만 바뀌어, 그 차이를 진짜 편집으로 오인한 되돌리기 히스토리가
+    // 계속 잘못 쌓였다). 페이지 순서를 먼저 기준으로 삼고, 그 안에서만 order로
+    // 정렬한다.
+    const pageIndexById = new Map(parsedPages.map((page, index) => [page.id, index]));
     const normalizedRows = rows
         .map((row): OutputRow | null => {
             const regionIds = row.regionIds.filter((regionId) => normalizedRegionIds.has(regionId));
@@ -471,7 +480,11 @@ export function normalizeOutputLayout(value: unknown): OutputLayout {
                 : null;
         })
         .filter((row): row is OutputRow => row !== null)
-        .sort((left, right) => left.order - right.order);
+        .sort((left, right) => {
+            const pageDiff =
+                (pageIndexById.get(left.pageId) ?? 0) - (pageIndexById.get(right.pageId) ?? 0);
+            return pageDiff !== 0 ? pageDiff : left.order - right.order;
+        });
     const normalizedRowIds = new Set(normalizedRows.map((row) => row.id));
 
     const widthSumByRowId = new Map<string, number>();

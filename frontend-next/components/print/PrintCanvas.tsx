@@ -446,6 +446,21 @@ export function PrintCanvas({
     const historyCurrentSignatureRef = useRef('');
     const historyMergeRef = useRef<{ key: string | null }>({ key: null });
     const historyMergeTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+    // self-heal(자동 재배치 effect)이 setOutputLayout을 부르기 직전에 true로 세워둔다.
+    // 히스토리 effect는 이걸 보고 그 변화를 "사용자 액션"으로 기록하지 않는다 —
+    // 안 그러면 사용자가 되돌리기를 눌러도 self-heal이 outputLayout 변화를 감지하고
+    // 바로 다시 같은 결과로 재배치해버려 되돌리기가 안 먹히는 것처럼 보인다
+    // (실제 발생 확인됨).
+    const skipHistoryForOutputLayoutRef = useRef(false);
+    // forceMoveToPage처럼 atom 하나당 store를 여러 번 나눠 커밋하는 작업 도중엔
+    // 이걸 true로 켜서 히스토리 effect가 아예 아무것도 안 하게(스냅샷도 안 갱신)
+    // 막는다 — 그래야 함수가 끝난 뒤 딱 한 번, 작업 시작 전 상태 대비 최종 상태로
+    // 히스토리 항목이 정확히 하나만 쌓인다. 중간에 갱신해버리면(스킵만 하고
+    // historyCurrentRef는 계속 따라가면) "현재" 기준점이 작업 도중의 중간 상태로
+    // 밀려서, 되돌리기를 눌러도 전체 작업이 아니라 마지막 한 조각만 되돌아간다
+    // (실제 발생 확인됨 — 섹션 전체를 다음 페이지로 내렸는데 되돌리기를 여러 번
+    // 눌러야 겨우 원상복구됨).
+    const historyBatchActiveRef = useRef(false);
     const [historyAvailability, setHistoryAvailability] = useState({
         canUndo: false,
         canRedo: false,
@@ -459,13 +474,34 @@ export function PrintCanvas({
 
     const applyHistorySnapshot = (snapshot: PrintEditorSnapshot) => {
         const restored = clonePrintEditorSnapshot(snapshot);
-        historyCurrentRef.current = restored;
-        historyCurrentSignatureRef.current = JSON.stringify(restored);
         store.applyTemplate(restored);
         setContentOverrides(restored.contentOverrides);
         setCoverLetterOverrides(restored.coverLetterOverrides);
         setCoverLetterSectionTitle(restored.coverLetterSectionTitle);
         setAddedCoverLetterItems(restored.addedCoverLetterItems);
+        // historyCurrentRef는 반드시 store에 "실제로 커밋된" 값을 기준으로 잡아야 한다.
+        // applyTemplate 내부의 normalizeOutputLayout이 rows 배열 순서 등을 정규화하면서
+        // 넘겨준 restored와 미묘하게 달라질 수 있는데(실제 발생 확인됨 — 페이지 순서와
+        // 안 맞게 뒤섞여 있던 예전 rows 배열이 정규화 과정에서 올바른 순서로 바로잡히면서
+        // restored 원본과 값이 달라짐), historyCurrentRef를 restored(정규화 전 원본)로
+        // 잡아두면 다음 렌더에서 "실제 store 값과 다르다"는 가짜 변경으로 잡혀 되돌리기
+        // 직후 매번 유령 히스토리 항목이 쌓이고 다시하기 스택도 그때마다 지워졌다.
+        const committed = usePrintStore.getState();
+        const settled = clonePrintEditorSnapshot({
+            excludedIds: committed.printExcludedIds,
+            sectionOrder: committed.printSectionOrder,
+            sectionGaps: committed.sectionGaps,
+            lineHeight: committed.lineHeight,
+            forcedPageOverrides: committed.forcedPageOverrides,
+            outputLayout: committed.outputLayout,
+            itemOrderOverrides: committed.itemOrderOverrides,
+            contentOverrides: restored.contentOverrides,
+            coverLetterOverrides: restored.coverLetterOverrides,
+            coverLetterSectionTitle: restored.coverLetterSectionTitle,
+            addedCoverLetterItems: restored.addedCoverLetterItems,
+        });
+        historyCurrentRef.current = settled;
+        historyCurrentSignatureRef.current = JSON.stringify(settled);
     };
 
     const handleUndo = () => {
@@ -491,6 +527,7 @@ export function PrintCanvas({
     };
 
     useEffect(() => {
+        if (historyBatchActiveRef.current) return;
         const snapshot = clonePrintEditorSnapshot({
             excludedIds: store.printExcludedIds,
             sectionOrder: store.printSectionOrder,
@@ -506,6 +543,13 @@ export function PrintCanvas({
         });
         const signature = JSON.stringify(snapshot);
         if (signature === historyCurrentSignatureRef.current) return;
+
+        if (skipHistoryForOutputLayoutRef.current) {
+            skipHistoryForOutputLayoutRef.current = false;
+            historyCurrentRef.current = snapshot;
+            historyCurrentSignatureRef.current = signature;
+            return;
+        }
 
         const current = historyCurrentRef.current;
         if (current) {
@@ -1412,6 +1456,7 @@ export function PrintCanvas({
 
     useEffect(() => {
         if (store.outputLayout.pages.length >= pageLayers.length) return;
+        skipHistoryForOutputLayoutRef.current = true;
         store.setOutputLayout(ensureOutputLayoutPageCount(store.outputLayout, pageLayers.length));
     }, [pageLayers.length, store]);
 
@@ -2717,6 +2762,7 @@ export function PrintCanvas({
             // 실제로 페이지가 바뀌지 않는다면 아무것도 하지 않는다.
             const currentActualPage = effectivePageMap.get(ids[0]);
             if (currentActualPage === targetPageIndex) return;
+            historyBatchActiveRef.current = true;
             // 아래로 내리는 경우(현재 페이지보다 뒤로)와 위로 올리는 경우(현재
             // 페이지보다 앞으로)는 문서 순서상 붙어야 할 위치가 정반대다.
             // 아래로 내릴 땐 대상 페이지의 자연 컨텐츠보다 문서상 먼저 오므로
@@ -2831,6 +2877,7 @@ export function PrintCanvas({
                     : undefined;
                 anchorRowId = region?.rowId ?? anchorRowId;
             });
+            historyBatchActiveRef.current = false;
         },
         [getRowPairingKey, printableAtoms, effectivePageMap, store.outputLayout]
     );
@@ -3225,7 +3272,14 @@ export function PrintCanvas({
                     .filter((row) => row.pageId === page.id)
                     .sort((a, b) => a.order - b.order);
                 pageRows.forEach((row) => {
-                    if (isRowLocked(row)) return;
+                    // 2-4열로 나란히 배치된 행은 pageLocked 행과 마찬가지로 사용자가
+                    // 드래그로 명시적으로 만든 구조다 — 이 스캔은 self-heal이 outputLayout
+                    // 바뀔 때마다(되돌리기/다시실행 포함) 무조건 도는데, 컬럼 페어링된
+                    // 행까지 랭크 역행 검사 대상에 넣으면 방금 만든 2열 배치가 되돌리기와
+                    // 무관하게 다음 self-heal 패스에서 조용히 단일열로 풀려버린다(실제
+                    // 발생 확인됨 — 2열로 나눈 직후/되돌리기 후 화면이 계속 단일열로
+                    // 되돌아감). 그래서 여기서도 아예 검사 대상에서 뺀다.
+                    if (isRowLocked(row) || row.regionIds.length > 1) return;
                     const rank = rowRank(row);
                     if (rank === Number.MAX_SAFE_INTEGER) return;
                     if (rank < runningMaxRank) {
@@ -3426,6 +3480,7 @@ export function PrintCanvas({
             }
         }
         if (changed) {
+            skipHistoryForOutputLayoutRef.current = true;
             usePrintStore.getState().setOutputLayout(layout);
         }
     }, [
