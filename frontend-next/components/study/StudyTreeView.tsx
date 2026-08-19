@@ -254,19 +254,21 @@ function FolderRow({
                 <FolderIcon className="h-5 w-5 shrink-0 text-blue-500" />
             )}
             <span className="min-w-0 flex-1">
-                <span
-                    className={`block text-slate-900 ${root ? 'text-xl font-black' : emphasis === 'domain' ? 'text-base font-black' : 'text-sm font-bold'}`}
-                >
-                    {label}
+                <span className="flex items-center gap-2">
+                    <span
+                        className={`text-slate-900 ${root ? 'text-xl font-black' : emphasis === 'domain' ? 'text-base font-black' : 'text-sm font-bold'}`}
+                    >
+                        {label}
+                    </span>
+                    <span className="shrink-0 rounded-full bg-slate-100 px-2 py-0.5 text-[11px] font-bold text-slate-500">
+                        {count}
+                    </span>
                 </span>
                 {description && (
                     <span className="mt-0.5 block text-xs leading-5 text-slate-500">
                         {description}
                     </span>
                 )}
-            </span>
-            <span className="rounded-full bg-slate-100 px-2 py-0.5 text-[11px] font-bold text-slate-500">
-                {count}
             </span>
         </button>
     );
