@@ -157,37 +157,37 @@ const studyFallbackRules: Array<{ keywords: string[]; title: string; url: string
     {
         keywords: ['multi-module', '3-tier', '모듈', 'k8s pod', '스케일링', 'recreate'],
         title: '백엔드 멀티모듈 & K8s 파드 분리',
-        url: '/study/backend-architecture-modular-k8s-pod-separation',
+        url: '/workspace/w-199d6de326de71385a98/study/backend-architecture-modular-k8s-pod-separation',
     },
     {
         keywords: ['grpc', 'rabbitmq', 'cqrs', '이벤트'],
         title: 'gRPC, RabbitMQ & CQRS 패턴',
-        url: '/study/msa-grpc-rabbitmq-cqrs-architecture',
+        url: '/workspace/w-199d6de326de71385a98/study/msa-grpc-rabbitmq-cqrs-architecture',
     },
     {
         keywords: ['oracle', 'vector', 'hnsw', 'vector_distance', '26ai', '23ai', '임베딩', 'nim'],
         title: 'Oracle 26ai Vector Search & Dual DB',
-        url: '/study/oracle-26ai-vector-search-msa-dual-db-architecture',
+        url: '/workspace/w-199d6de326de71385a98/study/oracle-26ai-vector-search-msa-dual-db-architecture',
     },
     {
         keywords: ['prometheus', 'grafana', 'node exporter', 'actuator', 'loki', 'alloy', '관측'],
         title: 'Prometheus & Grafana 관측망 구축',
-        url: '/study/kubernetes-node-exporter-grafana-dashboard-deep-dive',
+        url: '/workspace/w-199d6de326de71385a98/study/kubernetes-node-exporter-grafana-dashboard-deep-dive',
     },
     {
         keywords: ['argocd', 'gitops', 'ingress', 'nginx', 'crio', 'logging', 'cloudflare'],
         title: 'K8s Ingress Nginx & Logging Refactoring',
-        url: '/study/k8s-ingress-crio-logging-architecture-refactoring',
+        url: '/workspace/w-199d6de326de71385a98/study/k8s-ingress-crio-logging-architecture-refactoring',
     },
     {
         keywords: ['flyway', 'heatwave', 'mysql', 'dual db', '이원화', '마이그레이션'],
         title: 'MySQL HeatWave + Oracle 26ai Dual DB 구축',
-        url: '/study/oracle-26ai-vector-search-msa-dual-db-architecture',
+        url: '/workspace/w-199d6de326de71385a98/study/oracle-26ai-vector-search-msa-dual-db-architecture',
     },
     {
         keywords: ['presigned', 'minio', 'object storage', 's3'],
         title: 'S3 호환 Object Storage & Presigned URL',
-        url: '/study/headless-browser-spa-job-posting-scraping',
+        url: '/workspace/w-199d6de326de71385a98/study/headless-browser-spa-job-posting-scraping',
     },
 ];
 

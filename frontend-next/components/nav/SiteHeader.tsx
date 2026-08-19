@@ -10,7 +10,6 @@ import {
     ChevronDown,
     ChevronRight,
     Eye,
-    GitBranch,
     Heart,
     Home,
     LogIn,
@@ -36,29 +35,9 @@ type NavPage = {
     exact?: boolean;
 };
 
-const legacyPages: NavPage[] = [
-    { href: '/', label: '메인페이지', shortLabel: '메인', icon: Home },
-    { href: '/experience', label: '경험', shortLabel: '경험', icon: Briefcase },
-    { href: '/study', label: '공부 정리', shortLabel: '공부 정리', icon: BookOpen },
-    {
-        href: '/experience-tree',
-        label: '개발자 온톨로지',
-        shortLabel: '개발자 온톨로지',
-        icon: GitBranch,
-    },
-    {
-        href: '/architecture',
-        label: 'Self-Intro 플랫폼',
-        shortLabel: 'Self-Intro 플랫폼',
-        icon: Terminal,
-    },
-];
-
 function isActivePage(pathname: string, href: string, exact = false): boolean {
     if (exact) return pathname.replace(/\/$/, '') === href.replace(/\/$/, '');
     if (href === '/') return pathname === '/';
-    if (href === '/experience')
-        return pathname === '/experience' || pathname.startsWith('/experience/');
     return pathname.startsWith(href);
 }
 
@@ -69,11 +48,7 @@ export function SiteHeader() {
     const workspaceBase = workspaceSlug ? `/workspace/${workspaceSlug}` : null;
     const isWorkspacePublicArea =
         workspaceBase !== null && !pathname.includes('/admin') && !pathname.includes('/manage');
-    const isLegacyPortfolioArea =
-        pathname.startsWith('/experience') ||
-        pathname.startsWith('/study') ||
-        pathname.startsWith('/experience-tree');
-    const isPlatformArea = !isWorkspacePublicArea && !isLegacyPortfolioArea;
+    const isPlatformArea = !isWorkspacePublicArea;
     const pages: NavPage[] = isWorkspacePublicArea
         ? [
               {
@@ -98,17 +73,15 @@ export function SiteHeader() {
                   exact: false,
               },
           ]
-        : isLegacyPortfolioArea
-          ? legacyPages
-          : [
-                { href: '/', label: 'Self-Intro 플랫폼', shortLabel: '플랫폼', icon: Terminal },
-                {
-                    href: '/architecture/demo',
-                    label: '워크스페이스 체험',
-                    shortLabel: '워크스페이스 체험',
-                    icon: Eye,
-                },
-            ];
+        : [
+              { href: '/', label: 'Self-Intro 플랫폼', shortLabel: '플랫폼', icon: Terminal },
+              {
+                  href: '/architecture/demo',
+                  label: '워크스페이스 체험',
+                  shortLabel: '워크스페이스 체험',
+                  icon: Eye,
+              },
+          ];
     const [isPageMenuOpen, setIsPageMenuOpen] = useState(false);
     const [isAccountMenuOpen, setIsAccountMenuOpen] = useState(false);
     const accountMenuRef = useRef<HTMLDivElement>(null);
@@ -127,10 +100,10 @@ export function SiteHeader() {
     const setPrintModalOpen = usePrintStore((s) => s.setPrintModalOpen);
 
     useEffect(() => {
-        if ((isPlatformArea || isWorkspacePublicArea) && isCheckingSession) {
+        if (isCheckingSession) {
             void checkSession();
         }
-    }, [checkSession, isCheckingSession, isPlatformArea, isWorkspacePublicArea]);
+    }, [checkSession, isCheckingSession]);
 
     useEffect(() => {
         if (!isAccountMenuOpen) return;
@@ -174,7 +147,7 @@ export function SiteHeader() {
     const { data: donationConfig } = useQuery({
         queryKey: ['donationConfig'],
         queryFn: donationApi.config,
-        enabled: !isPreviewMode && (isWorkspacePublicArea || isLegacyPortfolioArea),
+        enabled: !isPreviewMode && isWorkspacePublicArea,
     });
     const isDonationEnabled = donationConfig?.enabled === true;
 
@@ -183,7 +156,7 @@ export function SiteHeader() {
         queryKey: ['visitor', 'record', workspaceSlug ?? 'platform'],
         queryFn: () =>
             workspaceSlug ? visitorApi.workspaceRecord(workspaceSlug) : visitorApi.record(),
-        enabled: !isPreviewMode && (isWorkspacePublicArea || isLegacyPortfolioArea),
+        enabled: !isPreviewMode && isWorkspacePublicArea,
         staleTime: Infinity,
         retry: false,
         refetchOnWindowFocus: false,
