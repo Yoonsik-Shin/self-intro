@@ -39,6 +39,15 @@ public class PortfolioCaseStudyRevision {
     @Column(name = "rendered_markdown", nullable = false, columnDefinition = "LONGTEXT")
     private String renderedMarkdown;
 
+    @Column(name = "base_revision_id")
+    private Long baseRevisionId;
+
+    @Column(name = "feedback_instruction", length = 1000)
+    private String feedbackInstruction;
+
+    @Column(name = "ai_model", length = 100)
+    private String aiModel;
+
     @Column(name = "created_at", nullable = false, updatable = false)
     private LocalDateTime createdAt;
 
@@ -48,12 +57,28 @@ public class PortfolioCaseStudyRevision {
             String source,
             String contentJson,
             String renderedMarkdown) {
+        return create(
+                caseStudyId, version, source, contentJson, renderedMarkdown, null, null, null);
+    }
+
+    public static PortfolioCaseStudyRevision create(
+            Long caseStudyId,
+            int version,
+            String source,
+            String contentJson,
+            String renderedMarkdown,
+            Long baseRevisionId,
+            String feedbackInstruction,
+            String aiModel) {
         PortfolioCaseStudyRevision revision = new PortfolioCaseStudyRevision();
         revision.caseStudyId = caseStudyId;
         revision.version = version;
         revision.source = source;
         revision.contentJson = contentJson;
         revision.renderedMarkdown = renderedMarkdown;
+        revision.baseRevisionId = baseRevisionId;
+        revision.feedbackInstruction = feedbackInstruction;
+        revision.aiModel = aiModel;
         revision.createdAt = LocalDateTime.now();
         return revision;
     }

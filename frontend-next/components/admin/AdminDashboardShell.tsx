@@ -1315,13 +1315,13 @@ export function AdminDashboardShell({ workspaceSlug }: { workspaceSlug: string }
                             {activeTab === 'PRINT_TEMPLATES' && (
                                 <PrintTemplateManagement
                                     workspaceSlug={workspaceSlug}
-                                    enablePlatformAi={false}
+                                    enablePlatformAi
                                 />
                             )}
                             {activeTab === 'PORTFOLIO' && (
                                 <PortfolioManagement
                                     workspaceSlug={workspaceSlug}
-                                    enablePlatformAi={false}
+                                    enablePlatformAi
                                 />
                             )}
                             {isPlatformOperator && activeTab === 'ANALYTICS' && <AnalyticsPanel />}

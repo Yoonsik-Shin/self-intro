@@ -39,11 +39,16 @@ export const portfolioApi = {
         workspaceSlug: string,
         id: number,
         content: PortfolioCaseStudyContent,
-        source: 'AI' | 'MANUAL'
+        source: 'AI' | 'MANUAL',
+        metadata?: {
+            baseRevisionId?: number | null;
+            feedbackInstruction?: string | null;
+            aiModel?: string | null;
+        }
     ) =>
         request<PortfolioCaseStudyRevision>(
             `/api/workspaces/${encodeURIComponent(workspaceSlug)}/portfolio/case-studies/manage/${id}/revisions`,
-            { method: 'POST', body: JSON.stringify({ content, source }) }
+            { method: 'POST', body: JSON.stringify({ content, source, ...metadata }) }
         ),
     workspacePublish: (workspaceSlug: string, id: number, revisionId: number) =>
         request<PortfolioCaseStudy>(

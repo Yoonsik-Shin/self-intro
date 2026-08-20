@@ -26,12 +26,15 @@ type AiRevisionChatProps = {
     onCancelGenerate: () => void;
     /** AI 메시지 본문을 그대로 어딘가에 적용하고 싶을 때만 넘긴다(예: 자소서 답변 에디터). 없으면 "적용" 버튼을 숨긴다. */
     onApply?: (content: string) => void;
+    /** 구조화된 revision처럼 메시지 ID가 필요한 적용 흐름에서 사용한다. */
+    onApplyMessage?: (message: AiRevisionChatMessage) => void;
     title?: string;
     subtitle?: string;
     generateButtonLabel?: string;
     emptyTitle?: string;
     emptyDescription?: string;
     inputPlaceholder?: string;
+    showModelSelector?: boolean;
 };
 
 /**
@@ -45,12 +48,14 @@ export function AiRevisionChat({
     onGenerate,
     onCancelGenerate,
     onApply,
+    onApplyMessage,
     title = 'AI 초안 & 지적사항 타임라인',
     subtitle = '피드백 대화 이력이 자동 기록됩니다.',
     generateButtonLabel = '새 초안 생성',
     emptyTitle = '아직 생성된 초안이 없습니다.',
     emptyDescription = '[새 초안 생성] 버튼을 누르면 초안을 작성합니다.',
     inputPlaceholder = '지적사항이나 보완 요청을 입력하세요 (전송 버튼 클릭 시 반영)',
+    showModelSelector = true,
 }: AiRevisionChatProps) {
     const globalAiModel = useAiModelStore((state) => state.modelKey);
     const globalCustomModelName = useAiModelStore((state) => state.customModelName);
@@ -134,36 +139,38 @@ export function AiRevisionChat({
             </div>
 
             {/* Model Selector Bar */}
-            <div className="flex flex-col gap-2 border-b border-slate-200 bg-slate-100/70 px-4 py-2.5 shrink-0">
-                <div className="flex items-center justify-between gap-2">
-                    <label className="text-[11px] font-extrabold text-slate-700 whitespace-nowrap flex items-center gap-1">
-                        <Cpu className="h-3.5 w-3.5 text-indigo-600" />
-                        AI 생성 모델:
-                    </label>
-                    <div className="flex items-center gap-2 flex-1 max-w-[280px]">
-                        <select
-                            value={selectedAiModel}
-                            onChange={(e) => setSelectedAiModel(e.target.value)}
-                            className="w-full rounded-md border border-slate-300 bg-white px-2.5 py-1 text-xs font-extrabold text-slate-800 focus:border-indigo-500 focus:outline-none shadow-2xs"
-                        >
-                            {AI_MODEL_OPTIONS.map((opt) => (
-                                <option key={opt.id} value={opt.id}>
-                                    {opt.name} · {opt.tag}
-                                </option>
-                            ))}
-                        </select>
+            {showModelSelector && (
+                <div className="flex flex-col gap-2 border-b border-slate-200 bg-slate-100/70 px-4 py-2.5 shrink-0">
+                    <div className="flex items-center justify-between gap-2">
+                        <label className="text-[11px] font-extrabold text-slate-700 whitespace-nowrap flex items-center gap-1">
+                            <Cpu className="h-3.5 w-3.5 text-indigo-600" />
+                            AI 생성 모델:
+                        </label>
+                        <div className="flex items-center gap-2 flex-1 max-w-[280px]">
+                            <select
+                                value={selectedAiModel}
+                                onChange={(e) => setSelectedAiModel(e.target.value)}
+                                className="w-full rounded-md border border-slate-300 bg-white px-2.5 py-1 text-xs font-extrabold text-slate-800 focus:border-indigo-500 focus:outline-none shadow-2xs"
+                            >
+                                {AI_MODEL_OPTIONS.map((opt) => (
+                                    <option key={opt.id} value={opt.id}>
+                                        {opt.name} · {opt.tag}
+                                    </option>
+                                ))}
+                            </select>
+                        </div>
                     </div>
+                    {selectedAiModel === 'CUSTOM' && (
+                        <input
+                            type="text"
+                            value={customModelInput}
+                            onChange={(e) => setCustomModelInput(e.target.value)}
+                            placeholder="공식 API 모델명 입력 (예: claude-sonnet-5, gpt-5.4-mini)"
+                            className="w-full rounded-md border border-slate-300 bg-white px-3 py-1.5 text-xs text-slate-800 focus:border-indigo-500 focus:outline-none"
+                        />
+                    )}
                 </div>
-                {selectedAiModel === 'CUSTOM' && (
-                    <input
-                        type="text"
-                        value={customModelInput}
-                        onChange={(e) => setCustomModelInput(e.target.value)}
-                        placeholder="공식 API 모델명 입력 (예: claude-sonnet-5, gpt-5.4-mini)"
-                        className="w-full rounded-md border border-slate-300 bg-white px-3 py-1.5 text-xs text-slate-800 focus:border-indigo-500 focus:outline-none"
-                    />
-                )}
-            </div>
+            )}
 
             {/* Chat Messages Timeline */}
             <div className="flex-1 overflow-y-auto p-4 space-y-4 bg-slate-50/30">
@@ -232,10 +239,14 @@ export function AiRevisionChat({
                                                 <Copy className="h-3 w-3" />
                                                 복사
                                             </button>
-                                            {onApply && (
+                                            {(onApply || onApplyMessage) && (
                                                 <button
                                                     type="button"
-                                                    onClick={() => onApply(rev.content)}
+                                                    onClick={() =>
+                                                        onApplyMessage
+                                                            ? onApplyMessage(rev)
+                                                            : onApply?.(rev.content)
+                                                    }
                                                     className="flex items-center gap-1 rounded-md bg-indigo-600 px-2.5 py-1 text-[10px] font-extrabold text-white transition hover:bg-indigo-700 shadow-xs whitespace-nowrap"
                                                 >
                                                     <Check className="h-3 w-3" />

@@ -7,13 +7,17 @@ import static org.mockito.Mockito.when;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.selfintro.global.ai.NvidiaNimClient;
+import com.selfintro.modules.competency.domain.repository.CompetencyRepository;
 import com.selfintro.modules.experience.domain.entity.Experience;
 import com.selfintro.modules.experience.domain.repository.ExperienceRepository;
 import com.selfintro.modules.portfolio.domain.entity.PortfolioCaseStudy;
+import com.selfintro.modules.portfolio.domain.entity.PortfolioCaseStudyRevision;
 import com.selfintro.modules.portfolio.domain.repository.PortfolioCaseStudyRepository;
+import com.selfintro.modules.portfolio.domain.repository.PortfolioCaseStudyRevisionRepository;
 import com.selfintro.modules.portfolio.presentation.dto.PortfolioCaseStudyContent;
 import com.selfintro.modules.portfolio.presentation.dto.PortfolioCaseStudyGenerateRequest;
 import com.selfintro.modules.skill.domain.repository.SkillRepository;
+import com.selfintro.modules.skill.domain.repository.WorkspaceSkillRepository;
 import com.selfintro.modules.study.domain.repository.StudyRepository;
 import java.util.List;
 import java.util.Optional;
@@ -26,8 +30,11 @@ import org.mockito.junit.jupiter.MockitoExtension;
 @ExtendWith(MockitoExtension.class)
 class PortfolioCaseStudyAiServiceTest {
     @Mock PortfolioCaseStudyRepository portfolioCaseStudyRepository;
+    @Mock PortfolioCaseStudyRevisionRepository portfolioCaseStudyRevisionRepository;
     @Mock ExperienceRepository experienceRepository;
+    @Mock CompetencyRepository competencyRepository;
     @Mock SkillRepository skillRepository;
+    @Mock WorkspaceSkillRepository workspaceSkillRepository;
     @Mock StudyRepository studyRepository;
     @Mock NvidiaNimClient nvidiaNimClient;
 
@@ -38,15 +45,18 @@ class PortfolioCaseStudyAiServiceTest {
         service =
                 new PortfolioCaseStudyAiService(
                         portfolioCaseStudyRepository,
+                        portfolioCaseStudyRevisionRepository,
                         experienceRepository,
+                        competencyRepository,
                         skillRepository,
+                        workspaceSkillRepository,
                         studyRepository,
                         nvidiaNimClient,
                         new ObjectMapper());
     }
 
     private PortfolioCaseStudyGenerateRequest emptyRequest() {
-        return new PortfolioCaseStudyGenerateRequest("", List.of(), List.of());
+        return new PortfolioCaseStudyGenerateRequest("", List.of(), List.of(), List.of(), null);
     }
 
     @Test
@@ -63,6 +73,7 @@ class PortfolioCaseStudyAiServiceTest {
         when(experience.getSkills()).thenReturn(List.of());
         when(experienceRepository.findById(1L)).thenReturn(Optional.of(experience));
         when(studyRepository.findAllByExperiences_IdOrderByTitleAsc(1L)).thenReturn(List.of());
+        when(competencyRepository.findAllByOrderByDisplayOrderAsc()).thenReturn(List.of());
 
         when(nvidiaNimClient.generate(anyString(), anyString()))
                 .thenReturn(
@@ -88,5 +99,57 @@ class PortfolioCaseStudyAiServiceTest {
 
         assertThat(content.problem()).contains("병목");
         assertThat(content.sourceStudyIds()).isEmpty();
+    }
+
+    @Test
+    void revisesSavedDraftAndPreservesExistingImageObjectKeys() throws Exception {
+        PortfolioCaseStudy caseStudy = mock(PortfolioCaseStudy.class);
+        when(caseStudy.getExperienceId()).thenReturn(1L);
+        when(portfolioCaseStudyRepository.findById(1L)).thenReturn(Optional.of(caseStudy));
+
+        Experience experience = mock(Experience.class);
+        when(experience.getTitle()).thenReturn("포트폴리오 서비스");
+        when(experience.getSummary()).thenReturn("근거 기반 포트폴리오 관리");
+        when(experience.getTakeaway()).thenReturn("Revision 설계");
+        when(experience.getDetails()).thenReturn(List.of());
+        when(experience.getSkills()).thenReturn(List.of());
+        when(experienceRepository.findById(1L)).thenReturn(Optional.of(experience));
+        when(studyRepository.findAllByExperiences_IdOrderByTitleAsc(1L)).thenReturn(List.of());
+        when(competencyRepository.findAllByOrderByDisplayOrderAsc()).thenReturn(List.of());
+
+        String baseJson =
+                """
+                {"summary":"기존 요약","problem":"기존 문제","thoughtProcess":"기존 고민",\
+                "tradeoffs":[],"solution":"기존 해결","outcome":{"summary":"기존 성과","metrics":[]},\
+                "architecture":{"mermaidSource":null,"imageObjectKeys":["workspace/1/original.png"],"imageUrls":[]},\
+                "sourceStudyIds":[],"sourceExperienceDetailIds":[]}
+                """;
+        PortfolioCaseStudyRevision baseRevision =
+                PortfolioCaseStudyRevision.create(1L, 1, "AI", baseJson, "");
+        when(portfolioCaseStudyRevisionRepository.findById(20L))
+                .thenReturn(Optional.of(baseRevision));
+
+        when(nvidiaNimClient.generate(anyString(), anyString()))
+                .thenReturn(
+                        """
+                        {"facts":[{"experienceDetailId":null,"studyId":null,"aspect":"solution","text":"Revision으로 변경 이력을 관리했다"}],"reason":"근거 충분"}
+                        """,
+                        """
+                        {"summary":"개선된 요약","problem":"기존 문제","thoughtProcess":"기존 고민",\
+                        "tradeoffs":[],"solution":"Revision으로 변경 이력을 관리했습니다.",\
+                        "outcome":{"summary":"기존 성과","metrics":[]},\
+                        "architecture":{"mermaidSource":null,"imageObjectKeys":["invented.png"]},\
+                        "sourceStudyIds":[],"sourceExperienceDetailIds":[]}
+                        """);
+
+        PortfolioCaseStudyContent content =
+                service.generate(
+                        1L,
+                        new PortfolioCaseStudyGenerateRequest(
+                                "Revision 설계를 강조해줘", List.of(), List.of(), List.of(), 20L));
+
+        assertThat(content.summary()).isEqualTo("개선된 요약");
+        assertThat(content.architecture().imageObjectKeys())
+                .containsExactly("workspace/1/original.png");
     }
 }

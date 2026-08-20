@@ -90,15 +90,71 @@ public class PortfolioCaseStudyService {
     @Transactional
     public PortfolioCaseStudyRevisionResponse saveRevision(
             Long workspaceId, Long caseStudyId, PortfolioCaseStudyContent content, String source) {
+        return saveRevision(workspaceId, caseStudyId, content, source, null, null, null);
+    }
+
+    @Transactional
+    public PortfolioCaseStudyRevisionResponse saveRevision(
+            Long workspaceId,
+            Long caseStudyId,
+            PortfolioCaseStudyContent content,
+            String source,
+            Long baseRevisionId,
+            String feedbackInstruction,
+            String aiModel) {
         PortfolioCaseStudy caseStudy = findOrThrow(workspaceId, caseStudyId);
         validateContentReferences(workspaceId, caseStudy, content);
+        validateRevisionMetadata(caseStudyId, source, baseRevisionId, feedbackInstruction, aiModel);
         int nextVersion = (int) revisionRepository.countByCaseStudyId(caseStudyId) + 1;
         String contentJson = writeJson(content);
         String renderedMarkdown = markdownRenderer.render(caseStudy.getTitle(), content);
         PortfolioCaseStudyRevision revision =
                 PortfolioCaseStudyRevision.create(
-                        caseStudyId, nextVersion, source, contentJson, renderedMarkdown);
+                        caseStudyId,
+                        nextVersion,
+                        source,
+                        contentJson,
+                        renderedMarkdown,
+                        baseRevisionId,
+                        normalizeOptional(feedbackInstruction),
+                        normalizeOptional(aiModel));
         return toRevisionResponse(revisionRepository.save(revision));
+    }
+
+    private void validateRevisionMetadata(
+            Long caseStudyId,
+            String source,
+            Long baseRevisionId,
+            String feedbackInstruction,
+            String aiModel) {
+        if (!PortfolioCaseStudyRevision.SOURCE_AI.equals(source)
+                && !PortfolioCaseStudyRevision.SOURCE_MANUAL.equals(source)) {
+            throw new ResponseStatusException(
+                    HttpStatus.BAD_REQUEST, "지원하지 않는 revision source입니다.");
+        }
+        if (baseRevisionId != null
+                && revisionRepository
+                        .findById(baseRevisionId)
+                        .filter(revision -> revision.getCaseStudyId().equals(caseStudyId))
+                        .isEmpty()) {
+            throw new ResponseStatusException(
+                    HttpStatus.BAD_REQUEST, "다른 케이스스터디의 revision은 기준본으로 사용할 수 없습니다.");
+        }
+        if (PortfolioCaseStudyRevision.SOURCE_MANUAL.equals(source)
+                && (normalizeOptional(feedbackInstruction) != null
+                        || normalizeOptional(aiModel) != null)) {
+            throw new ResponseStatusException(
+                    HttpStatus.BAD_REQUEST, "수동 revision에는 AI 대화 metadata를 기록할 수 없습니다.");
+        }
+        if (baseRevisionId != null && normalizeOptional(feedbackInstruction) == null) {
+            throw new ResponseStatusException(
+                    HttpStatus.BAD_REQUEST, "기준 revision을 사용한 AI 수정에는 피드백 요청이 필요합니다.");
+        }
+    }
+
+    private String normalizeOptional(String value) {
+        if (value == null || value.isBlank()) return null;
+        return value.trim();
     }
 
     @Transactional
@@ -263,6 +319,9 @@ public class PortfolioCaseStudyService {
                 revision.getSource(),
                 readContent(revision),
                 revision.getRenderedMarkdown(),
+                revision.getBaseRevisionId(),
+                revision.getFeedbackInstruction(),
+                revision.getAiModel(),
                 revision.getCreatedAt());
     }
 

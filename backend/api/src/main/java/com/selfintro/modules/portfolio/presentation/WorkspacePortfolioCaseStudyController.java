@@ -38,8 +38,7 @@ public class WorkspacePortfolioCaseStudyController {
 
     @GetMapping("/{id}")
     public PortfolioCaseStudyDetailResponse get(
-            @CurrentWorkspace(WorkspaceAccessLevel.READ) Long workspaceId,
-            @PathVariable Long id) {
+            @CurrentWorkspace(WorkspaceAccessLevel.READ) Long workspaceId, @PathVariable Long id) {
         return portfolioCaseStudyService.get(workspaceId, id);
     }
 
@@ -55,17 +54,11 @@ public class WorkspacePortfolioCaseStudyController {
             @CurrentWorkspace Long workspaceId,
             @PathVariable Long id,
             @Valid @RequestBody PortfolioCaseStudyRenameRequest request) {
-        return portfolioCaseStudyService.rename(
-                workspaceId,
-                id,
-                request.slug(),
-                request.title());
+        return portfolioCaseStudyService.rename(workspaceId, id, request.slug(), request.title());
     }
 
     @DeleteMapping("/{id}")
-    public ResponseEntity<Void> delete(
-            @CurrentWorkspace Long workspaceId,
-            @PathVariable Long id) {
+    public ResponseEntity<Void> delete(@CurrentWorkspace Long workspaceId, @PathVariable Long id) {
         portfolioCaseStudyService.delete(workspaceId, id);
         return ResponseEntity.noContent().build();
     }
@@ -79,7 +72,10 @@ public class WorkspacePortfolioCaseStudyController {
                 workspaceId,
                 id,
                 request.content(),
-                request.source());
+                request.source(),
+                request.baseRevisionId(),
+                request.feedbackInstruction(),
+                request.aiModel());
     }
 
     @PostMapping("/{id}/publish")
@@ -92,8 +88,7 @@ public class WorkspacePortfolioCaseStudyController {
 
     @PostMapping("/{id}/unpublish")
     public PortfolioCaseStudyResponse unpublish(
-            @CurrentWorkspace Long workspaceId,
-            @PathVariable Long id) {
+            @CurrentWorkspace Long workspaceId, @PathVariable Long id) {
         return portfolioCaseStudyService.unpublish(workspaceId, id);
     }
 }

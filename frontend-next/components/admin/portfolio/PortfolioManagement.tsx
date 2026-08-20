@@ -21,9 +21,11 @@ import { portfolioApi } from '@/lib/api/portfolio';
 import { experienceApi } from '@/lib/api/experience';
 import { studyApi } from '@/lib/api/study';
 import { skillApi } from '@/lib/api/skill';
+import { competencyApi } from '@/lib/api/competency';
 import { imageApi } from '@/lib/api/image';
 import type { PortfolioCaseStudy, PortfolioCaseStudyContent } from '@/lib/api/types';
 import { experienceOrgName, experienceTypeLabel } from '@/lib/format';
+import { AiRevisionChat, type AiRevisionChatMessage } from '@/components/shared/AiRevisionChat';
 import { AiStageBubble, useAiSuggestionStream } from '../ai/AiDraftAssistant';
 
 const EMPTY_CONTENT: PortfolioCaseStudyContent = {
@@ -51,6 +53,18 @@ const STATUS_LABELS = {
     ARCHIVED: '보관됨',
 } as const;
 
+function revisionChatContent(content: PortfolioCaseStudyContent): string {
+    return [
+        `한줄 요약\n${content.summary}`,
+        `문제 인식\n${content.problem}`,
+        `고민한 것\n${content.thoughtProcess}`,
+        `해결\n${content.solution}`,
+        `성과\n${content.outcome.summary}`,
+    ]
+        .filter((section) => section.trim().split('\n')[1])
+        .join('\n\n');
+}
+
 export function PortfolioManagement({
     workspaceSlug,
     enablePlatformAi,
@@ -70,6 +84,7 @@ export function PortfolioManagement({
     const [instruction, setInstruction] = useState('');
     const [studyIds, setStudyIds] = useState<number[]>([]);
     const [skillIds, setSkillIds] = useState<number[]>([]);
+    const [competencyIds, setCompetencyIds] = useState<number[]>([]);
     const [uploadingImage, setUploadingImage] = useState(false);
     const fileInputRef = useRef<HTMLInputElement | null>(null);
 
@@ -102,6 +117,10 @@ export function PortfolioManagement({
     const { data: skills = [] } = useQuery({
         queryKey: ['skills', workspaceSlug],
         queryFn: () => skillApi.workspaceList(workspaceSlug),
+    });
+    const { data: competencies = [] } = useQuery({
+        queryKey: ['competencies', workspaceSlug],
+        queryFn: () => competencyApi.workspaceList(workspaceSlug),
     });
     const { data: detail } = useQuery({
         queryKey: ['portfolio-case-study', workspaceSlug, selectedId],
@@ -143,6 +162,31 @@ export function PortfolioManagement({
         detail?.revisions.find((revision) => revision.id === selectedRevisionId) ??
         detail?.revisions[0] ??
         null;
+    const aiRevisionMessages = useMemo<AiRevisionChatMessage[]>(
+        () =>
+            [...(detail?.revisions ?? [])].reverse().flatMap((revision) => {
+                const messages: AiRevisionChatMessage[] = [];
+                if (revision.feedbackInstruction) {
+                    messages.push({
+                        id: -revision.id,
+                        senderType: 'USER',
+                        content: revision.feedbackInstruction,
+                        createdAt: revision.createdAt,
+                    });
+                }
+                if (revision.source === 'AI') {
+                    messages.push({
+                        id: revision.id,
+                        senderType: 'AI',
+                        content: revisionChatContent(revision.content),
+                        aiModel: revision.aiModel,
+                        createdAt: revision.createdAt,
+                    });
+                }
+                return messages;
+            }),
+        [detail?.revisions]
+    );
     const hasUnsavedChanges = selectedRevision
         ? JSON.stringify(content) !== JSON.stringify(selectedRevision.content)
         : JSON.stringify(content) !== JSON.stringify(EMPTY_CONTENT);
@@ -217,17 +261,49 @@ export function PortfolioManagement({
         },
     });
 
-    const requestAiGenerate = async () => {
+    const requestAiGenerate = async (feedbackInstruction?: string) => {
         if (selectedId === null) return;
+        const normalizedFeedback = feedbackInstruction?.trim() || '';
+        let baseRevisionId = normalizedFeedback ? (selectedRevision?.id ?? null) : null;
+        const generationInstruction = normalizedFeedback || instruction.trim();
+        if (normalizedFeedback && hasUnsavedChanges) {
+            try {
+                const savedManualRevision = await portfolioApi.workspaceSaveRevision(
+                    workspaceSlug,
+                    selectedId,
+                    content,
+                    'MANUAL'
+                );
+                baseRevisionId = savedManualRevision.id;
+                setSelectedRevisionId(savedManualRevision.id);
+                await queryClient.invalidateQueries({
+                    queryKey: ['portfolio-case-study', workspaceSlug, selectedId],
+                });
+            } catch (error) {
+                setAiError(
+                    error instanceof Error
+                        ? error.message
+                        : '현재 편집 내용을 revision으로 저장하지 못했습니다.'
+                );
+                return;
+            }
+        }
         resetAiStream();
         setIsGenerating(true);
         const controller = new AbortController();
         abortRef.current = controller;
+        let completedContent: PortfolioCaseStudyContent | null = null;
         try {
             await portfolioApi.workspaceGenerateStream(
                 workspaceSlug,
                 selectedId,
-                { instruction, studyIds, skillIds },
+                {
+                    instruction: generationInstruction,
+                    studyIds,
+                    skillIds,
+                    competencyIds,
+                    baseRevisionId,
+                },
                 (event) => {
                     if (event.type === 'stage') {
                         pushStage(event.stage, event.message);
@@ -237,6 +313,7 @@ export function PortfolioManagement({
                         // no-op: fact count already implied by stage progress
                     } else if (event.type === 'complete') {
                         finishStages();
+                        completedContent = event.content;
                         setContent(event.content);
                         setStudyIds(event.content.sourceStudyIds);
                     } else {
@@ -245,6 +322,23 @@ export function PortfolioManagement({
                 },
                 controller.signal
             );
+            if (completedContent) {
+                const saved = await portfolioApi.workspaceSaveRevision(
+                    workspaceSlug,
+                    selectedId,
+                    completedContent,
+                    'AI',
+                    {
+                        baseRevisionId,
+                        feedbackInstruction: generationInstruction || null,
+                        aiModel: 'NVIDIA NIM',
+                    }
+                );
+                setSelectedRevisionId(saved.id);
+                await queryClient.invalidateQueries({
+                    queryKey: ['portfolio-case-study', workspaceSlug, selectedId],
+                });
+            }
         } catch (error) {
             if (!controller.signal.aborted) {
                 setAiError(error instanceof Error ? error.message : 'AI 초안 생성에 실패했습니다.');
@@ -684,16 +778,16 @@ export function PortfolioManagement({
                                 </div>
                             )}
 
-                            {/* AI 입력은 Workspace 격리까지 완료된 플랫폼 운영자에게만 노출한다. */}
+                            {/* 서버의 Workspace 권한·출처 검증을 통과하는 편집자에게 AI 입력을 노출한다. */}
                             {enablePlatformAi && (
                                 <div className="rounded-lg border border-violet-200 bg-violet-50/40 p-3">
                                     <h3 className="mb-2 flex items-center gap-1.5 text-xs font-black text-violet-900">
-                                        <Sparkles className="h-3.5 w-3.5" /> AI 초안 생성
+                                        <Sparkles className="h-3.5 w-3.5" /> AI 콘텐츠 스튜디오
                                     </h3>
                                     <textarea
                                         value={instruction}
                                         onChange={(e) => setInstruction(e.target.value)}
-                                        placeholder="특정 관점 위주로 작성해달라는 메모 (선택)"
+                                        placeholder="새 초안을 만들 때 강조할 관점 (선택)"
                                         rows={2}
                                         className="w-full rounded-md border border-slate-300 px-2 py-1.5 text-xs"
                                     />
@@ -720,6 +814,30 @@ export function PortfolioManagement({
                                         ))}
                                     </div>
                                     <div className="mt-2 flex flex-wrap gap-1.5">
+                                        {competencies.map((competency) => (
+                                            <button
+                                                key={competency.id}
+                                                type="button"
+                                                onClick={() =>
+                                                    setCompetencyIds((current) =>
+                                                        current.includes(competency.id)
+                                                            ? current.filter(
+                                                                  (id) => id !== competency.id
+                                                              )
+                                                            : [...current, competency.id]
+                                                    )
+                                                }
+                                                className={`rounded-full border px-2 py-0.5 text-[10px] font-bold transition ${
+                                                    competencyIds.includes(competency.id)
+                                                        ? 'border-emerald-400 bg-emerald-600 text-white'
+                                                        : 'border-slate-300 text-slate-500 hover:border-emerald-300'
+                                                }`}
+                                            >
+                                                역량 · {competency.title}
+                                            </button>
+                                        ))}
+                                    </div>
+                                    <div className="mt-2 flex flex-wrap gap-1.5">
                                         {skills.map((sk) => (
                                             <button
                                                 key={sk.id}
@@ -741,20 +859,6 @@ export function PortfolioManagement({
                                             </button>
                                         ))}
                                     </div>
-                                    <button
-                                        type="button"
-                                        onClick={requestAiGenerate}
-                                        disabled={isGenerating}
-                                        className="mt-2.5 inline-flex items-center gap-1.5 rounded-md bg-violet-600 px-3 py-1.5 text-xs font-black text-white disabled:opacity-50"
-                                    >
-                                        {isGenerating ? (
-                                            <Loader2 className="h-3.5 w-3.5 animate-spin" />
-                                        ) : (
-                                            <Sparkles className="h-3.5 w-3.5" />
-                                        )}
-                                        {isGenerating ? '생성 중...' : 'AI 초안 생성'}
-                                    </button>
-
                                     {aiStages.length > 0 && (
                                         <div
                                             ref={chatRef}
@@ -774,6 +878,32 @@ export function PortfolioManagement({
                                             {aiError}
                                         </p>
                                     )}
+                                    <div className="mt-3 h-[34rem] overflow-hidden rounded-xl border border-violet-200 bg-white">
+                                        <AiRevisionChat
+                                            revisions={aiRevisionMessages}
+                                            isGenerating={isGenerating}
+                                            onGenerate={(feedback) =>
+                                                void requestAiGenerate(feedback)
+                                            }
+                                            onCancelGenerate={() => abortRef.current?.abort()}
+                                            onApplyMessage={(message) => {
+                                                const revision = detail?.revisions.find(
+                                                    (candidate) => candidate.id === message.id
+                                                );
+                                                if (!revision) return;
+                                                setSelectedRevisionId(revision.id);
+                                                setContent(revision.content);
+                                                setStudyIds(revision.content.sourceStudyIds);
+                                            }}
+                                            title="포트폴리오 초안 & 개선 대화"
+                                            subtitle="피드백과 결과가 content revision에 함께 기록됩니다."
+                                            generateButtonLabel="새 초안 생성"
+                                            emptyTitle="저장된 AI 초안이 없습니다."
+                                            emptyDescription="근거로 사용할 학습·기술을 고른 뒤 새 초안을 생성하세요. 생성 결과는 자동으로 revision에 저장됩니다."
+                                            inputPlaceholder="현재 revision에서 개선할 점을 입력하세요"
+                                            showModelSelector={false}
+                                        />
+                                    </div>
                                 </div>
                             )}
 

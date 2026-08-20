@@ -1198,6 +1198,13 @@ export type PrintTemplateContentOverrides = {
     customSections?: Array<{
         id: string;
         title: string;
+        /** 포트폴리오 revision에서 가져온 섹션은 원본 버전을 고정해 출력 근거를 재현한다. */
+        source?: {
+            type: 'PORTFOLIO_CASE_STUDY_REVISION';
+            caseStudyId: number;
+            revisionId: number;
+            revisionVersion: number;
+        };
         items: Array<{
             id: string;
             title: string;
@@ -1416,6 +1423,9 @@ export type PortfolioCaseStudyRevision = {
     source: PortfolioCaseStudyRevisionSource;
     content: PortfolioCaseStudyContent;
     renderedMarkdown: string;
+    baseRevisionId: number | null;
+    feedbackInstruction: string | null;
+    aiModel: string | null;
     createdAt: string;
 };
 
@@ -1434,6 +1444,8 @@ export type PortfolioCaseStudyGenerateRequest = {
     instruction: string;
     studyIds: number[];
     skillIds: number[];
+    competencyIds: number[];
+    baseRevisionId?: number | null;
 };
 
 export type PortfolioCaseStudyGenerateStreamEvent =

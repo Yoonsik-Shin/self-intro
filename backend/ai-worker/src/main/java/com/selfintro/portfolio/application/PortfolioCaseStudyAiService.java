@@ -9,15 +9,20 @@ import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.selfintro.global.ai.AiJsonSupport;
 import com.selfintro.global.ai.NvidiaNimClient;
+import com.selfintro.modules.competency.domain.entity.Competency;
+import com.selfintro.modules.competency.domain.repository.CompetencyRepository;
 import com.selfintro.modules.experience.domain.entity.Experience;
 import com.selfintro.modules.experience.domain.entity.ExperienceDetail;
 import com.selfintro.modules.experience.domain.repository.ExperienceRepository;
 import com.selfintro.modules.portfolio.domain.entity.PortfolioCaseStudy;
+import com.selfintro.modules.portfolio.domain.entity.PortfolioCaseStudyRevision;
 import com.selfintro.modules.portfolio.domain.repository.PortfolioCaseStudyRepository;
+import com.selfintro.modules.portfolio.domain.repository.PortfolioCaseStudyRevisionRepository;
 import com.selfintro.modules.portfolio.presentation.dto.PortfolioCaseStudyContent;
 import com.selfintro.modules.portfolio.presentation.dto.PortfolioCaseStudyGenerateRequest;
 import com.selfintro.modules.skill.domain.entity.Skill;
 import com.selfintro.modules.skill.domain.repository.SkillRepository;
+import com.selfintro.modules.skill.domain.repository.WorkspaceSkillRepository;
 import com.selfintro.modules.study.domain.entity.Study;
 import com.selfintro.modules.study.domain.repository.StudyRepository;
 import java.io.IOException;
@@ -45,7 +50,7 @@ public class PortfolioCaseStudyAiService {
             """
             당신은 개발자 포트폴리오 케이스스터디를 쓰기 전에 사실관계를 정리하는 편집 보조입니다.
             입력에 주어진 프로젝트 기본 정보, 프로젝트 상세 항목(situation/task/actionDetail/outcome/narrative),
-            선택한 기술, 선택한 Study(제목/요약/본문 발췌), 사용자 메모만 사실로 인정하세요.
+            선택한 역량, 선택한 기술, 선택한 Study(제목/요약/본문 발췌), 사용자 메모만 사실로 인정하세요.
             메모는 사용자가 직접 제공한 사실로 신뢰하되, 메모에도 입력 데이터에도 없는 수치·고유명사·성과를 새로 만들어내지 마세요.
             각 사실에는 근거가 된 experienceDetailId 또는 studyId를 표시하고, 메모에서만 나온 사실은 둘 다 비워두세요.
             ID는 입력 데이터에 있는 값만 사용하세요.
@@ -59,6 +64,8 @@ public class PortfolioCaseStudyAiService {
             """
             당신은 한국어로 개발자 포트폴리오 케이스스터디를 작성하는 편집자입니다.
             입력으로 전달된 검증 완료 facts만 근거로 사용하세요. 새로운 사실을 추측하거나 만들지 마세요.
+            currentDraft가 있으면 새 글을 처음부터 만드는 대신 사용자의 instruction에 따라 currentDraft를 개선하세요.
+            instruction과 직접 관련 없는 문단은 가능한 한 유지하되, facts로 뒷받침되지 않는 표현은 유지하지 마세요.
             "문제 인식 → 고민/트레이드오프 → 해결 → 성과" 구조로 작성하세요.
             summary는 150자 이하 한줄 요약, problem/thoughtProcess/solution은 각각 800자 이하 문단으로 작성하세요.
             tradeoffs는 facts에 트레이드오프 근거가 있을 때만 최대 4개까지 작성하고, 근거가 없으면 빈 배열로 반환하세요.
@@ -67,6 +74,7 @@ public class PortfolioCaseStudyAiService {
             architecture.mermaidSource는 facts 중 Study 근거 안에 mermaid 다이어그램 코드가 이미 포함되어 있으면
             그 코드를 그대로 재사용하고, 없으면 null로 반환하세요. 새 다이어그램을 창작하지 마세요.
             sourceStudyIds/sourceExperienceDetailIds에는 실제로 사용한 facts의 근거 ID만 중복 없이 담으세요.
+            currentDraft에 architecture.imageObjectKeys가 있어도 값을 새로 만들거나 변경하지 마세요.
             설명이나 마크다운 펜스 없이 반드시 아래 JSON 구조만 반환하세요.
             {"summary":"","problem":"","thoughtProcess":"","tradeoffs":[{"option":"","pros":"","cons":"","chosenBecause":""}],"solution":"","outcome":{"summary":"","metrics":[{"label":"","before":"","after":""}]},"architecture":{"mermaidSource":null,"imageObjectKeys":[]},"sourceStudyIds":[],"sourceExperienceDetailIds":[]}
             """;
@@ -75,8 +83,11 @@ public class PortfolioCaseStudyAiService {
     private static final int STUDY_CONTENT_EXCERPT_LIMIT = 3000;
 
     private final PortfolioCaseStudyRepository portfolioCaseStudyRepository;
+    private final PortfolioCaseStudyRevisionRepository portfolioCaseStudyRevisionRepository;
     private final ExperienceRepository experienceRepository;
+    private final CompetencyRepository competencyRepository;
     private final SkillRepository skillRepository;
+    private final WorkspaceSkillRepository workspaceSkillRepository;
     private final StudyRepository studyRepository;
     private final NvidiaNimClient nvidiaNimClient;
     private final ObjectMapper objectMapper;
@@ -94,7 +105,13 @@ public class PortfolioCaseStudyAiService {
                     HttpStatus.TOO_MANY_REQUESTS, "이미 포트폴리오 AI 초안을 생성하고 있습니다.");
         }
         try {
-            return run(prepare(resolveExperienceId(workspaceId, caseStudyId), request), null);
+            return run(
+                    prepare(
+                            workspaceId,
+                            resolveExperienceId(workspaceId, caseStudyId),
+                            caseStudyId,
+                            request),
+                    null);
         } catch (JsonProcessingException exception) {
             throw new ResponseStatusException(
                     HttpStatus.BAD_GATEWAY, "AI 오케스트레이션 응답을 처리하지 못했습니다. 다시 시도해주세요.", exception);
@@ -115,7 +132,12 @@ public class PortfolioCaseStudyAiService {
         }
         PreparedGeneration prepared;
         try {
-            prepared = prepare(resolveExperienceId(workspaceId, caseStudyId), request);
+            prepared =
+                    prepare(
+                            workspaceId,
+                            resolveExperienceId(workspaceId, caseStudyId),
+                            caseStudyId,
+                            request);
         } catch (RuntimeException exception) {
             generating.set(false);
             throw exception;
@@ -208,7 +230,8 @@ public class PortfolioCaseStudyAiService {
         if (sink != null) sink.facts(facts);
 
         if (sink != null) sink.stage(2, "정리된 사실관계로 케이스스터디 초안을 작성하고 있습니다");
-        WriterContext writerContext = new WriterContext(prepared.instruction(), facts);
+        WriterContext writerContext =
+                new WriterContext(prepared.instruction(), facts, prepared.baseContent());
         String writerInput = objectMapper.writeValueAsString(writerContext);
         String writerRaw =
                 sink == null
@@ -221,7 +244,10 @@ public class PortfolioCaseStudyAiService {
     }
 
     private PreparedGeneration prepare(
-            Long experienceId, PortfolioCaseStudyGenerateRequest request) {
+            Long workspaceId,
+            Long experienceId,
+            Long caseStudyId,
+            PortfolioCaseStudyGenerateRequest request) {
         Experience experience =
                 experienceRepository
                         .findById(experienceId)
@@ -234,7 +260,14 @@ public class PortfolioCaseStudyAiService {
                 request.skillIds() == null || request.skillIds().isEmpty()
                         ? experience.getSkills()
                         : validateSubset(
-                                skillRepository.findAllById(request.skillIds()),
+                                workspaceId == null
+                                        ? skillRepository.findAllById(request.skillIds())
+                                        : workspaceSkillRepository
+                                                .findAllByWorkspaceIdAndSkill_IdIn(
+                                                        workspaceId, request.skillIds())
+                                                .stream()
+                                                .map(workspaceSkill -> workspaceSkill.getSkill())
+                                                .toList(),
                                 request.skillIds(),
                                 "기술");
 
@@ -242,17 +275,26 @@ public class PortfolioCaseStudyAiService {
                 request.studyIds() == null || request.studyIds().isEmpty()
                         ? studyRepository.findAllByExperiences_IdOrderByTitleAsc(experienceId)
                         : validateSubset(
-                                studyRepository.findAllById(request.studyIds()),
+                                workspaceId == null
+                                        ? studyRepository.findAllById(request.studyIds())
+                                        : studyRepository.findAllByWorkspaceIdAndIdIn(
+                                                workspaceId, request.studyIds()),
                                 request.studyIds(),
                                 "Study");
 
+        List<Competency> competencies =
+                resolveCompetencies(workspaceId, experienceId, request.competencyIds());
+
         List<ExperienceDetail> details = experience.getDetails();
+        PortfolioCaseStudyContent baseContent =
+                readBaseContent(request.baseRevisionId(), caseStudyId);
 
         ExtractionContext extractionContext =
                 new ExtractionContext(
                         blankToNull(request.instruction()),
                         ExperienceFact.from(experience),
                         details.stream().map(ExperienceDetailFact::from).toList(),
+                        competencies.stream().map(CompetencyFact::from).toList(),
                         skills.stream().map(SkillFact::from).toList(),
                         studies.stream().map(StudyFact::from).toList());
 
@@ -264,7 +306,55 @@ public class PortfolioCaseStudyAiService {
                 extractionContext,
                 blankToNull(request.instruction()),
                 allowedDetailIds,
-                allowedStudyIds);
+                allowedStudyIds,
+                baseContent);
+    }
+
+    private List<Competency> resolveCompetencies(
+            Long workspaceId, Long experienceId, List<Long> requestedIds) {
+        if (requestedIds != null && !requestedIds.isEmpty()) {
+            List<Competency> found =
+                    workspaceId == null
+                            ? competencyRepository.findAllById(requestedIds)
+                            : competencyRepository.findAllByWorkspaceIdAndIdIn(
+                                    workspaceId, requestedIds);
+            return validateSubset(found, requestedIds, "역량");
+        }
+        List<Competency> candidates =
+                workspaceId == null
+                        ? competencyRepository.findAllByOrderByDisplayOrderAsc()
+                        : competencyRepository.findAllByWorkspaceIdOrderByDisplayOrderAsc(
+                                workspaceId);
+        return candidates.stream()
+                .filter(
+                        competency ->
+                                competency.getEvidences().stream()
+                                        .anyMatch(
+                                                evidence ->
+                                                        evidence.getExperience()
+                                                                .getId()
+                                                                .equals(experienceId)))
+                .toList();
+    }
+
+    private PortfolioCaseStudyContent readBaseContent(Long baseRevisionId, Long caseStudyId) {
+        if (baseRevisionId == null) return null;
+        PortfolioCaseStudyRevision revision =
+                portfolioCaseStudyRevisionRepository
+                        .findById(baseRevisionId)
+                        .filter(candidate -> candidate.getCaseStudyId().equals(caseStudyId))
+                        .orElseThrow(
+                                () ->
+                                        new ResponseStatusException(
+                                                HttpStatus.BAD_REQUEST,
+                                                "현재 케이스스터디에 속하지 않은 기준 revision입니다."));
+        try {
+            return objectMapper.readValue(
+                    revision.getContentJson(), PortfolioCaseStudyContent.class);
+        } catch (JsonProcessingException exception) {
+            throw new ResponseStatusException(
+                    HttpStatus.INTERNAL_SERVER_ERROR, "기준 포트폴리오 revision을 읽지 못했습니다.", exception);
+        }
     }
 
     private <T> List<T> validateSubset(List<T> found, List<Long> requestedIds, String label) {
@@ -346,7 +436,13 @@ public class PortfolioCaseStudyAiService {
                         ? new PortfolioCaseStudyContent.Architecture(null, List.of(), List.of())
                         : new PortfolioCaseStudyContent.Architecture(
                                 blankToNull(content.architecture().mermaidSource()),
-                                safe(content.architecture().imageObjectKeys()),
+                                prepared.baseContent() == null
+                                                || prepared.baseContent().architecture() == null
+                                        ? List.of()
+                                        : safe(
+                                                prepared.baseContent()
+                                                        .architecture()
+                                                        .imageObjectKeys()),
                                 List.of());
 
         List<Long> sourceStudyIds =
@@ -409,7 +505,8 @@ public class PortfolioCaseStudyAiService {
             ExtractionContext extractionContext,
             String instruction,
             Set<Long> allowedDetailIds,
-            Set<Long> allowedStudyIds) {}
+            Set<Long> allowedStudyIds,
+            PortfolioCaseStudyContent baseContent) {}
 
     private record StageEvent(String type, int stage, String message) {}
 
@@ -425,6 +522,7 @@ public class PortfolioCaseStudyAiService {
             String instruction,
             ExperienceFact project,
             List<ExperienceDetailFact> details,
+            List<CompetencyFact> competencies,
             List<SkillFact> skills,
             List<StudyFact> studies) {}
 
@@ -432,7 +530,8 @@ public class PortfolioCaseStudyAiService {
 
     private record Fact(Long experienceDetailId, Long studyId, String aspect, String text) {}
 
-    private record WriterContext(String instruction, List<Fact> facts) {}
+    private record WriterContext(
+            String instruction, List<Fact> facts, PortfolioCaseStudyContent currentDraft) {}
 
     private record ExperienceFact(String title, String summary, String takeaway) {
         static ExperienceFact from(Experience value) {
@@ -461,6 +560,19 @@ public class PortfolioCaseStudyAiService {
     private record SkillFact(Long id, String name, String category) {
         static SkillFact from(Skill value) {
             return new SkillFact(value.getId(), value.getName(), value.getCategory());
+        }
+    }
+
+    private record CompetencyFact(Long id, String title, String summary, List<String> evidences) {
+        static CompetencyFact from(Competency value) {
+            return new CompetencyFact(
+                    value.getId(),
+                    value.getTitle(),
+                    value.getSummary(),
+                    value.getEvidences().stream()
+                            .map(evidence -> evidence.getEvidenceSummary())
+                            .filter(summary -> summary != null && !summary.isBlank())
+                            .toList());
         }
     }
 

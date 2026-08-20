@@ -26,7 +26,8 @@ class WorkspacePortfolioCaseStudyAiControllerTest {
     @Test
     void generateStreamPipesToWorker() throws Exception {
         PortfolioCaseStudyGenerateRequest request =
-                new PortfolioCaseStudyGenerateRequest("ins", List.of(1L), List.of(2L));
+                new PortfolioCaseStudyGenerateRequest(
+                        "ins", List.of(1L), List.of(2L), List.of(3L), null);
 
         StreamingResponseBody body = controller.generate(42L, 100L, request);
         ByteArrayOutputStream out = new ByteArrayOutputStream();
@@ -34,7 +35,8 @@ class WorkspacePortfolioCaseStudyAiControllerTest {
 
         verify(aiWorkerClient)
                 .pipePost(
-                        eq("/internal/workspaces/42/portfolio/case-studies/manage/100/revisions/generate"),
+                        eq(
+                                "/internal/workspaces/42/portfolio/case-studies/manage/100/revisions/generate"),
                         eq(request),
                         eq(out));
     }

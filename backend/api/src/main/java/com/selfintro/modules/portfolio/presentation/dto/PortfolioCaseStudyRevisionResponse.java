@@ -9,4 +9,7 @@ public record PortfolioCaseStudyRevisionResponse(
         String source,
         PortfolioCaseStudyContent content,
         String renderedMarkdown,
+        Long baseRevisionId,
+        String feedbackInstruction,
+        String aiModel,
         LocalDateTime createdAt) {}
