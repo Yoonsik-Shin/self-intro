@@ -1,6 +1,6 @@
 'use client';
 
-import { useMemo, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState, type CSSProperties } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import {
     ArrowLeft,
@@ -9,6 +9,7 @@ import {
     CheckCircle2,
     FileText,
     FolderGit2,
+    GripVertical,
     History,
     Loader2,
     Plus,
@@ -55,6 +56,10 @@ const STATUS_LABELS = {
     ARCHIVED: '보관됨',
 } as const;
 
+const SOURCE_PANEL_MIN_WIDTH = 220;
+const SOURCE_PANEL_MAX_WIDTH = 420;
+const SOURCE_PANEL_DEFAULT_WIDTH = 256;
+
 function revisionChatContent(content: PortfolioCaseStudyContent): string {
     return [
         `한줄 요약\n${content.summary}`,
@@ -89,7 +94,51 @@ export function PortfolioManagement({
     const [skillIds, setSkillIds] = useState<number[]>([]);
     const [competencyIds, setCompetencyIds] = useState<number[]>([]);
     const [uploadingImage, setUploadingImage] = useState(false);
+    const [sourcePanelWidth, setSourcePanelWidth] = useState(() => {
+        const stored =
+            typeof window !== 'undefined'
+                ? window.localStorage.getItem('portfolio-source-panel-width')
+                : null;
+        const parsed = stored ? Number.parseInt(stored, 10) : Number.NaN;
+        return Number.isFinite(parsed)
+            ? Math.min(Math.max(parsed, SOURCE_PANEL_MIN_WIDTH), SOURCE_PANEL_MAX_WIDTH)
+            : SOURCE_PANEL_DEFAULT_WIDTH;
+    });
+    const [isResizingSourcePanel, setIsResizingSourcePanel] = useState(false);
     const fileInputRef = useRef<HTMLInputElement | null>(null);
+    const workspaceLayoutRef = useRef<HTMLDivElement | null>(null);
+
+    useEffect(() => {
+        window.localStorage.setItem('portfolio-source-panel-width', String(sourcePanelWidth));
+    }, [sourcePanelWidth]);
+
+    useEffect(() => {
+        if (!isResizingSourcePanel) return;
+        const previousUserSelect = document.body.style.userSelect;
+        document.body.style.userSelect = 'none';
+
+        const handleMove = (event: MouseEvent) => {
+            event.preventDefault();
+            const container = workspaceLayoutRef.current;
+            if (!container) return;
+            const rect = container.getBoundingClientRect();
+            setSourcePanelWidth(
+                Math.min(
+                    SOURCE_PANEL_MAX_WIDTH,
+                    Math.max(SOURCE_PANEL_MIN_WIDTH, event.clientX - rect.left)
+                )
+            );
+        };
+        const handleUp = () => setIsResizingSourcePanel(false);
+
+        window.addEventListener('mousemove', handleMove);
+        window.addEventListener('mouseup', handleUp);
+        return () => {
+            document.body.style.userSelect = previousUserSelect;
+            window.removeEventListener('mousemove', handleMove);
+            window.removeEventListener('mouseup', handleUp);
+        };
+    }, [isResizingSourcePanel]);
 
     const {
         aiStages,
@@ -669,10 +718,18 @@ export function PortfolioManagement({
                     </div>
                 </section>
             ) : (
-                <div className="grid min-h-[44rem] gap-4 lg:min-h-0 lg:flex-1 lg:grid-cols-[20rem_minmax(0,1fr)]">
+                <div
+                    ref={workspaceLayoutRef}
+                    style={
+                        {
+                            '--source-panel-width': `${sourcePanelWidth}px`,
+                        } as CSSProperties
+                    }
+                    className="flex min-h-[44rem] flex-col gap-4 lg:min-h-0 lg:flex-1 lg:flex-row lg:gap-2"
+                >
                     {/* 원본 목록: 공개 페이지 포함 여부가 아니라 Workspace에 저장된 사례 원본을 탐색한다. */}
-                    <aside className="flex min-h-[34rem] flex-col overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm lg:min-h-0">
-                        <div className="border-b border-slate-200 p-4">
+                    <aside className="flex min-h-[34rem] w-full shrink-0 flex-col overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm lg:min-h-0 lg:w-[var(--source-panel-width)]">
+                        <div className="border-b border-slate-200 p-3.5">
                             <div className="flex items-center justify-between gap-3">
                                 <p className="text-sm font-black text-slate-900">사례 원본</p>
                                 <span className="text-xs font-bold text-slate-400">
@@ -712,7 +769,7 @@ export function PortfolioManagement({
                                 ))}
                             </div>
                         </div>
-                        <div className="min-h-0 flex-1 space-y-2 overflow-y-auto p-3">
+                        <div className="min-h-0 flex-1 space-y-1.5 overflow-y-auto p-2.5">
                             {filteredCaseStudies.map((caseStudy: PortfolioCaseStudy) => {
                                 const sourceExperience = experienceById.get(caseStudy.experienceId);
                                 const isSelected = selectedId === caseStudy.id;
@@ -724,7 +781,7 @@ export function PortfolioManagement({
                                             setSelectedId(caseStudy.id);
                                             setDetailView('EDITOR');
                                         }}
-                                        className={`w-full rounded-xl border p-3.5 text-left transition ${
+                                        className={`w-full rounded-xl border p-3 text-left transition ${
                                             isSelected
                                                 ? 'border-slate-900 bg-slate-900 text-white shadow-sm'
                                                 : 'border-slate-200 bg-white hover:border-slate-400 hover:bg-slate-50'
@@ -782,10 +839,52 @@ export function PortfolioManagement({
                         </div>
                     </aside>
 
+                    <div
+                        role="separator"
+                        aria-label="사례 원본 패널 너비 조절"
+                        aria-orientation="vertical"
+                        aria-valuemin={SOURCE_PANEL_MIN_WIDTH}
+                        aria-valuemax={SOURCE_PANEL_MAX_WIDTH}
+                        aria-valuenow={sourcePanelWidth}
+                        tabIndex={0}
+                        title="드래그하거나 방향키로 사례 원본 패널 너비 조절"
+                        onMouseDown={(event) => {
+                            event.preventDefault();
+                            setIsResizingSourcePanel(true);
+                        }}
+                        onKeyDown={(event) => {
+                            if (event.key === 'ArrowLeft') {
+                                event.preventDefault();
+                                setSourcePanelWidth((width) =>
+                                    Math.max(SOURCE_PANEL_MIN_WIDTH, width - 8)
+                                );
+                            } else if (event.key === 'ArrowRight') {
+                                event.preventDefault();
+                                setSourcePanelWidth((width) =>
+                                    Math.min(SOURCE_PANEL_MAX_WIDTH, width + 8)
+                                );
+                            } else if (event.key === 'Home') {
+                                event.preventDefault();
+                                setSourcePanelWidth(SOURCE_PANEL_MIN_WIDTH);
+                            } else if (event.key === 'End') {
+                                event.preventDefault();
+                                setSourcePanelWidth(SOURCE_PANEL_MAX_WIDTH);
+                            }
+                        }}
+                        className={`group relative hidden w-6 shrink-0 cursor-col-resize touch-none items-center justify-center self-stretch outline-none lg:flex ${isResizingSourcePanel ? 'select-none' : ''}`}
+                    >
+                        <span
+                            className={`h-full w-px transition-colors ${isResizingSourcePanel ? 'bg-slate-500' : 'bg-slate-200 group-hover:bg-slate-400 group-focus-visible:bg-slate-500'}`}
+                        />
+                        <GripVertical
+                            className={`absolute h-7 w-4 rounded border bg-white transition-colors ${isResizingSourcePanel ? 'border-slate-500 text-slate-700' : 'border-slate-300 text-slate-400 group-hover:border-slate-400 group-hover:text-slate-600'}`}
+                        />
+                    </div>
+
                     {/* 상세 편집 */}
                     {selectedCaseStudy ? (
-                        <main className="min-w-0 space-y-5 overflow-y-auto rounded-2xl border border-slate-200 bg-white p-4 shadow-sm sm:p-5 lg:min-h-0">
-                            <div className="border-b border-slate-200 pb-5">
+                        <main className="min-w-0 flex-1 space-y-6 overflow-y-auto overscroll-contain px-1 pb-8 lg:min-h-0 lg:px-3">
+                            <div className="sticky top-0 z-10 border-b border-slate-200 bg-[#f8fafc]/95 pb-4 pt-1 backdrop-blur-sm">
                                 <div className="flex items-start justify-between gap-4">
                                     <div className="min-w-0">
                                         <span className="text-[10px] font-black uppercase tracking-[0.16em] text-slate-500">
@@ -871,7 +970,7 @@ export function PortfolioManagement({
 
                             {detailView === 'REVISIONS' && (
                                 <div className="space-y-3">
-                                    <div className="rounded-xl border border-blue-100 bg-blue-50/60 p-4">
+                                    <div className="border-b border-slate-200 pb-4">
                                         <h3 className="text-xs font-black text-slate-900">
                                             저장된 revision
                                         </h3>
@@ -966,7 +1065,7 @@ export function PortfolioManagement({
                             {detailView === 'EDITOR' && (
                                 <>
                                     {selectedRevision && (
-                                        <div className="flex flex-wrap items-center justify-between gap-2 rounded-lg border border-slate-200 bg-slate-50 px-3 py-2">
+                                        <div className="flex flex-wrap items-center justify-between gap-2 border-y border-slate-200 py-2.5">
                                             <span className="text-[11px] font-bold text-slate-600">
                                                 v{selectedRevision.version}을(를) 기준으로 편집 중
                                             </span>
@@ -982,8 +1081,8 @@ export function PortfolioManagement({
 
                                     {/* 서버의 Workspace 권한·출처 검증을 통과하는 편집자에게 AI 입력을 노출한다. */}
                                     {enablePlatformAi && (
-                                        <section className="overflow-hidden rounded-2xl border border-slate-200 bg-white">
-                                            <div className="border-b border-slate-200 px-5 py-4">
+                                        <section className="overflow-hidden border-y border-slate-200">
+                                            <div className="border-b border-slate-200 px-1 py-4">
                                                 <div className="flex items-start gap-3">
                                                     <span className="grid h-9 w-9 shrink-0 place-items-center rounded-xl bg-slate-900 text-white">
                                                         <Sparkles className="h-4 w-4" />
@@ -1001,8 +1100,8 @@ export function PortfolioManagement({
                                                 </div>
                                             </div>
 
-                                            <div className="grid xl:grid-cols-[minmax(18rem,0.8fr)_minmax(28rem,1.2fr)]">
-                                                <div className="space-y-5 border-b border-slate-200 bg-slate-50/60 p-5 xl:border-b-0 xl:border-r">
+                                            <div className="grid xl:grid-cols-[minmax(16rem,0.72fr)_minmax(28rem,1.28fr)]">
+                                                <div className="space-y-5 border-b border-slate-200 bg-slate-100/55 p-4 xl:border-b-0 xl:border-r">
                                                     <label className="block text-xs font-black text-slate-700">
                                                         작성 방향
                                                         <textarea
@@ -1630,7 +1729,7 @@ export function PortfolioManagement({
                             )}
                         </main>
                     ) : (
-                        <main className="flex min-h-[34rem] min-w-0 items-center justify-center rounded-2xl border border-dashed border-slate-300 bg-white px-6 text-center lg:min-h-0">
+                        <main className="flex min-h-[34rem] min-w-0 flex-1 items-center justify-center border-l border-slate-200 px-6 text-center lg:min-h-0">
                             <div className="max-w-sm">
                                 <FolderGit2 className="mx-auto h-8 w-8 text-slate-300" />
                                 <h3 className="mt-4 text-base font-black text-slate-800">
