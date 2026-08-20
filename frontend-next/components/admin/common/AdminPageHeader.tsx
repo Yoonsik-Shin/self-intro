@@ -8,7 +8,6 @@ type AdminPageHeaderProps = {
     headingAs?: 'h1' | 'h2';
     compact?: boolean;
     descriptionMode?: 'inline' | 'tooltip';
-    contentInset?: 'none' | 'card';
 };
 
 export function AdminPageHeader({
@@ -18,21 +17,20 @@ export function AdminPageHeader({
     headingAs = 'h2',
     compact = true,
     descriptionMode = 'tooltip',
-    contentInset = 'card',
 }: AdminPageHeaderProps) {
     const Heading = headingAs;
     const tooltipLabel = typeof title === 'string' ? `${title} 설명` : '페이지 설명';
 
     return (
         <header
-            className={`sticky top-0 z-30 flex shrink-0 flex-col bg-[#f8fafc] sm:flex-row sm:justify-between ${contentInset === 'card' ? 'px-5' : ''} ${
+            className={`sticky top-0 z-30 flex min-h-10 shrink-0 flex-col bg-[#f8fafc] px-5 sm:flex-row sm:justify-between ${
                 compact ? 'gap-3 sm:items-center' : 'gap-4 sm:items-end'
             }`}
         >
             <div className="min-w-0">
                 <div className="flex min-w-0 items-center gap-1.5">
                     <Heading
-                        className={`min-w-0 truncate font-semibold tracking-tight text-slate-950 ${compact ? 'text-lg leading-6' : 'text-2xl'}`}
+                        className={`min-w-0 truncate font-bold tracking-tight text-slate-950 ${compact ? 'text-lg leading-6' : 'text-2xl'}`}
                     >
                         {title}
                     </Heading>
@@ -43,9 +41,7 @@ export function AdminPageHeader({
                                 aria-label={tooltipLabel}
                                 className={`grid place-items-center rounded-full text-slate-400 transition-colors hover:bg-slate-200 hover:text-slate-800 focus-visible:bg-slate-200 focus-visible:text-slate-800 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-300 ${compact ? 'h-5 w-5' : 'h-6 w-6'}`}
                             >
-                                <CircleHelp
-                                    className={compact ? 'h-3.5 w-3.5' : 'h-4 w-4'}
-                                />
+                                <CircleHelp className={compact ? 'h-3.5 w-3.5' : 'h-4 w-4'} />
                             </button>
                             <span
                                 role="tooltip"

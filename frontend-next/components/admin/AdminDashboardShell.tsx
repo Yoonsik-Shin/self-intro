@@ -1114,8 +1114,8 @@ export function AdminDashboardShell({ workspaceSlug }: { workspaceSlug: string }
                     <div
                         className={`grid h-full min-h-0 w-full grid-cols-1 ${
                             isSidebarCollapsed
-                                ? 'gap-6 pl-0 pr-4 sm:pr-6'
-                                : 'gap-6 px-4 py-6 sm:px-6'
+                                ? 'gap-3 pl-0 pr-4 sm:pr-6'
+                                : 'gap-3 px-4 py-6 sm:px-6'
                         } ${isResizingSidebar ? '' : 'transition-[grid-template-columns] duration-300 ease-in-out'}`}
                         style={{
                             gridTemplateColumns: isSidebarCollapsed
@@ -1334,7 +1334,7 @@ export function AdminDashboardShell({ workspaceSlug }: { workspaceSlug: string }
                         <section
                             ref={adminScrollRegionRef}
                             data-admin-scroll-region
-                            className={`h-full min-h-0 min-w-0 overflow-x-hidden overscroll-contain ${isSidebarCollapsed ? 'py-6' : ''} ${
+                            className={`h-full min-h-0 min-w-0 overflow-x-hidden overscroll-contain ${isSidebarCollapsed ? 'py-3' : ''} ${
                                 activeTab === 'PUBLIC_COMPOSITION'
                                     ? 'overflow-y-auto xl:overflow-hidden'
                                     : activeTab === 'PORTFOLIO'

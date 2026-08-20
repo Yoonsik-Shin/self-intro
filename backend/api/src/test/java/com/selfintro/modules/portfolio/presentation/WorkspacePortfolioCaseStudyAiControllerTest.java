@@ -27,7 +27,7 @@ class WorkspacePortfolioCaseStudyAiControllerTest {
     void generateStreamPipesToWorker() throws Exception {
         PortfolioCaseStudyGenerateRequest request =
                 new PortfolioCaseStudyGenerateRequest(
-                        "ins", List.of(1L), List.of(2L), List.of(3L), null);
+                        "ins", List.of(1L), List.of(2L), List.of(3L), null, null);
 
         StreamingResponseBody body = controller.generate(42L, 100L, request);
         ByteArrayOutputStream out = new ByteArrayOutputStream();

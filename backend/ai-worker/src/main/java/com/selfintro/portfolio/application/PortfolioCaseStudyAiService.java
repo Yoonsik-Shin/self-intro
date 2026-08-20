@@ -27,6 +27,7 @@ import com.selfintro.modules.study.domain.entity.Study;
 import com.selfintro.modules.study.domain.repository.StudyRepository;
 import java.io.IOException;
 import java.io.UncheckedIOException;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Set;
 import java.util.concurrent.atomic.AtomicBoolean;
@@ -48,16 +49,25 @@ public class PortfolioCaseStudyAiService {
 
     private static final String FACT_CONSOLIDATOR_PROMPT =
             """
-            당신은 개발자 포트폴리오 케이스스터디를 쓰기 전에 사실관계를 정리하는 편집 보조입니다.
+            당신은 개발자 포트폴리오 사례 1개를 쓰기 전에 근거 준비도를 진단하는 사례 설계 코치입니다.
             입력에 주어진 프로젝트 기본 정보, 프로젝트 상세 항목(situation/task/actionDetail/outcome/narrative),
             선택한 역량, 선택한 기술, 선택한 Study(제목/요약/본문 발췌), 사용자 메모만 사실로 인정하세요.
             메모는 사용자가 직접 제공한 사실로 신뢰하되, 메모에도 입력 데이터에도 없는 수치·고유명사·성과를 새로 만들어내지 마세요.
             각 사실에는 근거가 된 experienceDetailId 또는 studyId를 표시하고, 메모에서만 나온 사실은 둘 다 비워두세요.
             ID는 입력 데이터에 있는 값만 사용하세요.
-            각 사실은 problem(문제 인식)·thought(고민한 내용, 검토한 후보안)·tradeoff(후보안 간 트레이드오프)·
+            각 사실은 problem(문제 인식)·role(본인의 역할과 행동)·thought(고민한 내용, 검토한 후보안)·tradeoff(후보안 간 트레이드오프)·
             solution(실제 해결 방법)·outcome(성과·지표) 중 어떤 관점인지 aspect로 구분하세요.
+            문제·역할·판단·해결·성과 근거가 하나의 프로젝트·기간·맥락으로 연결되는지, 서로 충돌하지 않는지 판정하세요.
+            coverage의 status는 SATISFIED, PARTIAL, MISSING 중 하나입니다.
+            필수 관점이 모두 충족되고 맥락이 일관될 때만 readiness를 READY로 하세요.
+            조합은 일관되지만 설명이 부족하면 NEEDS_INPUT으로 하고, 사용자가 답할 구체적인 질문 1~3개를 questions에 적으세요.
+            관련성이 낮거나 맥락이 섞였거나 충돌하면 RESELECT로 하고, conflicts에 해당 근거와 이유를,
+            suggestions에 제거·교체·추가할 근거 방향을 적으세요. 선택하지 않은 근거 ID를 지어내지 마세요.
+            linkedToProject가 false인 선택 근거는 현재 프로젝트와의 연결이 확인되지 않은 항목입니다.
+            이런 항목을 무시하지 말고 반드시 RESELECT로 판정해 conflicts에서 이름과 이유를 설명하세요.
+            message는 판정 이유와 다음 행동을 한국어 2문장 이내로 설명하세요.
             설명이나 마크다운 없이 반드시 아래 JSON 구조만 반환하세요.
-            {"facts":[{"experienceDetailId":null,"studyId":null,"aspect":"problem|thought|tradeoff|solution|outcome","text":""}],"reason":""}
+            {"facts":[{"experienceDetailId":null,"studyId":null,"aspect":"problem|role|thought|tradeoff|solution|outcome","text":""}],"assessment":{"readiness":"READY|NEEDS_INPUT|RESELECT","coverage":{"problem":{"status":"SATISFIED|PARTIAL|MISSING","reason":""},"role":{"status":"SATISFIED|PARTIAL|MISSING","reason":""},"judgment":{"status":"SATISFIED|PARTIAL|MISSING","reason":""},"solution":{"status":"SATISFIED|PARTIAL|MISSING","reason":""},"outcome":{"status":"SATISFIED|PARTIAL|MISSING","reason":""}},"conflicts":[],"suggestions":[],"questions":[],"message":""}}
             """;
 
     private static final String WRITER_PROMPT =
@@ -152,7 +162,7 @@ public class PortfolioCaseStudyAiService {
         emitter.onTimeout(
                 () -> {
                     log.info("포트폴리오 AI SSE 스트림 타임아웃 발생");
-                    emitter.complete();
+                    fail(emitter, "AI 초안 생성 시간이 초과되었습니다. 잠시 후 다시 시도해주세요.");
                 });
         emitter.onError(
                 ex -> {
@@ -194,8 +204,16 @@ public class PortfolioCaseStudyAiService {
                                 public void facts(List<Fact> facts) {
                                     send(emitter, new FactsEvent("facts", facts.size()));
                                 }
+
+                                @Override
+                                public void readiness(ReadinessAssessment assessment) {
+                                    send(emitter, new ReadinessEvent("readiness", assessment));
+                                }
                             });
             send(emitter, new CompleteEvent("complete", content));
+            emitter.complete();
+        } catch (EvidenceReadinessException exception) {
+            send(emitter, new ReadinessEvent("readiness", exception.assessment()));
             emitter.complete();
         } catch (ResponseStatusException exception) {
             log.warn("포트폴리오 AI 스트리밍 생성 실패: {}", exception.getReason(), exception);
@@ -215,7 +233,11 @@ public class PortfolioCaseStudyAiService {
 
     private PortfolioCaseStudyContent run(PreparedGeneration prepared, StreamSink sink)
             throws JsonProcessingException {
-        if (sink != null) sink.stage(1, "선택한 근거 자료를 바탕으로 사실관계를 정리하고 있습니다");
+        if (sink != null) sink.stage(1, "선택한 근거가 하나의 사례로 연결되는지 진단하고 있습니다");
+        if (!prepared.selectionConflicts().isEmpty()) {
+            throw new EvidenceReadinessException(
+                    reselectionAssessment(prepared.selectionConflicts()));
+        }
         String extractionInput = objectMapper.writeValueAsString(prepared.extractionContext());
         String extractionRaw =
                 sink == null
@@ -226,6 +248,11 @@ public class PortfolioCaseStudyAiService {
                                 token -> sink.token(1, token));
         ExtractionResponse extraction =
                 parseJson(extractionRaw, ExtractionResponse.class, "사실관계 정리");
+        ReadinessAssessment assessment = normalizeAssessment(extraction.assessment());
+        if (!"READY".equals(assessment.readiness())) {
+            throw new EvidenceReadinessException(assessment);
+        }
+        if (sink != null) sink.readiness(assessment);
         List<Fact> facts = normalizeExtraction(extraction, prepared);
         if (sink != null) sink.facts(facts);
 
@@ -260,7 +287,7 @@ public class PortfolioCaseStudyAiService {
 
         List<Skill> skills =
                 request.skillIds() == null || request.skillIds().isEmpty()
-                        ? experience == null ? List.of() : experience.getSkills()
+                        ? List.of()
                         : validateSubset(
                                 workspaceId == null
                                         ? skillRepository.findAllById(request.skillIds())
@@ -275,10 +302,7 @@ public class PortfolioCaseStudyAiService {
 
         List<Study> studies =
                 request.studyIds() == null || request.studyIds().isEmpty()
-                        ? experienceId == null
-                                ? List.of()
-                                : studyRepository.findAllByExperiences_IdOrderByTitleAsc(
-                                        experienceId)
+                        ? List.of()
                         : validateSubset(
                                 workspaceId == null
                                         ? studyRepository.findAllById(request.studyIds())
@@ -287,21 +311,42 @@ public class PortfolioCaseStudyAiService {
                                 request.studyIds(),
                                 "Study");
 
-        List<Competency> competencies =
-                resolveCompetencies(workspaceId, experienceId, request.competencyIds());
+        List<Competency> competencies = resolveCompetencies(workspaceId, request.competencyIds());
 
         List<ExperienceDetail> details = experience == null ? List.of() : experience.getDetails();
+        List<String> selectionConflicts =
+                findSelectionConflicts(experience, details, skills, studies, competencies);
         PortfolioCaseStudyContent baseContent =
-                readBaseContent(request.baseRevisionId(), caseStudyId);
+                request.currentDraft() == null
+                        ? readBaseContent(request.baseRevisionId(), caseStudyId)
+                        : request.currentDraft();
 
         ExtractionContext extractionContext =
                 new ExtractionContext(
                         blankToNull(request.instruction()),
                         experience == null ? null : ExperienceFact.from(experience),
                         details.stream().map(ExperienceDetailFact::from).toList(),
-                        competencies.stream().map(CompetencyFact::from).toList(),
-                        skills.stream().map(SkillFact::from).toList(),
-                        studies.stream().map(StudyFact::from).toList());
+                        competencies.stream()
+                                .map(
+                                        competency ->
+                                                CompetencyFact.from(
+                                                        competency,
+                                                        isCompetencyLinked(experience, competency)))
+                                .toList(),
+                        skills.stream()
+                                .map(
+                                        skill ->
+                                                SkillFact.from(
+                                                        skill,
+                                                        isSkillLinked(experience, details, skill)))
+                                .toList(),
+                        studies.stream()
+                                .map(
+                                        study ->
+                                                StudyFact.from(
+                                                        study,
+                                                        isStudyLinked(experience, details, study)))
+                                .toList());
 
         Set<Long> allowedDetailIds =
                 details.stream().map(ExperienceDetail::getId).collect(Collectors.toSet());
@@ -312,11 +357,75 @@ public class PortfolioCaseStudyAiService {
                 blankToNull(request.instruction()),
                 allowedDetailIds,
                 allowedStudyIds,
-                baseContent);
+                baseContent,
+                selectionConflicts);
     }
 
-    private List<Competency> resolveCompetencies(
-            Long workspaceId, Long experienceId, List<Long> requestedIds) {
+    private List<String> findSelectionConflicts(
+            Experience experience,
+            List<ExperienceDetail> details,
+            List<Skill> skills,
+            List<Study> studies,
+            List<Competency> competencies) {
+        if (experience == null) return List.of();
+        List<String> conflicts = new ArrayList<>();
+        studies.stream()
+                .filter(study -> Boolean.FALSE.equals(isStudyLinked(experience, details, study)))
+                .forEach(
+                        study ->
+                                conflicts.add(
+                                        "학습 기록 '"
+                                                + study.getTitle()
+                                                + "'은 현재 프로젝트에 연결되어 있지 않습니다."));
+        competencies.stream()
+                .filter(
+                        competency ->
+                                Boolean.FALSE.equals(isCompetencyLinked(experience, competency)))
+                .forEach(
+                        competency ->
+                                conflicts.add(
+                                        "핵심 역량 '"
+                                                + competency.getTitle()
+                                                + "'은 현재 프로젝트 근거로 연결되어 있지 않습니다."));
+        skills.stream()
+                .filter(skill -> Boolean.FALSE.equals(isSkillLinked(experience, details, skill)))
+                .forEach(
+                        skill ->
+                                conflicts.add(
+                                        "기술 '"
+                                                + skill.getName()
+                                                + "'은 현재 프로젝트 사용 기술로 연결되어 있지 않습니다."));
+        return conflicts;
+    }
+
+    private Boolean isSkillLinked(
+            Experience experience, List<ExperienceDetail> details, Skill skill) {
+        if (experience == null) return null;
+        return safe(experience.getSkills()).stream()
+                        .anyMatch(candidate -> candidate.getId().equals(skill.getId()))
+                || details.stream()
+                        .flatMap(detail -> safe(detail.getSkills()).stream())
+                        .anyMatch(candidate -> candidate.getId().equals(skill.getId()));
+    }
+
+    private Boolean isStudyLinked(
+            Experience experience, List<ExperienceDetail> details, Study study) {
+        if (experience == null) return null;
+        Set<Long> detailIds =
+                details.stream().map(ExperienceDetail::getId).collect(Collectors.toSet());
+        return safe(study.getExperiences()).stream()
+                        .anyMatch(candidate -> candidate.getId().equals(experience.getId()))
+                || safe(study.getExperienceDetails()).stream()
+                        .anyMatch(detail -> detailIds.contains(detail.getId()));
+    }
+
+    private Boolean isCompetencyLinked(Experience experience, Competency competency) {
+        if (experience == null) return null;
+        return safe(competency.getEvidences()).stream()
+                .anyMatch(evidence -> evidence.getExperience().getId().equals(experience.getId()));
+    }
+
+    private List<Competency> resolveCompetencies(Long workspaceId, List<Long> requestedIds) {
         if (requestedIds != null && !requestedIds.isEmpty()) {
             List<Competency> found =
                     workspaceId == null
@@ -325,22 +434,7 @@ public class PortfolioCaseStudyAiService {
                                     workspaceId, requestedIds);
             return validateSubset(found, requestedIds, "역량");
         }
-        if (experienceId == null) return List.of();
-        List<Competency> candidates =
-                workspaceId == null
-                        ? competencyRepository.findAllByOrderByDisplayOrderAsc()
-                        : competencyRepository.findAllByWorkspaceIdOrderByDisplayOrderAsc(
-                                workspaceId);
-        return candidates.stream()
-                .filter(
-                        competency ->
-                                competency.getEvidences().stream()
-                                        .anyMatch(
-                                                evidence ->
-                                                        evidence.getExperience()
-                                                                .getId()
-                                                                .equals(experienceId)))
-                .toList();
+        return List.of();
     }
 
     private PortfolioCaseStudyContent readBaseContent(Long baseRevisionId, Long caseStudyId) {
@@ -369,6 +463,81 @@ public class PortfolioCaseStudyAiService {
                     HttpStatus.BAD_REQUEST, "존재하지 않는 " + label + " ID가 포함되어 있습니다.");
         }
         return found;
+    }
+
+    private ReadinessAssessment normalizeAssessment(ReadinessAssessment assessment) {
+        Coverage emptyCoverage =
+                new Coverage(
+                        missingCoverage("문제 상황 근거가 없습니다."),
+                        missingCoverage("본인의 역할과 행동 근거가 없습니다."),
+                        missingCoverage("판단 또는 트레이드오프 근거가 없습니다."),
+                        missingCoverage("해결 방법 근거가 없습니다."),
+                        missingCoverage("성과 근거가 없습니다."));
+        if (assessment == null) {
+            return new ReadinessAssessment(
+                    "NEEDS_INPUT",
+                    emptyCoverage,
+                    List.of(),
+                    List.of("부족한 사례 맥락을 대화로 보완해 주세요."),
+                    List.of("문제, 역할, 판단, 해결, 성과를 각각 설명해 주세요."),
+                    "선택한 근거만으로 사례 준비도를 확인하지 못했습니다. 부족한 맥락을 추가로 설명해 주세요.");
+        }
+        Coverage coverage =
+                assessment.coverage() == null ? emptyCoverage : assessment.coverage().normalized();
+        String readiness =
+                Set.of("READY", "NEEDS_INPUT", "RESELECT").contains(assessment.readiness())
+                        ? assessment.readiness()
+                        : "NEEDS_INPUT";
+        boolean downgraded = "READY".equals(readiness) && !coverage.isComplete();
+        if (downgraded) readiness = "NEEDS_INPUT";
+        return new ReadinessAssessment(
+                readiness,
+                coverage,
+                safe(assessment.conflicts()).stream()
+                        .filter(value -> hasText(value))
+                        .limit(10)
+                        .map(value -> limit(value, 300))
+                        .toList(),
+                safe(assessment.suggestions()).stream()
+                        .filter(value -> hasText(value))
+                        .limit(5)
+                        .map(value -> limit(value, 300))
+                        .toList(),
+                safe(assessment.questions()).stream()
+                        .filter(value -> hasText(value))
+                        .limit(3)
+                        .map(value -> limit(value, 300))
+                        .toList(),
+                downgraded
+                        ? "문제, 역할, 판단, 해결, 성과 중 근거가 부족한 항목이 있습니다. 부족한 맥락을 추가로 설명해 주세요."
+                        : hasText(assessment.message())
+                                ? limit(assessment.message(), 500)
+                                : "선택한 근거를 보완한 뒤 다시 시도해 주세요.");
+    }
+
+    private ReadinessAssessment reselectionAssessment(List<String> conflicts) {
+        Coverage pendingCoverage =
+                new Coverage(
+                        pendingCoverage(),
+                        pendingCoverage(),
+                        pendingCoverage(),
+                        pendingCoverage(),
+                        pendingCoverage());
+        return new ReadinessAssessment(
+                "RESELECT",
+                pendingCoverage,
+                conflicts,
+                List.of("현재 프로젝트에 직접 연결된 학습 기록·핵심 역량·기술로 교체해 주세요."),
+                List.of(),
+                "현재 프로젝트와 연결되지 않은 근거가 포함되어 있습니다. 해당 근거를 제거하거나 같은 프로젝트의 근거로 교체해 주세요.");
+    }
+
+    private CoverageItem missingCoverage(String reason) {
+        return new CoverageItem("MISSING", reason);
+    }
+
+    private CoverageItem pendingCoverage() {
+        return new CoverageItem("PARTIAL", "근거를 다시 선택한 뒤 준비도를 확인합니다.");
     }
 
     private List<Fact> normalizeExtraction(
@@ -505,6 +674,8 @@ public class PortfolioCaseStudyAiService {
         void token(int stage, String text);
 
         void facts(List<Fact> facts);
+
+        void readiness(ReadinessAssessment assessment);
     }
 
     private record PreparedGeneration(
@@ -512,7 +683,8 @@ public class PortfolioCaseStudyAiService {
             String instruction,
             Set<Long> allowedDetailIds,
             Set<Long> allowedStudyIds,
-            PortfolioCaseStudyContent baseContent) {}
+            PortfolioCaseStudyContent baseContent,
+            List<String> selectionConflicts) {}
 
     private record StageEvent(String type, int stage, String message) {}
 
@@ -521,6 +693,8 @@ public class PortfolioCaseStudyAiService {
     private record FactsEvent(String type, int factCount) {}
 
     private record CompleteEvent(String type, PortfolioCaseStudyContent content) {}
+
+    private record ReadinessEvent(String type, ReadinessAssessment assessment) {}
 
     private record ErrorEvent(String type, String message) {}
 
@@ -532,12 +706,72 @@ public class PortfolioCaseStudyAiService {
             List<SkillFact> skills,
             List<StudyFact> studies) {}
 
-    private record ExtractionResponse(List<Fact> facts, String reason) {}
+    private record ExtractionResponse(List<Fact> facts, ReadinessAssessment assessment) {}
+
+    private record ReadinessAssessment(
+            String readiness,
+            Coverage coverage,
+            List<String> conflicts,
+            List<String> suggestions,
+            List<String> questions,
+            String message) {}
+
+    private record Coverage(
+            CoverageItem problem,
+            CoverageItem role,
+            CoverageItem judgment,
+            CoverageItem solution,
+            CoverageItem outcome) {
+        private boolean isComplete() {
+            return isSatisfied(problem)
+                    && isSatisfied(role)
+                    && isSatisfied(judgment)
+                    && isSatisfied(solution)
+                    && isSatisfied(outcome);
+        }
+
+        private Coverage normalized() {
+            return new Coverage(
+                    normalizeItem(problem),
+                    normalizeItem(role),
+                    normalizeItem(judgment),
+                    normalizeItem(solution),
+                    normalizeItem(outcome));
+        }
+
+        private boolean isSatisfied(CoverageItem item) {
+            return item != null && "SATISFIED".equals(item.status());
+        }
+
+        private CoverageItem normalizeItem(CoverageItem item) {
+            if (item == null) return new CoverageItem("MISSING", "근거가 없습니다.");
+            String status =
+                    Set.of("SATISFIED", "PARTIAL", "MISSING").contains(item.status())
+                            ? item.status()
+                            : "MISSING";
+            return new CoverageItem(status, limit(item.reason(), 300));
+        }
+    }
+
+    private record CoverageItem(String status, String reason) {}
 
     private record Fact(Long experienceDetailId, Long studyId, String aspect, String text) {}
 
     private record WriterContext(
             String instruction, List<Fact> facts, PortfolioCaseStudyContent currentDraft) {}
+
+    private static final class EvidenceReadinessException extends ResponseStatusException {
+        private final ReadinessAssessment assessment;
+
+        private EvidenceReadinessException(ReadinessAssessment assessment) {
+            super(HttpStatus.UNPROCESSABLE_ENTITY, assessment.message());
+            this.assessment = assessment;
+        }
+
+        private ReadinessAssessment assessment() {
+            return assessment;
+        }
+    }
 
     private record ExperienceFact(String title, String summary, String takeaway) {
         static ExperienceFact from(Experience value) {
@@ -563,14 +797,20 @@ public class PortfolioCaseStudyAiService {
         }
     }
 
-    private record SkillFact(Long id, String name, String category) {
-        static SkillFact from(Skill value) {
-            return new SkillFact(value.getId(), value.getName(), value.getCategory());
+    private record SkillFact(Long id, String name, String category, Boolean linkedToProject) {
+        static SkillFact from(Skill value, Boolean linkedToProject) {
+            return new SkillFact(
+                    value.getId(), value.getName(), value.getCategory(), linkedToProject);
         }
     }
 
-    private record CompetencyFact(Long id, String title, String summary, List<String> evidences) {
-        static CompetencyFact from(Competency value) {
+    private record CompetencyFact(
+            Long id,
+            String title,
+            String summary,
+            List<String> evidences,
+            Boolean linkedToProject) {
+        static CompetencyFact from(Competency value, Boolean linkedToProject) {
             return new CompetencyFact(
                     value.getId(),
                     value.getTitle(),
@@ -578,17 +818,20 @@ public class PortfolioCaseStudyAiService {
                     value.getEvidences().stream()
                             .map(evidence -> evidence.getEvidenceSummary())
                             .filter(summary -> summary != null && !summary.isBlank())
-                            .toList());
+                            .toList(),
+                    linkedToProject);
         }
     }
 
-    private record StudyFact(Long id, String title, String summary, String contentExcerpt) {
-        static StudyFact from(Study value) {
+    private record StudyFact(
+            Long id, String title, String summary, String contentExcerpt, Boolean linkedToProject) {
+        static StudyFact from(Study value, Boolean linkedToProject) {
             return new StudyFact(
                     value.getId(),
                     value.getTitle(),
                     value.getSummary(),
-                    limit(value.getContentMarkdown(), STUDY_CONTENT_EXCERPT_LIMIT));
+                    limit(value.getContentMarkdown(), STUDY_CONTENT_EXCERPT_LIMIT),
+                    linkedToProject);
         }
     }
 }

@@ -1,5 +1,6 @@
 package com.selfintro.modules.portfolio.presentation.dto;
 
+import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Size;
 import java.util.List;
@@ -9,4 +10,5 @@ public record PortfolioCaseStudyGenerateRequest(
         @NotNull List<Long> studyIds,
         @NotNull List<Long> skillIds,
         @NotNull List<Long> competencyIds,
-        Long baseRevisionId) {}
+        Long baseRevisionId,
+        @Valid PortfolioCaseStudyContent currentDraft) {}

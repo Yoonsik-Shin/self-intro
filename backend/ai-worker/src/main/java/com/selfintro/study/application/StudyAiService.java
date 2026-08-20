@@ -225,7 +225,7 @@ public class StudyAiService {
                 request.skillIds() != null && !request.skillIds().isEmpty()
                         ? fetchAndValidate(
                                 workspaceId == null
-                                         ? skillRepository.findAllById(request.skillIds())
+                                        ? skillRepository.findAllById(request.skillIds())
                                         : workspaceSkillRepository
                                                 .findAllByWorkspaceIdAndSkill_IdIn(
                                                         workspaceId, request.skillIds())

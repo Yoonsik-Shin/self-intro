@@ -1442,12 +1442,28 @@ export type PortfolioCaseStudyGenerateRequest = {
     skillIds: number[];
     competencyIds: number[];
     baseRevisionId?: number | null;
+    currentDraft?: PortfolioCaseStudyContent | null;
+};
+
+export type PortfolioEvidenceCoverageStatus = 'SATISFIED' | 'PARTIAL' | 'MISSING';
+
+export type PortfolioEvidenceReadinessAssessment = {
+    readiness: 'READY' | 'NEEDS_INPUT' | 'RESELECT';
+    coverage: Record<
+        'problem' | 'role' | 'judgment' | 'solution' | 'outcome',
+        { status: PortfolioEvidenceCoverageStatus; reason: string }
+    >;
+    conflicts: string[];
+    suggestions: string[];
+    questions: string[];
+    message: string;
 };
 
 export type PortfolioCaseStudyGenerateStreamEvent =
     | { type: 'stage'; stage: number; message: string }
     | { type: 'token'; stage: number; text: string }
     | { type: 'facts'; factCount: number }
+    | { type: 'readiness'; assessment: PortfolioEvidenceReadinessAssessment }
     | { type: 'complete'; content: PortfolioCaseStudyContent }
     | { type: 'error'; message: string };
 

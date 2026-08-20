@@ -45,6 +45,7 @@ export function useAiSuggestionStream() {
 
     const finishStages = () =>
         setAiStages((current) => current.map((item) => ({ ...item, done: true })));
+    const clearStages = () => setAiStages([]);
 
     return {
         aiStages,
@@ -58,6 +59,7 @@ export function useAiSuggestionStream() {
         pushStage,
         appendToken,
         finishStages,
+        clearStages,
     };
 }
 

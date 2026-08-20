@@ -22,15 +22,13 @@ public class WorkspaceStudyAiWorkerController {
 
     @PostMapping("/suggestions")
     public StudySuggestionResponse suggest(
-            @PathVariable Long workspaceId,
-            @Valid @RequestBody StudySuggestionRequest request) {
+            @PathVariable Long workspaceId, @Valid @RequestBody StudySuggestionRequest request) {
         return studyAiService.suggest(workspaceId, request);
     }
 
     @PostMapping(value = "/suggestions/stream", produces = MediaType.TEXT_EVENT_STREAM_VALUE)
     public SseEmitter suggestStream(
-            @PathVariable Long workspaceId,
-            @Valid @RequestBody StudySuggestionRequest request) {
+            @PathVariable Long workspaceId, @Valid @RequestBody StudySuggestionRequest request) {
         return studyAiService.suggestStream(workspaceId, request);
     }
 }
