@@ -30,7 +30,7 @@ type SaveServerTemplateModalProps = {
     editingTemplate?: PrintTemplate | null;
     /** 지원 공고를 통해 PDF를 내보낸 경우 그 공고 id로 미리 채워둔다(직접 바꿀 수 있음). */
     defaultJobPostingId?: number | null;
-    onSaved?: () => void;
+    onSaved?: (template: PrintTemplate) => void;
 };
 
 /** 인쇄 프리뷰 화면에서 현재 조정한 설정을 서버 DB 템플릿으로 저장하는 모달 */
@@ -67,10 +67,10 @@ export function SaveServerTemplateModal({
     const createMutation = useMutation({
         mutationFn: (payload: PrintTemplateRequest) =>
             printTemplateApi.workspaceCreate(workspaceSlug, payload),
-        onSuccess: () => {
+        onSuccess: (saved) => {
             queryClient.invalidateQueries({ queryKey: ['printTemplates'] });
             alert('템플릿이 저장되었습니다.');
-            onSaved?.();
+            onSaved?.(saved);
             onClose();
         },
     });
@@ -78,10 +78,10 @@ export function SaveServerTemplateModal({
     const updateMutation = useMutation({
         mutationFn: ({ id, payload }: { id: number; payload: PrintTemplateRequest }) =>
             printTemplateApi.workspaceUpdate(workspaceSlug, id, payload),
-        onSuccess: () => {
+        onSuccess: (saved) => {
             queryClient.invalidateQueries({ queryKey: ['printTemplates'] });
             alert('템플릿이 수정되었습니다.');
-            onSaved?.();
+            onSaved?.(saved);
             onClose();
         },
     });

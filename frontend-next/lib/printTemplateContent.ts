@@ -176,6 +176,13 @@ export function sanitizePrintTemplateOverrides(
         .map((section) => ({
             id: section.id,
             title: section.title,
+            source:
+                section.source?.type === 'PORTFOLIO_CASE_STUDY_REVISION' &&
+                Number.isInteger(section.source.caseStudyId) &&
+                Number.isInteger(section.source.revisionId) &&
+                Number.isInteger(section.source.revisionVersion)
+                    ? section.source
+                    : undefined,
             items: (section.items ?? []).filter(
                 (item) =>
                     item &&

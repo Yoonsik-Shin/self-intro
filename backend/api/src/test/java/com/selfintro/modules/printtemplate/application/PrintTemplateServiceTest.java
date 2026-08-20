@@ -10,7 +10,10 @@ import static org.mockito.Mockito.when;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.selfintro.modules.identity.application.PublicWorkspaceResolver;
+import com.selfintro.modules.portfolio.domain.entity.PortfolioCaseStudy;
+import com.selfintro.modules.portfolio.domain.entity.PortfolioCaseStudyRevision;
 import com.selfintro.modules.portfolio.domain.repository.PortfolioCaseStudyRepository;
+import com.selfintro.modules.portfolio.domain.repository.PortfolioCaseStudyRevisionRepository;
 import com.selfintro.modules.printtemplate.domain.entity.PrintDocumentArtifact;
 import com.selfintro.modules.printtemplate.domain.entity.PrintTemplate;
 import com.selfintro.modules.printtemplate.domain.entity.PrintTemplateRevision;
@@ -38,6 +41,7 @@ class PrintTemplateServiceTest {
     @Mock StorageService storageService;
     @Mock PublicWorkspaceResolver publicWorkspaceResolver;
     @Mock PortfolioCaseStudyRepository portfolioCaseStudyRepository;
+    @Mock PortfolioCaseStudyRevisionRepository portfolioCaseStudyRevisionRepository;
 
     private PrintTemplateService service;
 
@@ -51,6 +55,7 @@ class PrintTemplateServiceTest {
                         storageService,
                         publicWorkspaceResolver,
                         portfolioCaseStudyRepository,
+                        portfolioCaseStudyRevisionRepository,
                         new ObjectMapper());
         lenient()
                 .when(repository.save(any(PrintTemplate.class)))
@@ -94,6 +99,59 @@ class PrintTemplateServiceTest {
         assertThat(saved.getTargetRole()).isEqualTo("GENERAL");
         assertThat(saved.getContentOverrides()).isEqualTo("{}");
         assertThat(saved.getSchemaVersion()).isEqualTo(2);
+    }
+
+    @Test
+    void createAcceptsOnlyPortfolioRevisionOwnedByWorkspace() {
+        PortfolioCaseStudy caseStudy = PortfolioCaseStudy.create(1L, 2L, "checkout", "결제 개선");
+        ReflectionTestUtils.setField(caseStudy, "id", 3L);
+        PortfolioCaseStudyRevision revision =
+                PortfolioCaseStudyRevision.create(3L, 2, "MANUAL", "{}", "");
+        ReflectionTestUtils.setField(revision, "id", 10L);
+        when(portfolioCaseStudyRepository.findByIdAndWorkspaceId(3L, 1L))
+                .thenReturn(Optional.of(caseStudy));
+        when(portfolioCaseStudyRevisionRepository.findById(10L)).thenReturn(Optional.of(revision));
+        PrintTemplateRequest request =
+                new PrintTemplateRequest(
+                        "통합 포트폴리오",
+                        "[]",
+                        "[\"custom-section:portfolio-revision-10\"]",
+                        "{}",
+                        null,
+                        "{\"customSections\":[{\"id\":\"portfolio-revision-10\",\"title\":\"결제 개선\",\"source\":{\"type\":\"PORTFOLIO_CASE_STUDY_REVISION\",\"caseStudyId\":3,\"revisionId\":10,\"revisionVersion\":2},\"items\":[]}]}",
+                        null,
+                        2,
+                        true,
+                        0,
+                        null,
+                        null);
+
+        PrintTemplate saved = service.create(1L, request);
+
+        assertThat(saved.getContentOverrides()).contains("\"revisionId\":10");
+    }
+
+    @Test
+    void createRejectsPortfolioRevisionFromAnotherWorkspace() {
+        PrintTemplateRequest request =
+                new PrintTemplateRequest(
+                        "통합 포트폴리오",
+                        "[]",
+                        "[]",
+                        "{}",
+                        null,
+                        "{\"customSections\":[{\"id\":\"portfolio-revision-10\",\"title\":\"결제 개선\",\"source\":{\"type\":\"PORTFOLIO_CASE_STUDY_REVISION\",\"caseStudyId\":3,\"revisionId\":10,\"revisionVersion\":2},\"items\":[]}]}",
+                        null,
+                        2,
+                        true,
+                        0,
+                        null,
+                        null);
+
+        assertThatThrownBy(() -> service.create(1L, request))
+                .isInstanceOf(ResponseStatusException.class)
+                .hasMessageContaining("Workspace에 속한 포트폴리오 revision");
+        verify(repository, never()).save(any(PrintTemplate.class));
     }
 
     @Test

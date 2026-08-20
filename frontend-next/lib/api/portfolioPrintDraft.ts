@@ -52,4 +52,19 @@ export const portfolioPrintDraftApi = {
             onEvent,
             signal
         ),
+    reviseDocumentStream: (
+        workspaceSlug: string,
+        templateId: number,
+        feedbackInstruction: string,
+        onEvent: (event: PortfolioPrintDraftStreamEvent) => void,
+        signal?: AbortSignal,
+        aiModel?: string,
+        customModelName?: string
+    ) =>
+        requestEventStream<PortfolioPrintDraftStreamEvent>(
+            `/api/workspaces/${encodeURIComponent(workspaceSlug)}/portfolio-documents/manage/${templateId}/revise/stream${aiModelQuery(aiModel, customModelName)}`,
+            { feedbackInstruction },
+            onEvent,
+            signal
+        ),
 };

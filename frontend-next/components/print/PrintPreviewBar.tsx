@@ -9,6 +9,7 @@ import {
     FileText,
     FolderOpen,
     ListChecks,
+    Layers3,
     MessageSquare,
     Printer,
     Save,
@@ -42,6 +43,7 @@ type PrintPreviewBarProps = {
     onToggleInlineEditMode?: () => void;
     aiChatOpen?: boolean;
     onToggleAiChat?: () => void;
+    onOpenPortfolioComposer?: () => void;
     canUndo?: boolean;
     canRedo?: boolean;
     onUndo?: () => void;
@@ -75,6 +77,7 @@ export function PrintPreviewBar({
     onToggleInlineEditMode,
     aiChatOpen = false,
     onToggleAiChat,
+    onOpenPortfolioComposer,
     canUndo = false,
     canRedo = false,
     onUndo,
@@ -287,6 +290,17 @@ export function PrintPreviewBar({
                     >
                         <MessageSquare className="h-3.5 w-3.5" />
                         <span className="hidden xl:inline">AI 대화</span>
+                    </button>
+                )}
+                {onOpenPortfolioComposer && (
+                    <button
+                        type="button"
+                        onClick={onOpenPortfolioComposer}
+                        className="flex h-9 items-center gap-1.5 rounded-md border border-emerald-500/50 bg-emerald-500/10 px-3 text-xs font-bold text-emerald-200 transition hover:bg-emerald-500/20 hover:text-white"
+                        title="저장된 포트폴리오 revision을 현재 지원출력 문서에 추가"
+                    >
+                        <Layers3 className="h-3.5 w-3.5" />
+                        <span className="hidden xl:inline">포트폴리오 구성</span>
                     </button>
                 )}
                 {!integratedDocumentSettings && onOpenTemplateModal && (

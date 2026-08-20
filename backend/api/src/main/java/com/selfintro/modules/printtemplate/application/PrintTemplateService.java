@@ -1,9 +1,11 @@
 package com.selfintro.modules.printtemplate.application;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.selfintro.modules.identity.application.PublicWorkspaceResolver;
 import com.selfintro.modules.portfolio.domain.repository.PortfolioCaseStudyRepository;
+import com.selfintro.modules.portfolio.domain.repository.PortfolioCaseStudyRevisionRepository;
 import com.selfintro.modules.printtemplate.domain.entity.PrintDocumentArtifact;
 import com.selfintro.modules.printtemplate.domain.entity.PrintTemplate;
 import com.selfintro.modules.printtemplate.domain.entity.PrintTemplateRevision;
@@ -37,6 +39,7 @@ public class PrintTemplateService {
     private final StorageService storageService;
     private final PublicWorkspaceResolver publicWorkspaceResolver;
     private final PortfolioCaseStudyRepository portfolioCaseStudyRepository;
+    private final PortfolioCaseStudyRevisionRepository portfolioCaseStudyRevisionRepository;
     private final ObjectMapper objectMapper;
 
     private Long defaultWorkspaceId() {
@@ -174,6 +177,8 @@ public class PrintTemplateService {
     @Transactional
     @CacheEvict(value = "print_template:public", allEntries = true)
     public PrintTemplate create(Long workspaceId, PrintTemplateRequest request) {
+        String contentOverrides = defaultString(request.contentOverrides(), "{}");
+        validatePortfolioRevisionSources(workspaceId, contentOverrides);
         PrintTemplate template =
                 PrintTemplate.create(
                         workspaceId,
@@ -182,7 +187,7 @@ public class PrintTemplateService {
                         request.sectionOrder(),
                         request.sectionGaps(),
                         defaultString(request.targetRole(), "GENERAL"),
-                        defaultString(request.contentOverrides(), "{}"),
+                        contentOverrides,
                         request.baseContentFingerprint(),
                         request.schemaVersion() == null ? 2 : request.schemaVersion(),
                         request.visible(),
@@ -428,13 +433,16 @@ public class PrintTemplateService {
     @CacheEvict(value = "print_template:public", allEntries = true)
     public PrintTemplate update(Long workspaceId, Long id, PrintTemplateRequest request) {
         PrintTemplate template = getOrThrow(workspaceId, id);
+        String contentOverrides =
+                defaultString(request.contentOverrides(), template.getContentOverrides());
+        validatePortfolioRevisionSources(workspaceId, contentOverrides);
         template.update(
                 request.name(),
                 request.excludedIds(),
                 request.sectionOrder(),
                 request.sectionGaps(),
                 defaultString(request.targetRole(), template.getTargetRole()),
-                defaultString(request.contentOverrides(), template.getContentOverrides()),
+                contentOverrides,
                 request.baseContentFingerprint() == null
                         ? template.getBaseContentFingerprint()
                         : request.baseContentFingerprint(),
@@ -448,6 +456,47 @@ public class PrintTemplateService {
         PrintTemplate saved = printTemplateRepository.save(template);
         recordConfigurationSnapshot(saved);
         return saved;
+    }
+
+    private void validatePortfolioRevisionSources(Long workspaceId, String contentOverrides) {
+        final JsonNode root;
+        try {
+            root = objectMapper.readTree(contentOverrides);
+        } catch (JsonProcessingException exception) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "출력 콘텐츠 구성이 올바른 JSON이 아닙니다.");
+        }
+        JsonNode sections = root.path("customSections");
+        if (!sections.isArray()) return;
+        for (JsonNode section : sections) {
+            JsonNode source = section.path("source");
+            if (source.isMissingNode() || source.isNull()) continue;
+            if (!"PORTFOLIO_CASE_STUDY_REVISION".equals(source.path("type").asText())) {
+                throw new ResponseStatusException(
+                        HttpStatus.BAD_REQUEST, "지원하지 않는 사용자 정의 섹션 출처입니다.");
+            }
+            long caseStudyId = source.path("caseStudyId").asLong(-1L);
+            long revisionId = source.path("revisionId").asLong(-1L);
+            int revisionVersion = source.path("revisionVersion").asInt(-1);
+            boolean validCaseStudy =
+                    caseStudyId > 0
+                            && portfolioCaseStudyRepository
+                                    .findByIdAndWorkspaceId(caseStudyId, workspaceId)
+                                    .isPresent();
+            boolean validRevision =
+                    revisionId > 0
+                            && revisionVersion > 0
+                            && portfolioCaseStudyRevisionRepository
+                                    .findById(revisionId)
+                                    .filter(
+                                            revision ->
+                                                    revision.getCaseStudyId().equals(caseStudyId))
+                                    .filter(revision -> revision.getVersion() == revisionVersion)
+                                    .isPresent();
+            if (!validCaseStudy || !validRevision) {
+                throw new ResponseStatusException(
+                        HttpStatus.BAD_REQUEST, "Workspace에 속한 포트폴리오 revision 출처가 아닙니다.");
+            }
+        }
     }
 
     private PrintTemplateRevision recordConfigurationSnapshot(PrintTemplate template) {

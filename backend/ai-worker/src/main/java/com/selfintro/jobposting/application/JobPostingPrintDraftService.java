@@ -114,6 +114,8 @@ public class JobPostingPrintDraftService {
             - selectedSkillIds, includedExperienceIds, includedDetailIds, includedCompetencyIds는 반드시 JSON 숫자 배열이다.
             - 원문과 동일한 문장은 override에 반복하지 말고, 실제로 개선할 항목만 넣는다.
             - experienceOverrides는 최대 8개, detailOverrides는 최대 12개, competencyOverrides는 최대 5개다.
+            - currentDraft.contentOverrides.customSections는 사용자가 고정한 포트폴리오 revision이다. 섹션과 item ID를
+              새로 만들거나 제거하지 말고, feedbackInstruction이 요구할 때만 근거 범위 안에서 문구를 다듬는다.
             - decisions는 핵심 판단만 최대 20개, warnings는 최대 5개로 제한한다.
 
             응답 스키마:
@@ -128,6 +130,7 @@ public class JobPostingPrintDraftService {
               "experienceOverrides":[{"id":1,"summary":"","takeaway":"","role":""}],
               "detailOverrides":[{"id":1,"content":"","narrative":""}],
               "competencyOverrides":[{"id":1,"title":"","summary":""}],
+              "customSectionOverrides":[{"id":"portfolio-revision-1","title":"","items":[{"id":"problem","title":"","content":""}]}],
               "decisions":[{"itemType":"PROJECT|DETAIL|SKILL|COMPETENCY","itemId":"1","decision":"INCLUDE|EXCLUDE","reason":"근거"}],
               "warnings":["보완 또는 확인할 점"]
             }
@@ -271,7 +274,8 @@ public class JobPostingPrintDraftService {
                         aiTimeout);
         JsonNode plan = parseJson(raw);
 
-        DraftArtifacts artifacts = assemble(plan, introduction, relevantExperiences);
+        DraftArtifacts artifacts =
+                assemble(plan, introduction, relevantExperiences, objectMapper.createObjectNode());
         String metadata = writeJson(buildMetadata(plan, artifacts));
         PrintTemplate template =
                 printTemplateService.createAiDraft(
@@ -346,14 +350,21 @@ public class JobPostingPrintDraftService {
                         aiTimeout);
         JsonNode plan = parseJson(raw);
 
-        DraftArtifacts artifacts = assemble(plan, introduction, relevantExperiences);
+        JsonNode currentOverrides = readJsonOrEmptyObject(current.getContentOverrides());
+        DraftArtifacts artifacts =
+                assemble(plan, introduction, relevantExperiences, currentOverrides);
+        List<String> excludedIds =
+                preserveCustomSectionExclusions(
+                        artifacts.excludedIds(), readJsonOrEmptyArray(current.getExcludedIds()));
         String metadata = writeJson(buildMetadata(plan, artifacts));
         PrintTemplate template =
                 printTemplateService.applyAiRevision(
                         workspaceId,
                         templateId,
-                        writeJson(artifacts.excludedIds()),
-                        SECTION_ORDER,
+                        writeJson(excludedIds),
+                        current.getSectionOrder() == null || current.getSectionOrder().isBlank()
+                                ? SECTION_ORDER
+                                : current.getSectionOrder(),
                         text(plan, "targetRole", posting.positionTitle(), 60),
                         writeJson(artifacts.contentOverrides()),
                         metadata);
@@ -495,7 +506,8 @@ public class JobPostingPrintDraftService {
     private DraftArtifacts assemble(
             JsonNode plan,
             IntroductionResponse intro,
-            List<ExperienceResponse> experiencesToConsider) {
+            List<ExperienceResponse> experiencesToConsider,
+            JsonNode currentOverrides) {
         Map<Long, ExperienceResponse> experiences = new HashMap<>();
         Map<Long, ExperienceDetailResponse> details = new HashMap<>();
         for (ExperienceResponse experience : experiencesToConsider) {
@@ -580,6 +592,7 @@ public class JobPostingPrintDraftService {
         applyExperienceOverrides(overrides, plan.path("experienceOverrides"), experiences);
         applyDetailOverrides(overrides, plan.path("detailOverrides"), details);
         applyCompetencyOverrides(overrides, plan.path("competencyOverrides"), intro.competencies());
+        mergeCustomSections(overrides, currentOverrides, plan.path("customSectionOverrides"));
 
         int includedCount =
                 includedProjects.size()
@@ -587,6 +600,74 @@ public class JobPostingPrintDraftService {
                         + selectedSkills.size()
                         + includedCompetencies.size();
         return new DraftArtifacts(List.copyOf(excluded), overrides, includedCount);
+    }
+
+    List<String> preserveCustomSectionExclusions(
+            List<String> generated, JsonNode currentExcludedIds) {
+        LinkedHashSet<String> merged = new LinkedHashSet<>(generated);
+        if (currentExcludedIds.isArray()) {
+            for (JsonNode value : currentExcludedIds) {
+                if (value.isTextual()) {
+                    String id = value.asText();
+                    if (id.startsWith("custom-section:") || id.startsWith("custom-section-item:")) {
+                        merged.add(id);
+                    }
+                }
+            }
+        }
+        return List.copyOf(merged);
+    }
+
+    void mergeCustomSections(ObjectNode target, JsonNode currentOverrides, JsonNode candidates) {
+        JsonNode currentSections = currentOverrides.path("customSections");
+        if (!currentSections.isArray() || currentSections.isEmpty()) return;
+
+        Map<String, JsonNode> candidateById = new HashMap<>();
+        if (candidates.isArray()) {
+            for (JsonNode candidate : candidates) {
+                String id = candidate.path("id").asText("");
+                if (!id.isBlank()) candidateById.put(id, candidate);
+            }
+        }
+
+        ArrayNode preserved = objectMapper.createArrayNode();
+        for (JsonNode currentSection : currentSections) {
+            if (!currentSection.isObject()) continue;
+            ObjectNode section = currentSection.deepCopy();
+            JsonNode candidate = candidateById.get(currentSection.path("id").asText(""));
+            if (candidate != null) {
+                copySafe(section, "title", candidate, currentSection.toString(), 200);
+                mergeCustomSectionItems(
+                        section, currentSection.path("items"), candidate.path("items"));
+            }
+            preserved.add(section);
+        }
+        target.set("customSections", preserved);
+    }
+
+    private void mergeCustomSectionItems(
+            ObjectNode section, JsonNode currentItems, JsonNode candidateItems) {
+        if (!currentItems.isArray()) return;
+        Map<String, JsonNode> candidateById = new HashMap<>();
+        if (candidateItems.isArray()) {
+            for (JsonNode candidate : candidateItems) {
+                String id = candidate.path("id").asText("");
+                if (!id.isBlank()) candidateById.put(id, candidate);
+            }
+        }
+        ArrayNode preserved = objectMapper.createArrayNode();
+        for (JsonNode currentItem : currentItems) {
+            if (!currentItem.isObject()) continue;
+            ObjectNode item = currentItem.deepCopy();
+            JsonNode candidate = candidateById.get(currentItem.path("id").asText(""));
+            if (candidate != null) {
+                String source = currentItem.toString();
+                copySafe(item, "title", candidate, source, 200);
+                copySafe(item, "content", candidate, source, 4000);
+            }
+            preserved.add(item);
+        }
+        section.set("items", preserved);
     }
 
     private void applyProfileOverride(

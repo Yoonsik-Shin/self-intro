@@ -3,6 +3,7 @@ package com.selfintro.portfolio.application;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.node.ArrayNode;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 import com.selfintro.global.ai.AiJsonSupport;
 import com.selfintro.global.ai.LlmDispatcher;
@@ -21,8 +22,10 @@ import jakarta.persistence.EntityNotFoundException;
 import java.time.Duration;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.LinkedHashSet;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
@@ -94,6 +97,31 @@ public class PortfolioPrintDraftService {
               "contentOverrides":{"summary":"","problem":"","thoughtProcess":"","solution":"","outcomeSummary":""},
               "decisions":[{"itemType":"TRADEOFF|METRIC|ARCHITECTURE","itemId":"0","decision":"INCLUDE|EXCLUDE","reason":"근거"}],
               "warnings":["보완 또는 확인할 점"]
+            }
+            """;
+
+    private static final String DOCUMENT_REVISION_SYSTEM_PROMPT =
+            """
+            당신은 이력서와 여러 포트폴리오 content revision을 조립한 지원출력 문서를 다듬는 편집자다.
+            currentDraft.portfolioSections에 저장된 사실만 사용하고 반드시 JSON 객체 하나만 반환한다.
+
+            원칙:
+            - 사용자의 feedbackInstruction을 최우선으로 반영한다.
+            - section과 item ID는 입력에 있는 값만 사용하고 새로 만들거나 제거하지 않는다.
+            - 수치, 기간, 도구, 성과를 추측하거나 새로 만들지 않는다.
+            - sectionOrder는 currentDraft.sectionOrder에 있는 ID를 정확히 한 번씩 포함한 순열만 제안한다.
+            - excludedPortfolioIds에는 입력에 있는 포트폴리오 section/item ID만 넣는다.
+            - 문구를 바꾸지 않아도 되는 section/item은 customSectionOverrides에서 생략한다.
+            - 포트폴리오 원본 revision과 source metadata는 수정하지 않는다.
+
+            응답 스키마:
+            {
+              "strategySummary":"이번 문서 구성에서 반영한 내용 1~3문장",
+              "sectionOrder":["skills","career","custom-section:portfolio-revision-1"],
+              "excludedPortfolioIds":["custom-section-item:portfolio-revision-1:metric-0"],
+              "customSectionOverrides":[{"id":"portfolio-revision-1","title":"","items":[{"id":"problem","title":"","content":""}]}],
+              "decisions":[{"itemType":"PORTFOLIO_SECTION|PORTFOLIO_ITEM","itemId":"","decision":"INCLUDE|EXCLUDE|REWRITE|REORDER","reason":""}],
+              "warnings":[""]
             }
             """;
 
@@ -200,6 +228,148 @@ public class PortfolioPrintDraftService {
             log.warn("AI 포트폴리오 PDF 재생성 스트리밍 중 예상하지 못한 오류", exception);
             printDraftStreamSupport.sendError(emitter, "PDF 재생성 중 오류가 발생했습니다. 다시 시도해주세요.");
         }
+    }
+
+    public SseEmitter reviseDocumentStream(
+            Long workspaceId,
+            Long templateId,
+            String feedbackInstruction,
+            String aiModel,
+            String customModelName) {
+        SseEmitter emitter =
+                printDraftStreamSupport.createEmitter(STREAM_TIMEOUT_MILLIS, "통합 포트폴리오 문서 재구성");
+        Thread.ofVirtual()
+                .name("portfolio-document-revise-stream")
+                .start(
+                        () ->
+                                streamDocumentRevision(
+                                        workspaceId,
+                                        templateId,
+                                        feedbackInstruction,
+                                        aiModel,
+                                        customModelName,
+                                        emitter));
+        return emitter;
+    }
+
+    private void streamDocumentRevision(
+            Long workspaceId,
+            Long templateId,
+            String feedbackInstruction,
+            String aiModel,
+            String customModelName,
+            SseEmitter emitter) {
+        try {
+            printDraftStreamSupport.sendComplete(
+                    emitter,
+                    reviseDocument(
+                            workspaceId,
+                            templateId,
+                            feedbackInstruction,
+                            aiModel,
+                            customModelName));
+        } catch (ResponseStatusException exception) {
+            log.warn("통합 포트폴리오 문서 AI 재구성 실패: {}", exception.getReason(), exception);
+            printDraftStreamSupport.sendError(
+                    emitter,
+                    exception.getReason() == null
+                            ? "포트폴리오 문서 재구성에 실패했습니다."
+                            : exception.getReason());
+        } catch (Exception exception) {
+            log.warn("통합 포트폴리오 문서 AI 재구성 중 예상하지 못한 오류", exception);
+            printDraftStreamSupport.sendError(emitter, "포트폴리오 문서 재구성 중 오류가 발생했습니다. 다시 시도해주세요.");
+        }
+    }
+
+    private PortfolioPrintDraftResponse reviseDocument(
+            Long workspaceId,
+            Long templateId,
+            String feedbackInstruction,
+            String aiModel,
+            String customModelName) {
+        PrintTemplate current = printTemplateService.getOrThrow(workspaceId, templateId);
+        if (!PrintTemplate.DOCUMENT_TYPE_RESUME.equals(current.getDocumentType())) {
+            throw new ResponseStatusException(
+                    HttpStatus.BAD_REQUEST, "이력서 지원출력 템플릿만 통합 포트폴리오 문서로 편집할 수 있습니다.");
+        }
+        ObjectNode currentOverrides = requireDocumentOverrides(current);
+        ArrayNode portfolioSections = pinnedPortfolioSections(workspaceId, currentOverrides);
+        if (portfolioSections.isEmpty()) {
+            throw new ResponseStatusException(
+                    HttpStatus.BAD_REQUEST, "먼저 지원출력 문서에 포트폴리오 revision을 추가해 주세요.");
+        }
+
+        ObjectNode input = objectMapper.createObjectNode();
+        ObjectNode currentDraft = objectMapper.createObjectNode();
+        currentDraft.set("sectionOrder", readJsonOrEmptyArray(current.getSectionOrder()));
+        currentDraft.set("excludedIds", readJsonOrEmptyArray(current.getExcludedIds()));
+        currentDraft.set("portfolioSections", portfolioSections);
+        input.set("currentDraft", currentDraft);
+        input.put(
+                "feedbackInstruction",
+                feedbackInstruction == null ? "" : feedbackInstruction.trim());
+
+        String raw =
+                llmDispatcher.generateJson(
+                        DOCUMENT_REVISION_SYSTEM_PROMPT,
+                        writeJson(input),
+                        aiModel,
+                        customModelName,
+                        AI_MAX_OUTPUT_TOKENS,
+                        AI_TIMEOUT);
+        JsonNode plan = parseJson(raw);
+
+        ObjectNode mergedOverrides =
+                mergeDocumentPortfolioSections(
+                        currentOverrides, plan.path("customSectionOverrides"));
+        List<String> excludedIds = mergeDocumentExcludedIds(current, portfolioSections, plan);
+        List<String> sectionOrder = validatedDocumentSectionOrder(current, plan);
+        int includedCount = countIncludedPortfolioItems(portfolioSections, excludedIds);
+        ObjectNode metadata = objectMapper.createObjectNode();
+        metadata.put(
+                "strategySummary",
+                AiJsonSupport.text(plan, "strategySummary", "포트폴리오 항목의 순서와 분량을 조정했습니다.", 1000));
+        metadata.set("decisions", plan.path("decisions").deepCopy());
+        metadata.set("warnings", plan.path("warnings").deepCopy());
+        metadata.put("portfolioSectionCount", portfolioSections.size());
+
+        PrintTemplate updated =
+                printTemplateService.applyAiRevision(
+                        workspaceId,
+                        templateId,
+                        writeJson(excludedIds),
+                        writeJson(sectionOrder),
+                        current.getTargetRole(),
+                        writeJson(mergedOverrides),
+                        writeJson(metadata));
+
+        String strategySummary = metadata.path("strategySummary").asText();
+        String modelLabel = llmDispatcher.resolveLabel(aiModel, customModelName);
+        LocalDateTime now = LocalDateTime.now();
+        if (AiJsonSupport.hasText(feedbackInstruction)) {
+            printTemplateRevisionRepository.save(
+                    PrintTemplateRevision.create(
+                            templateId,
+                            PrintTemplateRevision.SENDER_USER,
+                            feedbackInstruction.trim(),
+                            now));
+        }
+        printTemplateRevisionRepository.save(
+                PrintTemplateRevision.create(
+                        templateId,
+                        PrintTemplateRevision.SENDER_AI,
+                        strategySummary,
+                        modelLabel,
+                        now));
+
+        return new PortfolioPrintDraftResponse(
+                updated.getId(),
+                updated.getName(),
+                strategySummary,
+                includedCount,
+                excludedIds.size(),
+                decisions(plan),
+                strings(plan.path("warnings")));
     }
 
     private PortfolioPrintDraftResponse generate(
@@ -425,6 +595,199 @@ public class PortfolioPrintDraftService {
                         + includedMetrics.size()
                         + (includeArchitecture && hasArchitecture ? 1 : 0);
         return new DraftArtifacts(List.copyOf(excluded), payload, includedCount);
+    }
+
+    private ObjectNode requireDocumentOverrides(PrintTemplate template) {
+        JsonNode parsed = readJsonOrEmptyObject(template.getContentOverrides());
+        if (!parsed.isObject()) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "지원출력 문서의 콘텐츠 구성을 읽지 못했습니다.");
+        }
+        return (ObjectNode) parsed;
+    }
+
+    private ArrayNode pinnedPortfolioSections(Long workspaceId, ObjectNode overrides) {
+        ArrayNode result = objectMapper.createArrayNode();
+        JsonNode sections = overrides.path("customSections");
+        if (!sections.isArray()) return result;
+        for (JsonNode section : sections) {
+            if ("PORTFOLIO_CASE_STUDY_REVISION"
+                    .equals(section.path("source").path("type").asText())) {
+                validatePinnedPortfolioSource(workspaceId, section.path("source"));
+                result.add(section.deepCopy());
+            }
+        }
+        return result;
+    }
+
+    private void validatePinnedPortfolioSource(Long workspaceId, JsonNode source) {
+        long caseStudyId = source.path("caseStudyId").asLong(-1L);
+        long revisionId = source.path("revisionId").asLong(-1L);
+        int revisionVersion = source.path("revisionVersion").asInt(-1);
+        boolean validCaseStudy =
+                caseStudyId > 0
+                        && caseStudyRepository
+                                .findByIdAndWorkspaceId(caseStudyId, workspaceId)
+                                .isPresent();
+        boolean validRevision =
+                revisionId > 0
+                        && revisionVersion > 0
+                        && caseStudyRevisionRepository
+                                .findById(revisionId)
+                                .filter(revision -> revision.getCaseStudyId().equals(caseStudyId))
+                                .filter(revision -> revision.getVersion() == revisionVersion)
+                                .isPresent();
+        if (!validCaseStudy || !validRevision) {
+            throw new ResponseStatusException(
+                    HttpStatus.BAD_REQUEST, "포트폴리오 revision 출처를 확인할 수 없습니다.");
+        }
+    }
+
+    ObjectNode mergeDocumentPortfolioSections(ObjectNode currentOverrides, JsonNode candidates) {
+        ObjectNode merged = currentOverrides.deepCopy();
+        JsonNode currentSections = currentOverrides.path("customSections");
+        if (!currentSections.isArray()) return merged;
+
+        Map<String, JsonNode> candidateById = new HashMap<>();
+        if (candidates.isArray()) {
+            for (JsonNode candidate : candidates) {
+                String id = candidate.path("id").asText("");
+                if (!id.isBlank()) candidateById.put(id, candidate);
+            }
+        }
+
+        ArrayNode sections = objectMapper.createArrayNode();
+        for (JsonNode currentSection : currentSections) {
+            if (!currentSection.isObject()) continue;
+            ObjectNode section = currentSection.deepCopy();
+            if ("PORTFOLIO_CASE_STUDY_REVISION"
+                    .equals(currentSection.path("source").path("type").asText())) {
+                JsonNode candidate = candidateById.get(currentSection.path("id").asText(""));
+                if (candidate != null) {
+                    copySafe(section, "title", candidate, currentSection.toString(), 200);
+                    mergeDocumentPortfolioItems(
+                            section, currentSection.path("items"), candidate.path("items"));
+                }
+            }
+            sections.add(section);
+        }
+        merged.set("customSections", sections);
+        return merged;
+    }
+
+    private void mergeDocumentPortfolioItems(
+            ObjectNode section, JsonNode currentItems, JsonNode candidates) {
+        if (!currentItems.isArray()) return;
+        Map<String, JsonNode> candidateById = new HashMap<>();
+        if (candidates.isArray()) {
+            for (JsonNode candidate : candidates) {
+                String id = candidate.path("id").asText("");
+                if (!id.isBlank()) candidateById.put(id, candidate);
+            }
+        }
+        ArrayNode items = objectMapper.createArrayNode();
+        for (JsonNode currentItem : currentItems) {
+            if (!currentItem.isObject()) continue;
+            ObjectNode item = currentItem.deepCopy();
+            JsonNode candidate = candidateById.get(currentItem.path("id").asText(""));
+            if (candidate != null) {
+                String source = currentItem.toString();
+                copySafe(item, "title", candidate, source, 200);
+                copySafe(item, "content", candidate, source, 4000);
+            }
+            items.add(item);
+        }
+        section.set("items", items);
+    }
+
+    List<String> mergeDocumentExcludedIds(
+            PrintTemplate current, ArrayNode portfolioSections, JsonNode plan) {
+        Set<String> allowedPortfolioIds = portfolioAtomIds(portfolioSections);
+        LinkedHashSet<String> merged = new LinkedHashSet<>();
+        JsonNode currentExcluded = readJsonOrEmptyArray(current.getExcludedIds());
+        if (currentExcluded.isArray()) {
+            for (JsonNode value : currentExcluded) {
+                if (value.isTextual() && !allowedPortfolioIds.contains(value.asText())) {
+                    merged.add(value.asText());
+                }
+            }
+        }
+
+        JsonNode candidates = plan.path("excludedPortfolioIds");
+        if (candidates.isArray()) {
+            for (JsonNode value : candidates) {
+                if (value.isTextual() && allowedPortfolioIds.contains(value.asText())) {
+                    merged.add(value.asText());
+                }
+            }
+        } else if (currentExcluded.isArray()) {
+            for (JsonNode value : currentExcluded) {
+                if (value.isTextual() && allowedPortfolioIds.contains(value.asText())) {
+                    merged.add(value.asText());
+                }
+            }
+        }
+        return List.copyOf(merged);
+    }
+
+    private Set<String> portfolioAtomIds(ArrayNode portfolioSections) {
+        Set<String> ids = new LinkedHashSet<>();
+        for (JsonNode section : portfolioSections) {
+            String sectionId = section.path("id").asText("");
+            if (sectionId.isBlank()) continue;
+            ids.add("custom-section:" + sectionId);
+            JsonNode items = section.path("items");
+            if (!items.isArray()) continue;
+            for (JsonNode item : items) {
+                String itemId = item.path("id").asText("");
+                if (!itemId.isBlank()) {
+                    ids.add("custom-section-item:" + sectionId + ":" + itemId);
+                }
+            }
+        }
+        return ids;
+    }
+
+    List<String> validatedDocumentSectionOrder(PrintTemplate current, JsonNode plan) {
+        List<String> currentOrder =
+                stringsWithoutLimit(readJsonOrEmptyArray(current.getSectionOrder()));
+        List<String> candidate = stringsWithoutLimit(plan.path("sectionOrder"));
+        if (candidate.size() != currentOrder.size()
+                || candidate.stream().distinct().count() != candidate.size()
+                || !new LinkedHashSet<>(candidate).equals(new LinkedHashSet<>(currentOrder))) {
+            return currentOrder;
+        }
+        return candidate;
+    }
+
+    private List<String> stringsWithoutLimit(JsonNode node) {
+        if (!node.isArray()) return List.of();
+        List<String> values = new ArrayList<>();
+        for (JsonNode value : node) {
+            if (value.isTextual() && !value.asText().isBlank()) {
+                values.add(value.asText().trim());
+            }
+        }
+        return values;
+    }
+
+    private int countIncludedPortfolioItems(ArrayNode portfolioSections, List<String> excludedIds) {
+        Set<String> excluded = new LinkedHashSet<>(excludedIds);
+        int count = 0;
+        for (JsonNode section : portfolioSections) {
+            String sectionId = section.path("id").asText("");
+            if (sectionId.isBlank() || excluded.contains("custom-section:" + sectionId)) continue;
+            count++;
+            JsonNode items = section.path("items");
+            if (!items.isArray()) continue;
+            for (JsonNode item : items) {
+                String itemId = item.path("id").asText("");
+                if (!itemId.isBlank()
+                        && !excluded.contains("custom-section-item:" + sectionId + ":" + itemId)) {
+                    count++;
+                }
+            }
+        }
+        return count;
     }
 
     private void copySafe(

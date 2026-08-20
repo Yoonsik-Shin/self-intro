@@ -121,6 +121,8 @@ public class SecurityConfig {
                                                 "/api/workspaces/*/images/presigned-upload",
                                                 "/api/workspaces/*/portfolio/case-studies/manage",
                                                 "/api/workspaces/*/portfolio/case-studies/manage/**",
+                                                "/api/workspaces/*/portfolio-documents/manage",
+                                                "/api/workspaces/*/portfolio-documents/manage/**",
                                                 "/api/workspaces/*/print-templates/manage",
                                                 "/api/workspaces/*/print-templates/manage/**",
                                                 "/api/workspaces/*/learning-resources/manage",

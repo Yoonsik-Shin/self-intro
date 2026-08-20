@@ -13,10 +13,13 @@ import {
 } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { MessageSquareText, X } from 'lucide-react';
-import { jobPostingApi, printTemplateApi, skillApi } from '@/lib/api';
+import { jobPostingApi, portfolioPrintDraftApi, printTemplateApi, skillApi } from '@/lib/api';
 import type {
     IntroductionResponse,
     JobPostingCoverLetterItem,
+    PortfolioCaseStudy,
+    PortfolioCaseStudyContent,
+    PortfolioCaseStudyRevision,
     PrintTemplate,
     PrintTemplateContentOverrides,
     Skill,
@@ -83,6 +86,7 @@ import { PrintPreviewNav } from './PrintPreviewNav';
 import { PrintModeModal } from './PrintModeModal';
 import { SaveServerTemplateModal } from './SaveServerTemplateModal';
 import { PrintSkillSelectorModal } from './PrintSkillSelectorModal';
+import { PortfolioSectionPickerModal } from './PortfolioSectionPickerModal';
 
 const PRINT_HISTORY_LIMIT = 100;
 type CustomPrintSection = NonNullable<PrintTemplateContentOverrides['customSections']>[number];
@@ -197,6 +201,42 @@ function applyOrder<T>(
     return ordered;
 }
 
+function portfolioRevisionItems(content: PortfolioCaseStudyContent): CustomPrintSection['items'] {
+    const items: CustomPrintSection['items'] = [];
+    const push = (id: string, title: string, value: string | null | undefined) => {
+        if (!value?.trim()) return;
+        items.push({ id, title, content: value.trim() });
+    };
+    push('summary', '한줄 요약', content.summary);
+    push('problem', '문제 인식', content.problem);
+    push('thought-process', '고민과 판단', content.thoughtProcess);
+    content.tradeoffs.forEach((tradeoff, index) => {
+        push(
+            `tradeoff-${index}`,
+            `트레이드오프 · ${tradeoff.option || index + 1}`,
+            [
+                tradeoff.pros && `장점: ${tradeoff.pros}`,
+                tradeoff.cons && `단점: ${tradeoff.cons}`,
+                tradeoff.chosenBecause && `선택 이유: ${tradeoff.chosenBecause}`,
+            ]
+                .filter(Boolean)
+                .join('\n')
+        );
+    });
+    push('solution', '해결 과정', content.solution);
+    push('outcome', '성과', content.outcome.summary);
+    content.outcome.metrics.forEach((metric, index) => {
+        push(
+            `metric-${index}`,
+            metric.label || `성과 지표 ${index + 1}`,
+            [metric.before && `이전: ${metric.before}`, metric.after && `이후: ${metric.after}`]
+                .filter(Boolean)
+                .join('\n')
+        );
+    });
+    return items;
+}
+
 export function PrintCanvas({
     workspaceSlug,
     introData,
@@ -292,12 +332,23 @@ export function PrintCanvas({
     // "템플릿 편집 & 미리보기"나 관리자 템플릿 목록은 templateId만 넘기므로, 이미 로드된
     // activeTemplate 자신의 jobPostingId를 폴백으로 써야 대화형 재생성 버튼이 뜬다.
     const effectiveJobPostingId = jobPostingId ?? activeTemplate?.jobPostingId ?? null;
-    const canRevise = Boolean(effectiveJobPostingId && activeTemplate?.id);
+    const hasPinnedPortfolioSections = Boolean(
+        activeTemplate?.contentOverrides.customSections?.some(
+            (section) => section.source?.type === 'PORTFOLIO_CASE_STUDY_REVISION'
+        )
+    );
+    const canRevise = Boolean(
+        activeTemplate?.id && (effectiveJobPostingId || hasPinnedPortfolioSections)
+    );
     const { data: revisions = [], isLoading: isRevisionsLoading } = useQuery({
         queryKey: ['printTemplateRevisions', workspaceSlug, activeTemplate?.id],
         queryFn: () => printTemplateApi.workspaceRevisions(workspaceSlug, activeTemplate!.id),
         enabled: aiChatOpen && canRevise,
     });
+    const chatRevisions = useMemo(
+        () => revisions.filter((revision) => ['USER', 'AI'].includes(revision.senderType)),
+        [revisions]
+    );
 
     const handleCancelRevise = () => {
         if (reviseAbortControllerRef.current) {
@@ -312,42 +363,61 @@ export function PrintCanvas({
         aiModel: string,
         customModelName?: string
     ) => {
-        if (isRevising || !effectiveJobPostingId || !activeTemplate?.id) return;
+        if (isRevising || !activeTemplate?.id) return;
         setIsRevising(true);
         const controller = new AbortController();
         reviseAbortControllerRef.current = controller;
         try {
-            await jobPostingApi.workspaceReviseAiPrintDraftStream(
-                workspaceSlug,
-                effectiveJobPostingId,
-                activeTemplate.id,
-                feedbackInstruction ?? '',
-                async (event) => {
-                    if (event.type === 'error') {
-                        alert(`AI 재생성에 실패했습니다. ${event.message}`);
-                        return;
-                    }
-                    queryClient.invalidateQueries({
-                        queryKey: ['printTemplateRevisions', activeTemplate.id],
+            const onEvent = async (event: {
+                type: 'complete' | 'error';
+                response?: { templateId: number };
+                message?: string;
+            }) => {
+                if (event.type === 'error') {
+                    alert(`AI 재생성에 실패했습니다. ${event.message ?? ''}`);
+                    return;
+                }
+                const updatedTemplateId = event.response?.templateId;
+                if (!updatedTemplateId) return;
+                queryClient.invalidateQueries({
+                    queryKey: ['printTemplateRevisions', workspaceSlug, activeTemplate.id],
+                });
+                const refreshed = await printTemplateApi.workspaceAdminList(workspaceSlug);
+                const updated = refreshed.find((t) => t.id === updatedTemplateId);
+                if (updated) {
+                    setActiveTemplate(updated);
+                    const layoutSettings = parseStoredPrintLayout(updated.sectionGaps);
+                    store.applyTemplate({
+                        excludedIds: updated.excludedIds,
+                        sectionOrder: updated.sectionOrder,
+                        ...layoutSettings,
+                        lineHeight: updated.lineHeight,
                     });
-                    const refreshed = await printTemplateApi.workspaceAdminList(workspaceSlug);
-                    const updated = refreshed.find((t) => t.id === event.response.templateId);
-                    if (updated) {
-                        setActiveTemplate(updated);
-                        const layoutSettings = parseStoredPrintLayout(updated.sectionGaps);
-                        store.applyTemplate({
-                            excludedIds: updated.excludedIds,
-                            sectionOrder: updated.sectionOrder,
-                            ...layoutSettings,
-                            lineHeight: updated.lineHeight,
-                        });
-                        setContentOverrides(updated.contentOverrides ?? {});
-                    }
-                },
-                controller.signal,
-                aiModel,
-                customModelName
-            );
+                    setContentOverrides(updated.contentOverrides ?? {});
+                }
+            };
+            if (effectiveJobPostingId) {
+                await jobPostingApi.workspaceReviseAiPrintDraftStream(
+                    workspaceSlug,
+                    effectiveJobPostingId,
+                    activeTemplate.id,
+                    feedbackInstruction ?? '',
+                    onEvent,
+                    controller.signal,
+                    aiModel,
+                    customModelName
+                );
+            } else {
+                await portfolioPrintDraftApi.reviseDocumentStream(
+                    workspaceSlug,
+                    activeTemplate.id,
+                    feedbackInstruction ?? '',
+                    onEvent,
+                    controller.signal,
+                    aiModel,
+                    customModelName
+                );
+            }
         } catch (error) {
             if (error instanceof Error && error.name === 'AbortError') {
                 setIsRevising(false);
@@ -679,6 +749,53 @@ export function PrintCanvas({
         });
     };
 
+    const selectedPortfolioRevisionIds = useMemo(
+        () =>
+            (contentOverrides.customSections ?? [])
+                .map((section) => section.source?.revisionId)
+                .filter((id): id is number => id !== undefined),
+        [contentOverrides.customSections]
+    );
+
+    const addPortfolioRevision = useCallback(
+        (caseStudy: PortfolioCaseStudy, revision: PortfolioCaseStudyRevision) => {
+            const sectionId = `portfolio-revision-${revision.id}`;
+            setContentOverrides((current) => {
+                const currentSections = current.customSections ?? [];
+                if (currentSections.some((section) => section.source?.revisionId === revision.id)) {
+                    return current;
+                }
+                return {
+                    ...current,
+                    customSections: [
+                        ...currentSections,
+                        {
+                            id: sectionId,
+                            title: caseStudy.title,
+                            source: {
+                                type: 'PORTFOLIO_CASE_STUDY_REVISION',
+                                caseStudyId: caseStudy.id,
+                                revisionId: revision.id,
+                                revisionVersion: revision.version,
+                            },
+                            items: portfolioRevisionItems(revision.content),
+                        },
+                    ],
+                };
+            });
+            const printSectionId = `custom-section:${sectionId}`;
+            if (!store.printSectionOrder.includes(printSectionId)) {
+                store.setSectionOrder([...store.printSectionOrder, printSectionId]);
+            }
+            requestAnimationFrame(() => {
+                document
+                    .getElementById(printSectionId)
+                    ?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+            });
+        },
+        [store]
+    );
+
     const updateCustomSection = useCallback(
         (sectionId: string, updater: (section: CustomPrintSection) => CustomPrintSection) => {
             setContentOverrides((current) => ({
@@ -811,6 +928,7 @@ export function PrintCanvas({
     );
 
     const [skillSelectorModalOpen, setSkillSelectorModalOpen] = useState(false);
+    const [portfolioComposerOpen, setPortfolioComposerOpen] = useState(false);
     const [addingCatalogSkillId, setAddingCatalogSkillId] = useState<number | null>(null);
     const { data: catalogSkills = [] } = useQuery({
         queryKey: ['skill-catalog'],
@@ -3808,6 +3926,9 @@ export function PrintCanvas({
                             onToggleInlineEditMode={() => setInlineEditMode(!inlineEditMode)}
                             aiChatOpen={aiChatOpen}
                             onToggleAiChat={canRevise ? () => setAiChatOpen((v) => !v) : undefined}
+                            onOpenPortfolioComposer={
+                                adminMode ? () => setPortfolioComposerOpen(true) : undefined
+                            }
                             canUndo={historyAvailability.canUndo}
                             canRedo={historyAvailability.canRedo}
                             onUndo={handleUndo}
@@ -4066,13 +4187,21 @@ export function PrintCanvas({
                                         <X className="h-4 w-4" />
                                     </button>
                                     <AiRevisionChat
-                                        revisions={revisions}
+                                        revisions={chatRevisions}
                                         isRevisionsLoading={isRevisionsLoading}
                                         isGenerating={isRevising}
                                         onGenerate={handleReviseGenerate}
                                         onCancelGenerate={handleCancelRevise}
-                                        title="AI 이력서 초안 다듬기"
-                                        subtitle="지적사항을 입력하면 현재 초안을 다시 구성합니다."
+                                        title={
+                                            effectiveJobPostingId
+                                                ? 'AI 이력서 초안 다듬기'
+                                                : 'AI 포트폴리오 문서 다듬기'
+                                        }
+                                        subtitle={
+                                            effectiveJobPostingId
+                                                ? '지적사항을 입력하면 현재 초안을 다시 구성합니다.'
+                                                : '이력서와 고정된 포트폴리오 revision의 순서·분량을 개선합니다.'
+                                        }
                                         generateButtonLabel="피드백 없이 재구성"
                                         emptyTitle="아직 대화 이력이 없습니다."
                                         emptyDescription="지적사항을 입력해 현재 이력서 초안을 계속 다듬어 보세요."
@@ -4128,6 +4257,12 @@ export function PrintCanvas({
                         }}
                         editingTemplate={activeTemplate}
                         defaultJobPostingId={jobPostingId}
+                        onSaved={(saved) => {
+                            setActiveTemplate(saved);
+                            setActiveTemplateName(saved.name);
+                            setContentOverrides(saved.contentOverrides ?? {});
+                            updateUrlParams(saved.id);
+                        }}
                     />
 
                     {skillSelectorModalOpen && (
@@ -4142,6 +4277,15 @@ export function PrintCanvas({
                             onAddCatalogSkill={addCatalogSkillToWorkspace}
                             onResetToDefault={resetSkillsToDefault}
                             onClose={() => setSkillSelectorModalOpen(false)}
+                        />
+                    )}
+
+                    {portfolioComposerOpen && (
+                        <PortfolioSectionPickerModal
+                            workspaceSlug={workspaceSlug}
+                            selectedRevisionIds={selectedPortfolioRevisionIds}
+                            onAdd={addPortfolioRevision}
+                            onClose={() => setPortfolioComposerOpen(false)}
                         />
                     )}
                 </>
