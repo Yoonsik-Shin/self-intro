@@ -1139,8 +1139,8 @@ export function PortfolioManagement({
 
                                     {/* 서버의 Workspace 권한·출처 검증을 통과하는 편집자에게 AI 입력을 노출한다. */}
                                     {enablePlatformAi && (
-                                        <section className="overflow-hidden border-b border-slate-200">
-                                            <ol className="grid grid-cols-5 border-y border-slate-200 px-2 py-3">
+                                        <section className="overflow-hidden">
+                                            <ol className="grid grid-cols-5 px-2 py-3">
                                                 {AI_SETUP_STEPS.map((step, index) => (
                                                     <li key={step} className="min-w-0">
                                                         <button
@@ -1326,7 +1326,7 @@ export function PortfolioManagement({
                                                         )}
                                                     </div>
 
-                                                    <div className="mt-6 flex shrink-0 items-center justify-between border-t border-slate-200 pt-4">
+                                                    <div className="mt-6 flex shrink-0 items-center justify-between pt-4">
                                                         <button
                                                             type="button"
                                                             onClick={() =>
@@ -1455,7 +1455,7 @@ export function PortfolioManagement({
                                     )}
 
                                     {/* AI를 사용할 수 없는 환경의 구조화 수동 편집 폼 */}
-                                    <div hidden={enablePlatformAi} className="space-y-3">
+                                    <div className={enablePlatformAi ? 'hidden' : 'space-y-3'}>
                                         <label className="block text-xs font-bold text-slate-600">
                                             한줄 요약
                                             <input
@@ -1815,8 +1815,11 @@ export function PortfolioManagement({
                                     </div>
 
                                     <div
-                                        hidden={enablePlatformAi}
-                                        className="flex flex-wrap items-center gap-2 border-t border-slate-100 pt-3"
+                                        className={
+                                            enablePlatformAi
+                                                ? 'hidden'
+                                                : 'flex flex-wrap items-center gap-2 border-t border-slate-100 pt-3'
+                                        }
                                     >
                                         <button
                                             type="button"
