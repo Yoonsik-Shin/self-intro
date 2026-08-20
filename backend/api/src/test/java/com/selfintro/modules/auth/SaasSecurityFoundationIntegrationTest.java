@@ -357,6 +357,15 @@ class SaasSecurityFoundationIntegrationTest {
     }
 
     @Test
+    void apiRuntimeRejectsInternalWorkerRoutes() throws Exception {
+        mockMvc.perform(
+                        post("/internal/workspaces/1/portfolio-documents/1/revise/stream")
+                                .contentType(MediaType.APPLICATION_JSON)
+                                .content("{\"feedbackInstruction\":\"test\"}"))
+                .andExpect(status().isUnauthorized());
+    }
+
+    @Test
     void activeWorkspaceIsNotPublicUntilPublicationModelAllowsIt() throws Exception {
         Workspace privateWorkspace =
                 workspaceRepository.save(Workspace.createPrivatePersonal("Private Workspace"));

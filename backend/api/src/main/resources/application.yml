@@ -99,6 +99,7 @@ app:
   runtime-role: ${APP_RUNTIME_ROLE:api}
   worker:
     base-url: ${WORKER_BASE_URL:http://localhost:8081}
+    internal-token: ${INTERNAL_WORKER_TOKEN:}
   public-workspace-slug: ${PUBLIC_WORKSPACE_SLUG:w-199d6de326de71385a98}
   publication:
     retention:

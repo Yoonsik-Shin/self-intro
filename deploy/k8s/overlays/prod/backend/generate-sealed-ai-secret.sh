@@ -15,9 +15,11 @@ echo "🔒 OKE 클러스터 배포를 위한 backend-ai-secret SealedSecret 생�
 # 기존 클러스터에서 KAKAO_REST_API_KEY 및 NVIDIA_API_KEY 디코딩
 EXISTING_KAKAO=$(kubectl get secret ${SECRET_NAME} -n ${NAMESPACE} -o jsonpath='{.data.KAKAO_REST_API_KEY}' 2>/dev/null | base64 -d || echo "")
 EXISTING_NVIDIA=$(kubectl get secret ${SECRET_NAME} -n ${NAMESPACE} -o jsonpath='{.data.NVIDIA_API_KEY}' 2>/dev/null | base64 -d || echo "")
+EXISTING_INTERNAL_WORKER_TOKEN=$(kubectl get secret ${SECRET_NAME} -n ${NAMESPACE} -o jsonpath='{.data.INTERNAL_WORKER_TOKEN}' 2>/dev/null | base64 -d || echo "")
 
 KAKAO_KEY="${KAKAO_REST_API_KEY:-$EXISTING_KAKAO}"
 NVIDIA_KEY="${NVIDIA_API_KEY:-$EXISTING_NVIDIA}"
+INTERNAL_TOKEN="${INTERNAL_WORKER_TOKEN:-$EXISTING_INTERNAL_WORKER_TOKEN}"
 ANTHROPIC_KEY="${ANTHROPIC_API_KEY:-}"
 GEMINI_KEY="${GEMINI_API_KEY:-}"
 OPENAI_KEY="${OPENAI_API_KEY:-}"
@@ -28,6 +30,7 @@ MISSING=""
 [ -z "$OPENAI_KEY" ] && MISSING="${MISSING} OPENAI_API_KEY"
 [ -z "$KAKAO_KEY" ] && MISSING="${MISSING} KAKAO_REST_API_KEY"
 [ -z "$NVIDIA_KEY" ] && MISSING="${MISSING} NVIDIA_API_KEY"
+[ -z "$INTERNAL_TOKEN" ] && MISSING="${MISSING} INTERNAL_WORKER_TOKEN"
 
 if [ -n "$MISSING" ]; then
     echo "❌ 값이 비어 있습니다:${MISSING}"
@@ -38,6 +41,7 @@ fi
 kubectl create secret generic ${SECRET_NAME} \
   --namespace=${NAMESPACE} \
   --from-literal=NVIDIA_API_KEY="${NVIDIA_KEY}" \
+  --from-literal=INTERNAL_WORKER_TOKEN="${INTERNAL_TOKEN}" \
   --from-literal=KAKAO_REST_API_KEY="${KAKAO_KEY}" \
   --from-literal=ANTHROPIC_API_KEY="${ANTHROPIC_KEY}" \
   --from-literal=GEMINI_API_KEY="${GEMINI_KEY}" \

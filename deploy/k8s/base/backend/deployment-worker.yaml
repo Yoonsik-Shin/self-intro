@@ -45,6 +45,11 @@ spec:
           env:
             - name: APP_RUNTIME_ROLE
               value: "worker"
+            - name: INTERNAL_WORKER_TOKEN
+              valueFrom:
+                secretKeyRef:
+                  name: backend-ai-secret
+                  key: INTERNAL_WORKER_TOKEN
             - name: JOB_POSTING_SCHEDULER_ENABLED
               value: "true"
             - name: MYSQL_DB_URL

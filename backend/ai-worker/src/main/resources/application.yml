@@ -56,6 +56,8 @@ spring:
 
 app:
   runtime-role: ${APP_RUNTIME_ROLE:worker}
+  worker:
+    internal-token: ${INTERNAL_WORKER_TOKEN:}
   maintenance-mode: ${MAINTENANCE_MODE:false}
   vector-sync:
     # 실패 payload에는 경력·학습 원문이 포함될 수 있어 DLQ에 무기한 보존하지 않는다(기본 7일).

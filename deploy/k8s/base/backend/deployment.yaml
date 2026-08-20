@@ -28,6 +28,11 @@ spec:
           env:
             - name: APP_RUNTIME_ROLE
               value: "api"
+            - name: INTERNAL_WORKER_TOKEN
+              valueFrom:
+                secretKeyRef:
+                  name: backend-ai-secret
+                  key: INTERNAL_WORKER_TOKEN
           envFrom:
             - configMapRef:
                 name: backend-config

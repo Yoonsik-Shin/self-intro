@@ -2,6 +2,8 @@ package com.selfintro.modules.auth.config;
 
 import jakarta.servlet.DispatcherType;
 import jakarta.servlet.http.HttpServletResponse;
+import java.nio.charset.StandardCharsets;
+import java.security.MessageDigest;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.web.servlet.FilterRegistrationBean;
@@ -9,6 +11,7 @@ import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.http.HttpMethod;
 import org.springframework.security.authentication.AuthenticationManager;
+import org.springframework.security.authorization.AuthorizationDecision;
 import org.springframework.security.config.annotation.authentication.configuration.AuthenticationConfiguration;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity;
@@ -21,6 +24,7 @@ import org.springframework.security.web.context.HttpSessionSecurityContextReposi
 import org.springframework.security.web.context.SecurityContextRepository;
 import org.springframework.security.web.csrf.CookieCsrfTokenRepository;
 import org.springframework.security.web.csrf.CsrfTokenRequestAttributeHandler;
+import org.springframework.util.StringUtils;
 import org.springframework.web.cors.CorsConfigurationSource;
 
 @Configuration
@@ -59,8 +63,11 @@ public class SecurityConfig {
             @Qualifier("corsConfigurationSource") CorsConfigurationSource corsConfigurationSource,
             LoginContextAnomalyFilter loginContextAnomalyFilter,
             MfaRecoveryReenrollmentFilter mfaRecoveryReenrollmentFilter,
+            @Value("${app.runtime-role:api}") String runtimeRole,
+            @Value("${app.worker.internal-token:}") String internalWorkerToken,
             @Value("${app.cookie-domain:}") String cookieDomain)
             throws Exception {
+        boolean workerRuntime = "worker".equalsIgnoreCase(runtimeRole);
         CookieCsrfTokenRepository csrfTokenRepository =
                 CookieCsrfTokenRepository.withHttpOnlyFalse();
         if (!cookieDomain.isBlank()) {
@@ -76,7 +83,9 @@ public class SecurityConfig {
                                                 "/api/visits",
                                                 "/api/workspaces/*/visits",
                                                 // Ko-fi 서버가 보내는 외부 webhook은 CSRF 토큰을 가질 수 없다
-                                                "/api/donations/kofi/webhook"))
+                                                "/api/donations/kofi/webhook",
+                                                // Worker HTTP 포트는 API가 서버 간 호출에만 사용한다.
+                                                "/internal/**"))
                 .cors(cors -> cors.configurationSource(corsConfigurationSource))
                 .sessionManagement(
                         session ->
@@ -89,6 +98,18 @@ public class SecurityConfig {
                                         // 전부 401로 덮여버린다 (Spring Security 6는 ERROR 디스패치도 검사함)
                                         .dispatcherTypeMatchers(DispatcherType.ERROR)
                                         .permitAll()
+                                        // 같은 SecurityConfig를 공유하므로 Worker 런타임에서만 내부 위임
+                                        // 경로를 허용한다. API 런타임에서는 해당 경로를 명시적으로 거부한다.
+                                        .requestMatchers("/internal/**")
+                                        .access(
+                                                (authentication, context) ->
+                                                        new AuthorizationDecision(
+                                                                workerRuntime
+                                                                        && internalTokenMatches(
+                                                                                internalWorkerToken,
+                                                                                context.getRequest()
+                                                                                        .getHeader(
+                                                                                                "X-Internal-Worker-Token"))))
                                         .requestMatchers("/api/admin/**")
                                         .hasAnyRole("ADMIN", "PLATFORM_OWNER", "PLATFORM_OPERATOR")
                                         // 수동 vector 동기화는 request의 workspaceId를 직접 처리하는
@@ -270,5 +291,13 @@ public class SecurityConfig {
         http.addFilterAfter(mfaRecoveryReenrollmentFilter, LoginContextAnomalyFilter.class);
 
         return http.build();
+    }
+
+    private boolean internalTokenMatches(String expected, String actual) {
+        if (!StringUtils.hasText(expected) || !StringUtils.hasText(actual)) {
+            return false;
+        }
+        return MessageDigest.isEqual(
+                expected.getBytes(StandardCharsets.UTF_8), actual.getBytes(StandardCharsets.UTF_8));
     }
 }

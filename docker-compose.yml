@@ -111,6 +111,7 @@ services:
       - WORKSPACE_RESTORE_RECONCILIATION_ENABLED=${WORKSPACE_RESTORE_RECONCILIATION_ENABLED:-false}
       - GRPC_WORKER_HOST=static://backend-worker:9090
       - WORKER_BASE_URL=http://backend-worker:8081
+      - INTERNAL_WORKER_TOKEN=${INTERNAL_WORKER_TOKEN:-local-worker-internal-token-change-me}
       - LOCAL_REGISTRATION_INVITATION_ENABLED=true
       - LOCAL_REGISTRATION_INVITATION_CODE=${LOCAL_REGISTRATION_INVITATION_CODE:-local-invite-only}
       - PUBLICATION_RETENTION_MAX_REVISIONS=${PUBLICATION_RETENTION_MAX_REVISIONS:-20}
@@ -163,6 +164,7 @@ services:
       - .env
     environment:
       - APP_RUNTIME_ROLE=worker
+      - INTERNAL_WORKER_TOKEN=${INTERNAL_WORKER_TOKEN:-local-worker-internal-token-change-me}
       - SPRING_PROFILES_ACTIVE=local
       # 1차(관계형) 데이터소스 — api 모듈과 동일한 MySQL을 본다(application.yml의 MYSQL_DB_* 값).
       # docker-compose에 이게 빠져있으면 조용히 H2 인메모리로 fallback돼 job_posting 등이 재시작마다

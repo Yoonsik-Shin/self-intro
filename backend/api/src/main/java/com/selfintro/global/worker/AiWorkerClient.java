@@ -20,25 +20,27 @@ import org.springframework.web.server.ResponseStatusException;
 public class AiWorkerClient {
 
     private final String workerBaseUrl;
+    private final String internalToken;
     private final ObjectMapper objectMapper;
     private final HttpClient httpClient;
 
     public AiWorkerClient(
             @Value("${app.worker.base-url:http://localhost:8081}") String workerBaseUrl,
+            @Value("${app.worker.internal-token:}") String internalToken,
             ObjectMapper objectMapper) {
         this.workerBaseUrl =
                 workerBaseUrl.endsWith("/")
                         ? workerBaseUrl.substring(0, workerBaseUrl.length() - 1)
                         : workerBaseUrl;
         this.objectMapper = objectMapper;
+        this.internalToken = internalToken;
         this.httpClient = HttpClient.newBuilder().connectTimeout(Duration.ofSeconds(5)).build();
     }
 
     public <T> T get(String path, Class<T> responseType) {
         try {
             HttpRequest request =
-                    HttpRequest.newBuilder()
-                            .uri(URI.create(workerBaseUrl + path))
+                    workerRequest(path)
                             .timeout(Duration.ofSeconds(300))
                             .header("Accept", "application/json")
                             .GET()
@@ -66,8 +68,7 @@ public class AiWorkerClient {
         try {
             String json = requestBody != null ? objectMapper.writeValueAsString(requestBody) : "";
             HttpRequest request =
-                    HttpRequest.newBuilder()
-                            .uri(URI.create(workerBaseUrl + path))
+                    workerRequest(path)
                             .timeout(Duration.ofSeconds(300))
                             .header("Content-Type", "application/json")
                             .header("Accept", "application/json")
@@ -99,8 +100,7 @@ public class AiWorkerClient {
         try {
             String json = requestBody != null ? objectMapper.writeValueAsString(requestBody) : "";
             HttpRequest request =
-                    HttpRequest.newBuilder()
-                            .uri(URI.create(workerBaseUrl + path))
+                    workerRequest(path)
                             .timeout(Duration.ofMinutes(7))
                             .header("Content-Type", "application/json")
                             .header("Accept", "text/event-stream")
@@ -125,5 +125,14 @@ public class AiWorkerClient {
         } catch (Exception e) {
             log.warn("Error piping SSE stream from worker path {}: {}", path, e.getMessage());
         }
+    }
+
+    private HttpRequest.Builder workerRequest(String path) {
+        HttpRequest.Builder builder =
+                HttpRequest.newBuilder().uri(URI.create(workerBaseUrl + path));
+        if (!internalToken.isBlank()) {
+            builder.header("X-Internal-Worker-Token", internalToken);
+        }
+        return builder;
     }
 }

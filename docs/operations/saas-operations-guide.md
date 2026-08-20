@@ -2664,6 +2664,11 @@ SELECT 'portfolio_case_study_study', COUNT(*) FROM portfolio_case_study_study;
   - K8s ConfigMap: `WORKER_BASE_URL=http://self-intro-backend-worker:8081`
   - Docker Compose: `WORKER_BASE_URL=http://backend-worker:8081`
   - Local default: `http://localhost:8081`
+  - API와 Worker에는 동일한 `INTERNAL_WORKER_TOKEN`을 Secret으로 주입한다. API의
+    `AiWorkerClient`는 `X-Internal-Worker-Token` 헤더를 전송하고, Worker는 토큰이 없거나 다르면
+    `/internal/**` 요청을 거부한다. 운영 rollout 전
+    `deploy/k8s/overlays/prod/backend/generate-sealed-ai-secret.sh`로 `backend-ai-secret`을 다시
+    생성해야 한다.
 
 ### 15.35 AI 추론 서비스의 `ai-worker` 완전 위임 및 API 프록시 일원화
 
