@@ -129,7 +129,7 @@ bootstrap 계정의 표시 이름과 Workspace 이름도 별도 설정으로 관
 | 개발자 온톨로지         | 공통 catalog + Workspace                  | Workspace별 Study 근거           | canonical 관리 API·UI                                     | 구현    |
 | 학습 자료               | catalog + Workspace 상태                  | 일부 기존 화면                   | canonical 관리 API·UI                                     | 구현    |
 | 지원 공고·지원별 이력서 | 승인 catalog + Workspace 비공개 원본·지원 | 비공개                           | URL·스크린샷 parse-only, 직접 입력·지원·매칭·AI 경계 구현 | 구현    |
-| Portfolio Case Study    | Workspace                                 | Workspace별 발행 API             | canonical 관리 API·UI                                     | 구현    |
+| Portfolio Case Study    | Workspace                                 | Workspace별 발행 API             | 역량·경험·학습·기술 근거 AI 생성, 대화형 content revision UI | 구현    |
 | PrintTemplate           | Workspace                                 | Workspace별 공개 서식 API        | canonical API·Workspace UI                                | 구현    |
 | 출력 원본·구성 revision | Workspace                                 | 비공개 원본 / 공개 snapshot 분리 | 템플릿별 포함·제외·복원                                   | 구현    |
 | 공개 revision           | Workspace                                 | 발행본 전용 API                  | 초안→발행→공개 중지                                       | 구현    |

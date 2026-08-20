@@ -2708,3 +2708,25 @@ SELECT 'portfolio_case_study_study', COUNT(*) FROM portfolio_case_study_study;
 - `WorkspaceLearningResourceController.catalog`가 `List<LearningResourceCatalogResponse>` 대신 `Page<LearningResourceCatalogResponse>`를 반환한다. 프런트(`WorkspaceLearningResourceManagement.tsx`)는 `PaginationControls` + `mode === 'CATALOG'`일 때만 조회하는 지연 로딩을 적용했다(잡포스팅 카탈로그 탭과 동일 패턴). "내 학습 자료" 목록은 Workspace 범위로 크기가 작아 기존 클라이언트 검색을 유지했다.
 - `SaasSecurityFoundationIntegrationTest`의 카탈로그 응답 형태 검증을 배열(`$[?(...)]`)에서 페이지 객체(`$.content[?(...)]`)로 갱신했다.
 - 검증: `./gradlew :api:compileJava`, `SaasSecurityFoundationIntegrationTest` 통과, 프런트 `tsc --noEmit`·`eslint`·`next build` 전체 통과. 로컬 코드에만 적용했으며 stage·운영 배포는 하지 않았다.
+
+### 15.39 포트폴리오 개별 항목 대화형 AI revision
+
+- `V5__add_portfolio_revision_conversation_metadata.sql`은 `portfolio_case_study_revision`에
+  `base_revision_id`, `feedback_instruction`, `ai_model`을 추가한다. 기존 행은 모두 NULL이며 기존
+  revision 조회·발행 동작은 유지된다.
+- `base_revision_id`는 같은 테이블을 참조하고 기준 revision이 삭제될 때 NULL로 바뀐다. AI 수정 결과
+  자체는 삭제하지 않으므로 대화 결과와 공개 기준본의 보존 수명주기는 기존 content revision과 같다.
+- Workspace 포트폴리오 AI 요청은 명시적으로 선택한 Study·Competency를 Workspace 범위로 조회하고,
+  Skill은 해당 Workspace의 `workspace_skill` overlay에 존재하는 항목만 Worker 입력에 포함한다.
+- 배포 전 disposable MySQL에 V1~V5를 적용해 신규 설치를 검증하고, V1~V4 상태 DB에는 V5만 적용되는지
+  확인한다. 롤백이 필요하면 애플리케이션을 이전 이미지로 되돌린 뒤 신규 컬럼을 유지한다. 컬럼 삭제는
+  저장된 대화 metadata를 잃으므로 자동 롤백 절차에 포함하지 않는다.
+- 구현 브랜치에서는 포트폴리오 API·Worker 집중 테스트와 변경 프론트 파일의 TypeScript·ESLint 검사를
+  수행한다. stage·운영 migration 적용과 배포는 별도 승인 전까지 수행하지 않는다.
+- 통합 문서 AI는 인증된 Workspace API
+  `POST /api/workspaces/{workspaceSlug}/portfolio-documents/manage/{templateId}/revise/stream`에서만
+  진입하며 API가 검증한 `workspaceId`를 내부 Worker로 전달한다. Worker는 전달받은 Workspace에 속한
+  RESUME `PrintTemplate`과 그 안에 고정된 포트폴리오 revision section만 편집한다.
+- 배포 전에는 포트폴리오 revision 선택, 템플릿 저장·재로드, AI 문구 수정, 제외·순서 변경, 기존
+  브라우저 인쇄/PDF 결과를 한 흐름으로 확인한다. 공고 연결 템플릿에서도 포트폴리오 section과 source
+  metadata가 유지되는지 별도로 회귀 검증한다.

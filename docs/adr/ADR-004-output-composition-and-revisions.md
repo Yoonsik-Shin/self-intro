@@ -13,6 +13,13 @@ Accepted — 2026-08-12
 - 방문자용 공개 인쇄는 계속 활성 공개 publication snapshot과 공개된 템플릿만 사용한다.
 - 수동 생성·수정·복원 시 `print_template_revision`에 `SNAPSHOT` revision을 남긴다. 복원도 새
   revision을 만들므로 현재 상태를 잃지 않는다.
+- 포트폴리오 개별 항목의 AI 개선은 별도 자유형 채팅 문서를 만들지 않고 content revision에
+  `base_revision_id`, `feedback_instruction`, `ai_model`을 기록한다. AI 결과는 기존 revision을
+  덮어쓰지 않으며, 대화 타임라인은 이 불변 revision 연결에서 재구성한다.
+- 이력서와 포트폴리오를 합친 문서는 새 PDF 모델을 만들지 않고 기존 `PrintTemplate`의
+  `customSections`에 선택한 포트폴리오 content revision을 고정한다. AI는 고정된 revision의 문구,
+  포함 여부와 기존 section order만 수정하고 Profile·Experience 원본 및 revision source metadata는
+  변경하지 않는다. 사용자·AI 대화는 기존 `print_template_revision`에 저장한다.
 - 최종 PDF를 연결할 때는 현재 출력 구성을 먼저 `SNAPSHOT` revision으로 고정하고,
   `print_document_artifact`에 해당 revision ID, Workspace ID, 객체 key, 서버가 실제 바이트에서 계산한
   SHA-256·크기·MIME을 불변 기록한다. 브라우저에서 인쇄 후 올린 파일과 외부에서 만든 PDF는 각각

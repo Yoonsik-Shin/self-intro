@@ -65,12 +65,21 @@
 
 `PortfolioCaseStudyAiService`(`backend/core/.../portfolio/application/`) — `CompetencyAiService`/`ExperienceAiService`/`StudyAiService`와 동일한 **2단계 생성** 패턴.
 
-1. **사실 추출**: 대상 Experience + 모든 ExperienceDetail(situation/task/actionDetail/outcome/narrative) + 선택한 Skill + 선택한 Study(제목/요약/본문 발췌)를 근거로, 각 사실을 `problem|thought|tradeoff|solution|outcome` 중 하나로 분류하고 `experienceDetailId`/`studyId` 근거를 강제. 근거 없는 사실은 버림(환각 방지)
+1. **사실 추출**: 대상 Experience + 모든 ExperienceDetail(situation/task/actionDetail/outcome/narrative) + 선택한 Competency + Skill + Study(제목/요약/본문 발췌)를 근거로, 각 사실을 `problem|thought|tradeoff|solution|outcome` 중 하나로 분류하고 `experienceDetailId`/`studyId` 근거를 강제. 근거 없는 사실은 버림(환각 방지)
 2. **작성**: 검증된 facts만으로 위 `content_json` 스키마를 작성. 아키텍처 다이어그램은 새로 창작하지 않고 근거 Study에 이미 있는 mermaid 코드를 재사용하도록 프롬프트에 명시
 
 Study 근거는 자동 추천도 지원한다 — `Study` 엔티티가 이미 `Experience`/`ExperienceDetail`과 M:N 조인(`study_experience`)돼 있어, 사용자가 Study를 직접 선택하지 않으면 해당 프로젝트에 연결된 Study를 자동으로 가져와 근거로 쓴다(`StudyRepository.findAllByExperiences_IdOrderByTitleAsc`).
 
 SSE 스트리밍(`stage`/`token`/`facts`/`complete`/`error`)으로 진행 상황을 프론트에 전달 — 관리자 화면은 기존 `AiDraftAssistant`(`components/admin/ai/`)의 진행 표시 컴포넌트를 그대로 재사용한다.
+
+### 3.1 대화형 content revision
+
+- 새 AI 초안은 SSE 완료 후 자동으로 `portfolio_case_study_revision`에 저장한다.
+- 저장된 AI revision은 `base_revision_id`, `feedback_instruction`, `ai_model`을 함께 기록한다.
+- 사용자가 채팅에 보완 요청을 보내면 현재 선택한 revision을 `currentDraft`로 전달하고, AI는 검증된 facts 범위 안에서 필요한 부분만 개선한다.
+- 결과를 기존 본문에 덮어쓰지 않고 항상 다음 content revision으로 저장한다. 사용자는 대화 타임라인에서 과거 AI 결과를 다시 편집기로 불러올 수 있다.
+- 기존 architecture 이미지 object key는 기준 revision의 값을 그대로 보존하고 AI 응답이 새 key를 만들거나 바꾸지 못하게 한다.
+- 명시적으로 선택한 Study·Competency는 Workspace ID로 조회한다. Skill도 Workspace overlay에 존재하는 catalog 항목만 허용해 다른 Workspace의 비공개 근거가 AI 입력에 섞이지 않게 한다.
 
 ---
 
@@ -125,6 +134,17 @@ SSE 스트리밍(`stage`/`token`/`facts`/`complete`/`error`)으로 진행 상황
 | `DELETE /{id}` | 기존 이력서 삭제 엔드포인트 재사용(문서 종류 구분 없음) |
 
 이력서 전용 엔드포인트(`GET /api/print-templates`, `GET/POST/PUT /api/admin/print-templates`, mark-final 등)는 그대로이며 내부적으로 `document_type='RESUME'`로 스코프돼 포트폴리오 행과 섞이지 않는다.
+
+### 지원출력 통합 문서 구성
+
+- 지원출력 편집기의 `포트폴리오 구성`에서 저장된 content revision을 선택하면 기존 RESUME
+  `PrintTemplate.contentOverrides.customSections`에 revision ID와 버전을 함께 고정한다.
+- 저장된 템플릿은 기존 WYSIWYG, 페이지 분할, 브라우저 인쇄/PDF 흐름을 그대로 사용한다.
+- `POST /api/workspaces/{workspaceSlug}/portfolio-documents/manage/{templateId}/revise/stream`은
+  고정한 포트폴리오 section의 문구·포함 여부·문서 순서를 채팅으로 조정한다. 지원 공고가 연결된
+  템플릿은 기존 공고 기반 이력서 AI를 사용하며, 이때도 고정한 포트폴리오 section을 보존한다.
+- AI는 선택하지 않은 revision을 조회하거나 원본 Profile·Experience를 수정하지 않는다. 새 수치는
+  반영하지 않고, revision source metadata는 서버 병합 단계에서 항상 기존 값을 유지한다.
 
 ---
 
