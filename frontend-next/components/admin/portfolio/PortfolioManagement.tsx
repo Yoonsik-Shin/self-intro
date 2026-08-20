@@ -6,6 +6,7 @@ import {
     ArrowLeft,
     ArrowRight,
     BriefcaseBusiness,
+    Check,
     CheckCircle2,
     ChevronDown,
     CircleHelp,
@@ -231,19 +232,30 @@ function EvidencePicker({
                                     </span>
                                 </button>
                                 {!isCollapsed &&
-                                    categoryOptions.map((option) => (
-                                        <button
-                                            key={option.id}
-                                            type="button"
-                                            onClick={() => onToggle(option.id)}
-                                            className="group flex min-h-12 w-full items-center gap-3 border-b border-slate-200 px-3 py-2.5 text-left transition-colors hover:bg-slate-50"
-                                        >
-                                            <span className="min-w-0 flex-1 text-[13px] font-semibold leading-5 text-slate-700">
-                                                {option.label}
-                                            </span>
-                                            <Plus className="h-4 w-4 shrink-0 text-slate-300 group-hover:text-slate-700" />
-                                        </button>
-                                    ))}
+                                    categoryOptions.map((option) => {
+                                        const isSelected = selectedIds.includes(option.id);
+                                        return (
+                                            <button
+                                                key={option.id}
+                                                type="button"
+                                                onClick={() => onToggle(option.id)}
+                                                className={`group flex min-h-12 w-full items-center gap-3 border-b border-slate-200 px-3 py-2.5 text-left transition-colors ${
+                                                    isSelected
+                                                        ? 'bg-slate-100'
+                                                        : 'hover:bg-slate-50'
+                                                }`}
+                                            >
+                                                <span className="min-w-0 flex-1 text-[13px] font-semibold leading-5 text-slate-700">
+                                                    {option.label}
+                                                </span>
+                                                {isSelected ? (
+                                                    <Check className="h-4 w-4 shrink-0 text-slate-700" />
+                                                ) : (
+                                                    <Plus className="h-4 w-4 shrink-0 text-slate-300 group-hover:text-slate-700" />
+                                                )}
+                                            </button>
+                                        );
+                                    })}
                             </section>
                         );
                     })}
@@ -958,10 +970,10 @@ export function PortfolioManagement({
                                         <button
                                             type="button"
                                             onClick={selectStandaloneCase}
-                                            className={`group flex w-full items-center gap-3 border-b border-l-2 border-b-slate-200 px-3 py-3 text-left transition-colors ${
+                                            className={`group flex w-full items-center gap-3 border-b border-slate-200 px-3 py-3 text-left transition-colors ${
                                                 createMode === 'STANDALONE'
-                                                    ? 'border-l-slate-900 bg-slate-50'
-                                                    : 'border-l-transparent bg-white hover:bg-slate-50'
+                                                    ? 'bg-slate-100'
+                                                    : 'bg-white hover:bg-slate-50'
                                             }`}
                                         >
                                             <FileText className="h-5 w-5 shrink-0 text-slate-500" />
@@ -990,10 +1002,10 @@ export function PortfolioManagement({
                                                     onClick={() =>
                                                         selectCreateExperience(experience.id)
                                                     }
-                                                    className={`group flex w-full items-center gap-3 border-b border-l-2 border-b-slate-200 px-3 py-3 text-left transition-colors ${
+                                                    className={`group flex w-full items-center gap-3 border-b border-slate-200 px-3 py-3 text-left transition-colors ${
                                                         isSelected
-                                                            ? 'border-l-slate-900 bg-slate-50'
-                                                            : 'border-l-transparent bg-white hover:bg-slate-50'
+                                                            ? 'bg-slate-100'
+                                                            : 'bg-white hover:bg-slate-50'
                                                     }`}
                                                 >
                                                     <div className="min-w-0 flex-1">
@@ -1135,10 +1147,10 @@ export function PortfolioManagement({
                                         setDetailView('EDITOR');
                                         setCreateOpen(false);
                                     }}
-                                    className={`w-full border-b border-l-2 px-3 py-3 text-left transition ${
+                                    className={`w-full border-b px-3 py-3 text-left transition ${
                                         isSelected
-                                            ? 'border-b-slate-200 border-l-slate-900 bg-slate-100 text-slate-950'
-                                            : 'border-b-slate-200 border-l-transparent hover:bg-slate-50'
+                                            ? 'border-b-slate-200 bg-slate-100 text-slate-950'
+                                            : 'border-b-slate-200 hover:bg-slate-50'
                                     }`}
                                 >
                                     <div className="flex items-start justify-between gap-3">
@@ -1543,7 +1555,7 @@ export function PortfolioManagement({
                                                         )}
                                                     </div>
 
-                                                    <div className="mt-3 flex shrink-0 items-center justify-between border-t border-slate-200 py-2.5">
+                                                    <div className="mt-3 flex shrink-0 items-center justify-between py-2.5">
                                                         <button
                                                             type="button"
                                                             onClick={() => {
