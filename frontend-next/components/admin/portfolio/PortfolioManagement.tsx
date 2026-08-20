@@ -1087,25 +1087,25 @@ export function PortfolioManagement({
                     </section>
                 )}
                 {/* 원본 목록: 공개 페이지 포함 여부가 아니라 Workspace에 저장된 사례 원본을 탐색한다. */}
-                <aside className="flex min-h-[20rem] max-h-[50vh] w-full shrink-0 flex-col overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm lg:order-1 lg:h-full lg:min-h-0 lg:max-h-none lg:w-[var(--source-panel-width)]">
-                    <div className="border-b border-slate-200 p-3.5">
+                <aside className="flex min-h-[20rem] max-h-[50vh] w-full shrink-0 flex-col overflow-hidden border-y border-slate-200 lg:order-1 lg:h-full lg:min-h-0 lg:max-h-none lg:w-[var(--source-panel-width)] lg:border-y-0 lg:border-r">
+                    <div className="border-b border-slate-200 px-2 pb-3 pt-1 lg:pr-4">
                         <div className="flex items-center justify-between gap-3">
                             <p className="text-sm font-semibold text-slate-900">사례 원본</p>
                             <span className="text-xs font-bold text-slate-400">
                                 {caseStudies.length}개
                             </span>
                         </div>
-                        <label className="relative mt-3 block">
-                            <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
+                        <label className="relative mt-3 block border-b border-slate-300 focus-within:border-slate-900">
+                            <Search className="pointer-events-none absolute left-0 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
                             <input
                                 type="search"
                                 value={searchQuery}
                                 onChange={(event) => setSearchQuery(event.target.value)}
                                 placeholder="제목, URL, 연결 경험 검색"
-                                className="w-full rounded-xl border border-slate-200 bg-slate-50 py-2.5 pl-9 pr-3 text-xs font-medium text-slate-800 outline-none transition focus:border-slate-700 focus:bg-white"
+                                className="w-full bg-transparent py-2.5 pl-6 pr-1 text-xs font-medium text-slate-800 outline-none placeholder:text-slate-400"
                             />
                         </label>
-                        <div className="mt-3 grid grid-cols-3 gap-1 text-[10px] font-semibold">
+                        <div className="mt-2 grid grid-cols-3 text-[10px] font-semibold">
                             {(
                                 [
                                     ['ALL', `전체 ${caseStudies.length}`],
@@ -1117,10 +1117,10 @@ export function PortfolioManagement({
                                     key={value}
                                     type="button"
                                     onClick={() => setStatusFilter(value)}
-                                    className={`rounded-lg border px-1.5 py-2 transition ${
+                                    className={`border-b-2 px-1.5 py-2 transition ${
                                         statusFilter === value
-                                            ? 'border-slate-900 bg-slate-900 text-white'
-                                            : 'border-slate-200 text-slate-500 hover:border-slate-400 hover:text-slate-800'
+                                            ? 'border-slate-900 text-slate-900'
+                                            : 'border-transparent text-slate-400 hover:border-slate-300 hover:text-slate-700'
                                     }`}
                                 >
                                     {label}
@@ -1128,7 +1128,7 @@ export function PortfolioManagement({
                             ))}
                         </div>
                     </div>
-                    <div className="min-h-0 flex-1 space-y-1.5 overflow-y-auto p-2.5">
+                    <div className="min-h-0 flex-1 overflow-y-auto pr-2 lg:pr-4">
                         {filteredCaseStudies.map((caseStudy: PortfolioCaseStudy) => {
                             const sourceExperience = caseStudy.experienceId
                                 ? experienceById.get(caseStudy.experienceId)
@@ -1143,10 +1143,10 @@ export function PortfolioManagement({
                                         setDetailView('EDITOR');
                                         setCreateOpen(false);
                                     }}
-                                    className={`w-full rounded-xl border p-3 text-left transition ${
+                                    className={`w-full border-b border-l-2 px-3 py-3 text-left transition ${
                                         isSelected
-                                            ? 'border-slate-900 bg-slate-900 text-white shadow-sm'
-                                            : 'border-slate-200 bg-white hover:border-slate-400 hover:bg-slate-50'
+                                            ? 'border-b-slate-200 border-l-slate-900 bg-slate-100 text-slate-950'
+                                            : 'border-b-slate-200 border-l-transparent hover:bg-slate-50'
                                     }`}
                                 >
                                     <div className="flex items-start justify-between gap-3">
@@ -1154,30 +1154,22 @@ export function PortfolioManagement({
                                             {caseStudy.title}
                                         </span>
                                         {caseStudy.status === 'PUBLISHED' && (
-                                            <CheckCircle2
-                                                className={`mt-0.5 h-4 w-4 shrink-0 ${isSelected ? 'text-emerald-300' : 'text-emerald-600'}`}
-                                            />
+                                            <CheckCircle2 className="mt-0.5 h-4 w-4 shrink-0 text-emerald-600" />
                                         )}
                                     </div>
                                     {sourceExperience && (
-                                        <span
-                                            className={`mt-1.5 flex items-center gap-1 truncate text-[10px] font-bold ${isSelected ? 'text-slate-300' : 'text-slate-500'}`}
-                                        >
+                                        <span className="mt-1.5 flex items-center gap-1 truncate text-[10px] font-bold text-slate-500">
                                             <BriefcaseBusiness className="h-3 w-3 shrink-0" />
                                             {experienceOrgName(sourceExperience)} ·{' '}
                                             {sourceExperience.title}
                                         </span>
                                     )}
                                     {!sourceExperience && (
-                                        <span
-                                            className={`mt-1.5 flex items-center gap-1 truncate text-[10px] font-bold ${isSelected ? 'text-slate-300' : 'text-slate-500'}`}
-                                        >
+                                        <span className="mt-1.5 flex items-center gap-1 truncate text-[10px] font-bold text-slate-500">
                                             <FileText className="h-3 w-3 shrink-0" /> 독립 사례
                                         </span>
                                     )}
-                                    <div
-                                        className={`mt-2.5 flex items-center justify-between gap-2 text-[9px] ${isSelected ? 'text-slate-400' : 'text-slate-400'}`}
-                                    >
+                                    <div className="mt-2.5 flex items-center justify-between gap-2 text-[9px] text-slate-400">
                                         <span className="truncate font-mono">
                                             /{caseStudy.slug}
                                         </span>
@@ -1189,7 +1181,7 @@ export function PortfolioManagement({
                             );
                         })}
                         {filteredCaseStudies.length === 0 && (
-                            <div className="rounded-xl border border-dashed border-slate-300 px-4 py-10 text-center">
+                            <div className="border-b border-dashed border-slate-300 px-4 py-10 text-center">
                                 <FileText className="mx-auto h-5 w-5 text-slate-300" />
                                 <p className="mt-2 text-xs font-bold text-slate-500">
                                     조건에 맞는 사례가 없습니다.
