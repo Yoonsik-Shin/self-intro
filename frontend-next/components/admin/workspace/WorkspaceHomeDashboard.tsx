@@ -85,6 +85,7 @@ export function WorkspaceHomeDashboard({
             <AdminPageHeader
                 eyebrow="Workspace Home"
                 title={workspaceName}
+                contentInset="card"
                 description="원본 기록부터 공개본과 지원 현황까지, 현재 Workspace의 상태를 한눈에 확인합니다. 각 카드를 누르면 해당 관리 화면으로 이동합니다."
                 actions={
                     <span className="rounded-full border border-slate-200 bg-white px-3 py-1.5 text-xs font-black text-slate-600">

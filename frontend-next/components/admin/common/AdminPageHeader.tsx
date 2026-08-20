@@ -9,6 +9,7 @@ type AdminPageHeaderProps = {
     headingAs?: 'h1' | 'h2';
     compact?: boolean;
     descriptionMode?: 'inline' | 'tooltip';
+    contentInset?: 'none' | 'card';
 };
 
 export function AdminPageHeader({
@@ -19,13 +20,14 @@ export function AdminPageHeader({
     headingAs = 'h2',
     compact = true,
     descriptionMode = 'tooltip',
+    contentInset = 'none',
 }: AdminPageHeaderProps) {
     const Heading = headingAs;
     const tooltipLabel = typeof title === 'string' ? `${title} 설명` : '페이지 설명';
 
     return (
         <header
-            className={`sticky top-0 z-30 flex shrink-0 flex-col bg-[#f8fafc] sm:flex-row sm:justify-between ${
+            className={`sticky top-0 z-30 flex shrink-0 flex-col bg-[#f8fafc] sm:flex-row sm:justify-between ${contentInset === 'card' ? 'px-5' : ''} ${
                 compact ? 'gap-3 sm:items-center' : 'gap-4 sm:items-end'
             }`}
         >
