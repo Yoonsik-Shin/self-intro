@@ -133,8 +133,8 @@ function EvidencePicker({
     }, [hasMore, matchingOptions.length, visibleCount]);
 
     return (
-        <div className="flex h-full min-h-0 flex-col">
-            <div className="shrink-0 border-y border-slate-200 py-3">
+        <div className="grid h-full min-h-0 grid-cols-1 grid-rows-[auto_minmax(0,1fr)] gap-4 lg:grid-cols-[minmax(14rem,0.72fr)_minmax(0,1.28fr)] lg:grid-rows-1">
+            <div className="flex min-h-0 flex-col border-y border-slate-200 py-3 lg:border-r lg:pr-4">
                 <div className="flex items-center justify-between gap-3">
                     <span className="text-[11px] font-semibold text-slate-600">
                         선택됨 {selectedOptions.length}
@@ -146,13 +146,13 @@ function EvidencePicker({
                     )}
                 </div>
                 {selectedOptions.length > 0 ? (
-                    <div className="mt-2 flex max-h-24 flex-wrap gap-1.5 overflow-y-auto">
+                    <div className="mt-2 flex max-h-24 flex-col gap-1.5 overflow-y-auto lg:max-h-none lg:flex-1">
                         {selectedOptions.map((option) => (
                             <button
                                 key={option.id}
                                 type="button"
                                 onClick={() => onToggle(option.id)}
-                                className="inline-flex max-w-full items-center gap-1.5 rounded-md bg-slate-900 px-2.5 py-1.5 text-left text-[11px] font-bold text-white"
+                                className="flex w-full items-center gap-1.5 rounded-md bg-slate-900 px-2.5 py-2 text-left text-[11px] font-bold text-white"
                             >
                                 <span className="truncate">{option.label}</span>
                                 <X className="h-3 w-3 shrink-0 text-slate-300" />
@@ -164,46 +164,44 @@ function EvidencePicker({
                 )}
             </div>
 
-            <label className="mt-3 flex shrink-0 items-center gap-2 border-b border-slate-300 py-2.5 focus-within:border-slate-900">
-                <Search className="h-4 w-4 shrink-0 text-slate-400" />
-                <span className="sr-only">{searchPlaceholder}</span>
-                <input
-                    value={query}
-                    onChange={(event) => {
-                        setQuery(event.target.value);
-                        setVisibleCount(12);
-                    }}
-                    placeholder={searchPlaceholder}
-                    className="min-w-0 flex-1 bg-transparent text-sm text-slate-900 outline-none placeholder:text-slate-400"
-                />
-                <span className="shrink-0 text-[10px] font-bold text-slate-400">
-                    {matchingOptions.length}개
-                </span>
-            </label>
+            <div className="flex min-h-0 flex-col">
+                <label className="flex shrink-0 items-center gap-2 border-b border-slate-300 py-2.5 focus-within:border-slate-900">
+                    <Search className="h-4 w-4 shrink-0 text-slate-400" />
+                    <span className="sr-only">{searchPlaceholder}</span>
+                    <input
+                        value={query}
+                        onChange={(event) => {
+                            setQuery(event.target.value);
+                            setVisibleCount(12);
+                        }}
+                        placeholder={searchPlaceholder}
+                        className="min-w-0 flex-1 bg-transparent text-sm text-slate-900 outline-none placeholder:text-slate-400"
+                    />
+                    <span className="shrink-0 text-[10px] font-bold text-slate-400">
+                        {matchingOptions.length}개
+                    </span>
+                </label>
 
-            <div
-                ref={listRef}
-                className="mt-2 min-h-0 flex-1 overflow-y-auto border-y border-slate-200"
-            >
-                {Array.from(groupedVisibleOptions).map(([category, categoryOptions]) => (
-                    <section key={category}>
-                        <div className="sticky top-0 z-[1] flex items-center justify-between border-b border-slate-200 bg-slate-100/95 px-3 py-2 backdrop-blur-sm">
-                            <span className="text-[10px] font-semibold uppercase tracking-[0.08em] text-slate-500">
-                                {category}
-                            </span>
-                            <span className="text-[9px] font-bold text-slate-400">
-                                {categoryOptions.length}개 표시
-                            </span>
-                        </div>
-                        <div className="grid grid-cols-1 lg:grid-cols-2">
-                            {categoryOptions.map((option, index) => (
+                <div
+                    ref={listRef}
+                    className="mt-2 min-h-0 flex-1 overflow-y-auto border-y border-slate-200"
+                >
+                    {Array.from(groupedVisibleOptions).map(([category, categoryOptions]) => (
+                        <section key={category}>
+                            <div className="sticky top-0 z-[1] flex items-center justify-between border-b border-slate-200 bg-slate-100/95 px-3 py-2 backdrop-blur-sm">
+                                <span className="text-[10px] font-semibold uppercase tracking-[0.08em] text-slate-500">
+                                    {category}
+                                </span>
+                                <span className="text-[9px] font-bold text-slate-400">
+                                    {categoryOptions.length}개 표시
+                                </span>
+                            </div>
+                            {categoryOptions.map((option) => (
                                 <button
                                     key={option.id}
                                     type="button"
                                     onClick={() => onToggle(option.id)}
-                                    className={`group flex min-h-12 w-full items-center gap-3 border-b border-slate-200 px-3 py-2.5 text-left transition-colors hover:bg-slate-50 ${
-                                        index % 2 === 0 ? 'lg:border-r' : ''
-                                    }`}
+                                    className="group flex min-h-12 w-full items-center gap-3 border-b border-slate-200 px-3 py-2.5 text-left transition-colors hover:bg-slate-50"
                                 >
                                     <span className="min-w-0 flex-1 text-xs font-semibold leading-5 text-slate-700">
                                         {option.label}
@@ -211,23 +209,23 @@ function EvidencePicker({
                                     <Plus className="h-4 w-4 shrink-0 text-slate-300 group-hover:text-slate-700" />
                                 </button>
                             ))}
+                        </section>
+                    ))}
+                    {matchingOptions.length === 0 && (
+                        <div className="px-4 py-10 text-center text-xs font-medium text-slate-400">
+                            {normalizedQuery ? '검색 결과가 없습니다.' : '선택할 항목이 없습니다.'}
                         </div>
-                    </section>
-                ))}
-                {matchingOptions.length === 0 && (
-                    <div className="px-4 py-10 text-center text-xs font-medium text-slate-400">
-                        {normalizedQuery ? '검색 결과가 없습니다.' : '선택할 항목이 없습니다.'}
-                    </div>
-                )}
-                {hasMore && (
-                    <div
-                        ref={loadMoreRef}
-                        className="flex items-center justify-center gap-2 py-3 text-[10px] font-bold text-slate-400"
-                    >
-                        <Loader2 className="h-3.5 w-3.5 animate-spin" /> 아래로 스크롤하면 계속
-                        표시됩니다.
-                    </div>
-                )}
+                    )}
+                    {hasMore && (
+                        <div
+                            ref={loadMoreRef}
+                            className="flex items-center justify-center gap-2 py-3 text-[10px] font-bold text-slate-400"
+                        >
+                            <Loader2 className="h-3.5 w-3.5 animate-spin" /> 아래로 스크롤하면
+                            계속 표시됩니다.
+                        </div>
+                    )}
+                </div>
             </div>
         </div>
     );
