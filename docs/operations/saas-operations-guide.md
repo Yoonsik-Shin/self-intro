@@ -2716,14 +2716,14 @@ SELECT 'portfolio_case_study_study', COUNT(*) FROM portfolio_case_study_study;
 
 ### 15.39 포트폴리오 개별 항목 대화형 AI revision
 
-- `V5__add_portfolio_revision_conversation_metadata.sql`은 `portfolio_case_study_revision`에
+- `V6__add_portfolio_revision_conversation_metadata.sql`은 `portfolio_case_study_revision`에
   `base_revision_id`, `feedback_instruction`, `ai_model`을 추가한다. 기존 행은 모두 NULL이며 기존
   revision 조회·발행 동작은 유지된다.
 - `base_revision_id`는 같은 테이블을 참조하고 기준 revision이 삭제될 때 NULL로 바뀐다. AI 수정 결과
   자체는 삭제하지 않으므로 대화 결과와 공개 기준본의 보존 수명주기는 기존 content revision과 같다.
 - Workspace 포트폴리오 AI 요청은 명시적으로 선택한 Study·Competency를 Workspace 범위로 조회하고,
   Skill은 해당 Workspace의 `workspace_skill` overlay에 존재하는 항목만 Worker 입력에 포함한다.
-- 배포 전 disposable MySQL에 V1~V5를 적용해 신규 설치를 검증하고, V1~V4 상태 DB에는 V5만 적용되는지
+- 배포 전 disposable MySQL에 V1~V6를 적용해 신규 설치를 검증하고, V1~V5 상태 DB에는 V6만 적용되는지
   확인한다. 롤백이 필요하면 애플리케이션을 이전 이미지로 되돌린 뒤 신규 컬럼을 유지한다. 컬럼 삭제는
   저장된 대화 metadata를 잃으므로 자동 롤백 절차에 포함하지 않는다.
 - 구현 브랜치에서는 포트폴리오 API·Worker 집중 테스트와 변경 프론트 파일의 TypeScript·ESLint 검사를
