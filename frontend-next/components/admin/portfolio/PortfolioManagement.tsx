@@ -107,10 +107,9 @@ function EvidencePicker({
     const matchingOptions = options
         .filter(
             (option) =>
-                !selectedIdSet.has(option.id) &&
-                (!normalizedQuery ||
-                    option.label.toLocaleLowerCase().includes(normalizedQuery) ||
-                    option.category.toLocaleLowerCase().includes(normalizedQuery))
+                !normalizedQuery ||
+                option.label.toLocaleLowerCase().includes(normalizedQuery) ||
+                option.category.toLocaleLowerCase().includes(normalizedQuery)
         )
         .sort(
             (left, right) =>
@@ -241,15 +240,17 @@ function EvidencePicker({
                                                 onClick={() => onToggle(option.id)}
                                                 className={`group flex min-h-12 w-full items-center gap-3 border-b border-slate-200 px-3 py-2.5 text-left transition-colors ${
                                                     isSelected
-                                                        ? 'bg-slate-100'
+                                                        ? 'bg-slate-900 hover:bg-slate-800'
                                                         : 'hover:bg-slate-50'
                                                 }`}
                                             >
-                                                <span className="min-w-0 flex-1 text-[13px] font-semibold leading-5 text-slate-700">
+                                                <span
+                                                    className={`min-w-0 flex-1 text-[13px] font-semibold leading-5 ${isSelected ? 'text-white' : 'text-slate-700'}`}
+                                                >
                                                     {option.label}
                                                 </span>
                                                 {isSelected ? (
-                                                    <Check className="h-4 w-4 shrink-0 text-slate-700" />
+                                                    <Check className="h-4 w-4 shrink-0 text-white" />
                                                 ) : (
                                                     <Plus className="h-4 w-4 shrink-0 text-slate-300 group-hover:text-slate-700" />
                                                 )}
