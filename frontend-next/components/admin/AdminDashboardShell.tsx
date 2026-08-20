@@ -1021,7 +1021,7 @@ export function AdminDashboardShell({ workspaceSlug }: { workspaceSlug: string }
             <div className="flex min-h-0 flex-1">
                 <div className="min-h-0 min-w-0 flex-1 overflow-hidden">
                     <div
-                        className="grid h-full min-h-0 w-full grid-cols-1 gap-6 px-4 py-6 transition-[grid-template-columns] duration-300 ease-in-out sm:px-6 lg:px-8"
+                        className="grid h-full min-h-0 w-full grid-cols-1 gap-6 px-4 py-6 transition-[grid-template-columns] duration-300 ease-in-out sm:px-6"
                         style={{
                             gridTemplateColumns: isSidebarCollapsed
                                 ? '56px minmax(0, 1fr)'
@@ -1029,14 +1029,14 @@ export function AdminDashboardShell({ workspaceSlug }: { workspaceSlug: string }
                         }}
                     >
                         <aside
-                            className={`isolate min-h-0 min-w-0 overflow-x-hidden overflow-y-auto transition-all duration-300 ease-in-out [scrollbar-width:none] [&::-webkit-scrollbar]:hidden ${isSidebarCollapsed ? 'rounded-2xl border border-slate-200 bg-white shadow-sm' : ''}`}
+                            className={`relative isolate min-h-0 min-w-0 overflow-x-hidden overflow-y-auto transition-all duration-300 ease-in-out [scrollbar-width:none] [&::-webkit-scrollbar]:hidden ${isSidebarCollapsed ? 'rounded-2xl border border-slate-200 bg-white shadow-sm' : ''}`}
                         >
                             <div
-                                className={`sticky top-0 z-30 mb-2 flex h-10 items-center px-2 ${
+                                className={
                                     isSidebarCollapsed
-                                        ? 'justify-center rounded-t-[15px] border-b border-slate-100 bg-white'
-                                        : 'justify-end bg-[#f8fafc]'
-                                }`}
+                                        ? 'sticky top-0 z-30 mb-2 flex h-14 items-start justify-center rounded-t-[15px] border-b border-slate-100 bg-white px-2 pt-3'
+                                        : 'absolute right-0 top-0 z-30'
+                                }
                             >
                                 <button
                                     type="button"
@@ -1076,7 +1076,7 @@ export function AdminDashboardShell({ workspaceSlug }: { workspaceSlug: string }
                                                 isSidebarCollapsed
                                                     ? 'max-h-0 opacity-0'
                                                     : groupIndex === 0
-                                                      ? 'h-8 max-h-8 opacity-100'
+                                                      ? 'h-8 max-h-8 pr-9 opacity-100'
                                                       : 'h-6 max-h-6 opacity-100'
                                             }`}
                                         >
