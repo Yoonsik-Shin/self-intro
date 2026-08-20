@@ -1108,7 +1108,7 @@ export function AdminDashboardShell({ workspaceSlug }: { workspaceSlug: string }
                             )}
                             <nav
                                 aria-label="Workspace 관리 메뉴"
-                                className={`space-y-5 ${isSidebarCollapsed ? 'pb-3' : 'pr-3'}`}
+                                className={`space-y-4 ${isSidebarCollapsed ? 'pb-3' : 'pr-3'}`}
                             >
                                 {visibleMenuGroups.map((group, groupIndex) => (
                                     <section
@@ -1117,7 +1117,7 @@ export function AdminDashboardShell({ workspaceSlug }: { workspaceSlug: string }
                                             group.requiresPlatformOperator
                                                 ? isSidebarCollapsed
                                                     ? 'border-t-2 border-slate-700 pt-3'
-                                                    : 'rounded-xl border border-slate-800 bg-slate-950 p-2 text-white'
+                                                    : 'rounded-xl border border-slate-800 bg-slate-950 p-1 text-white'
                                                 : groupIndex > 0
                                                   ? isSidebarCollapsed
                                                       ? 'border-t border-slate-200 pt-3'
@@ -1126,7 +1126,7 @@ export function AdminDashboardShell({ workspaceSlug }: { workspaceSlug: string }
                                         }`}
                                     >
                                         <div
-                                            className={`relative mb-2 flex items-center gap-1.5 overflow-visible px-3 transition-all duration-300 ease-in-out ${
+                                            className={`relative mb-1.5 flex items-center gap-1 overflow-visible px-2 transition-all duration-300 ease-in-out ${
                                                 isSidebarCollapsed
                                                     ? 'max-h-0 opacity-0'
                                                     : groupIndex === 0
@@ -1135,7 +1135,7 @@ export function AdminDashboardShell({ workspaceSlug }: { workspaceSlug: string }
                                             }`}
                                         >
                                             <h2
-                                                className={`min-w-0 truncate text-sm font-black tracking-[0.02em] ${group.requiresPlatformOperator ? 'text-white' : 'text-slate-600'}`}
+                                                className={`shrink-0 whitespace-nowrap text-xs font-black tracking-[0.01em] ${group.requiresPlatformOperator ? 'text-white' : 'text-slate-600'}`}
                                             >
                                                 {group.label}
                                             </h2>
@@ -1143,13 +1143,13 @@ export function AdminDashboardShell({ workspaceSlug }: { workspaceSlug: string }
                                                 <button
                                                     type="button"
                                                     aria-label={`${group.label} 설명`}
-                                                    className={`grid h-6 w-6 place-items-center rounded-full transition ${
+                                                    className={`grid h-5 w-5 place-items-center rounded-full transition ${
                                                         group.requiresPlatformOperator
                                                             ? 'text-slate-400 hover:bg-white/10 hover:text-white focus:bg-white/10 focus:text-white'
                                                             : 'text-slate-400 hover:bg-slate-200 hover:text-slate-800 focus:bg-slate-200 focus:text-slate-800'
                                                     }`}
                                                 >
-                                                    <CircleHelp className="h-4 w-4" />
+                                                    <CircleHelp className="h-3.5 w-3.5" />
                                                 </button>
                                                 <span
                                                     role="tooltip"
@@ -1163,7 +1163,7 @@ export function AdminDashboardShell({ workspaceSlug }: { workspaceSlug: string }
                                                 </span>
                                             </span>
                                         </div>
-                                        <div className="space-y-1.5">
+                                        <div className="space-y-1">
                                             {group.items.map((item, itemIndex) => {
                                                 const Icon = item.icon;
                                                 const isActive = activeTab === item.id;
@@ -1188,7 +1188,7 @@ export function AdminDashboardShell({ workspaceSlug }: { workspaceSlug: string }
                                                     >
                                                         {startsOperatorSection && (
                                                             <p
-                                                                className={`mb-1 overflow-hidden px-3 text-[9px] font-black tracking-[0.1em] text-slate-500 transition-all duration-300 ${
+                                                                className={`mb-1 overflow-hidden px-2 text-[9px] font-black tracking-[0.08em] text-slate-500 transition-all duration-300 ${
                                                                     isSidebarCollapsed
                                                                         ? 'max-h-0 opacity-0'
                                                                         : 'max-h-5 opacity-100'
@@ -1204,10 +1204,10 @@ export function AdminDashboardShell({ workspaceSlug }: { workspaceSlug: string }
                                                             aria-current={
                                                                 isActive ? 'page' : undefined
                                                             }
-                                                            className={`flex items-center rounded-xl text-sm font-bold transition-all duration-300 ease-in-out ${
+                                                            className={`flex items-center rounded-xl text-xs font-bold transition-all duration-300 ease-in-out ${
                                                                 isSidebarCollapsed
                                                                     ? 'mx-auto h-10 w-10 justify-center'
-                                                                    : 'w-full gap-2.5 px-3 py-2.5 text-left'
+                                                                    : 'w-full gap-1.5 px-2 py-2 text-left'
                                                             } ${
                                                                 isActive
                                                                     ? group.requiresPlatformOperator
@@ -1222,7 +1222,13 @@ export function AdminDashboardShell({ workspaceSlug }: { workspaceSlug: string }
                                                                       : 'text-slate-600 hover:bg-slate-100 hover:text-slate-900'
                                                             }`}
                                                         >
-                                                            <Icon className="h-4 w-4 shrink-0" />
+                                                            <Icon
+                                                                className={
+                                                                    isSidebarCollapsed
+                                                                        ? 'h-4 w-4 shrink-0'
+                                                                        : 'h-3.5 w-3.5 shrink-0'
+                                                                }
+                                                            />
                                                             <span
                                                                 className={`whitespace-nowrap transition-all duration-300 ease-in-out ${
                                                                     isSidebarCollapsed
