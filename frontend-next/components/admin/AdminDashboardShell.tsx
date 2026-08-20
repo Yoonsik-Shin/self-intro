@@ -1112,7 +1112,11 @@ export function AdminDashboardShell({ workspaceSlug }: { workspaceSlug: string }
             <div className="flex min-h-0 flex-1">
                 <div className="min-h-0 min-w-0 flex-1 overflow-hidden">
                     <div
-                        className={`grid h-full min-h-0 w-full grid-cols-1 gap-6 px-4 py-6 sm:px-6 ${isResizingSidebar ? '' : 'transition-[grid-template-columns] duration-300 ease-in-out'}`}
+                        className={`grid h-full min-h-0 w-full grid-cols-1 py-6 ${
+                            isSidebarCollapsed
+                                ? 'gap-4 pl-0 pr-4 sm:pr-6'
+                                : 'gap-6 px-4 sm:px-6'
+                        } ${isResizingSidebar ? '' : 'transition-[grid-template-columns] duration-300 ease-in-out'}`}
                         style={{
                             gridTemplateColumns: isSidebarCollapsed
                                 ? `${SIDEBAR_COLLAPSED_WIDTH}px minmax(0, 1fr)`
@@ -1120,10 +1124,10 @@ export function AdminDashboardShell({ workspaceSlug }: { workspaceSlug: string }
                         }}
                     >
                         <aside
-                            className={`relative isolate col-start-1 row-start-1 min-h-0 min-w-0 overflow-x-hidden overflow-y-auto overscroll-contain transition-all duration-300 ease-in-out [scrollbar-width:none] [&::-webkit-scrollbar]:hidden ${isSidebarCollapsed ? 'rounded-2xl border border-slate-200 bg-white shadow-sm' : ''}`}
+                            className={`relative isolate col-start-1 row-start-1 min-h-0 min-w-0 overflow-x-hidden overflow-y-auto overscroll-contain transition-all duration-300 ease-in-out [scrollbar-width:none] [&::-webkit-scrollbar]:hidden ${isSidebarCollapsed ? 'rounded-r-2xl border-y border-r border-slate-200 bg-white shadow-sm' : ''}`}
                         >
                             {isSidebarCollapsed && (
-                                <div className="sticky top-0 z-30 mb-2 flex h-14 items-start justify-center rounded-t-[15px] border-b border-slate-100 bg-white px-2 pt-3">
+                                <div className="sticky top-0 z-30 mb-2 flex h-14 items-start justify-center rounded-tr-[15px] border-b border-slate-100 bg-white px-2 pt-3">
                                     <button
                                         type="button"
                                         onClick={() =>
