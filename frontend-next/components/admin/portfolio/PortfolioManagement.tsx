@@ -7,6 +7,7 @@ import {
     ArrowRight,
     BriefcaseBusiness,
     CheckCircle2,
+    ChevronDown,
     CircleHelp,
     FileText,
     FolderGit2,
@@ -96,6 +97,7 @@ function EvidencePicker({
 }) {
     const [query, setQuery] = useState('');
     const [visibleCount, setVisibleCount] = useState(12);
+    const [collapsedCategories, setCollapsedCategories] = useState<Record<string, boolean>>({});
     const listRef = useRef<HTMLDivElement | null>(null);
     const loadMoreRef = useRef<HTMLDivElement | null>(null);
     const normalizedQuery = query.trim().toLocaleLowerCase();
@@ -121,7 +123,18 @@ function EvidencePicker({
         groups.set(option.category, group);
         return groups;
     }, new Map<string, EvidencePickerOption[]>());
+    const categoryCounts = matchingOptions.reduce((counts, option) => {
+        counts.set(option.category, (counts.get(option.category) ?? 0) + 1);
+        return counts;
+    }, new Map<string, number>());
     const hasMore = visibleOptions.length < matchingOptions.length;
+
+    const toggleCategory = (category: string) => {
+        setCollapsedCategories((current) => ({
+            ...current,
+            [category]: !current[category],
+        }));
+    };
 
     useEffect(() => {
         const root = listRef.current;
@@ -180,6 +193,7 @@ function EvidencePicker({
                         onChange={(event) => {
                             setQuery(event.target.value);
                             setVisibleCount(12);
+                            setCollapsedCategories({});
                         }}
                         placeholder={searchPlaceholder}
                         className="min-w-0 flex-1 bg-transparent text-sm text-slate-900 outline-none placeholder:text-slate-400"
@@ -193,31 +207,46 @@ function EvidencePicker({
                     ref={listRef}
                     className="mt-2 min-h-0 flex-1 overflow-y-auto border-y border-slate-200"
                 >
-                    {Array.from(groupedVisibleOptions).map(([category, categoryOptions]) => (
-                        <section key={category}>
-                            <div className="sticky top-0 z-[1] flex items-center justify-between border-b border-slate-200 bg-slate-100/95 px-3 py-2 backdrop-blur-sm">
-                                <span className="text-[11px] font-semibold uppercase tracking-[0.08em] text-slate-500">
-                                    {category}
-                                </span>
-                                <span className="text-[10px] font-bold text-slate-400">
-                                    {categoryOptions.length}개 표시
-                                </span>
-                            </div>
-                            {categoryOptions.map((option) => (
+                    {Array.from(groupedVisibleOptions).map(([category, categoryOptions]) => {
+                        const isCollapsed = collapsedCategories[category] ?? false;
+                        return (
+                            <section key={category}>
                                 <button
-                                    key={option.id}
                                     type="button"
-                                    onClick={() => onToggle(option.id)}
-                                    className="group flex min-h-12 w-full items-center gap-3 border-b border-slate-200 px-3 py-2.5 text-left transition-colors hover:bg-slate-50"
+                                    aria-expanded={!isCollapsed}
+                                    onClick={() => toggleCategory(category)}
+                                    className="group sticky top-0 z-[1] flex w-full items-center justify-between gap-3 border-b border-slate-200 bg-slate-100/95 px-3 py-2 text-left backdrop-blur-sm transition-colors hover:bg-slate-200/80"
                                 >
-                                    <span className="min-w-0 flex-1 text-[13px] font-semibold leading-5 text-slate-700">
-                                        {option.label}
+                                    <span className="min-w-0 truncate text-[11px] font-semibold uppercase tracking-[0.08em] text-slate-500">
+                                        {category}
                                     </span>
-                                    <Plus className="h-4 w-4 shrink-0 text-slate-300 group-hover:text-slate-700" />
+                                    <span className="flex shrink-0 items-center gap-1.5 text-[10px] font-bold text-slate-400">
+                                        {categoryCounts.get(category) ?? categoryOptions.length}개
+                                        <ChevronDown
+                                            className={`h-3.5 w-3.5 transition-transform ${isCollapsed ? '-rotate-90' : ''}`}
+                                        />
+                                        <span className="sr-only">
+                                            {isCollapsed ? '펼치기' : '접기'}
+                                        </span>
+                                    </span>
                                 </button>
-                            ))}
-                        </section>
-                    ))}
+                                {!isCollapsed &&
+                                    categoryOptions.map((option) => (
+                                        <button
+                                            key={option.id}
+                                            type="button"
+                                            onClick={() => onToggle(option.id)}
+                                            className="group flex min-h-12 w-full items-center gap-3 border-b border-slate-200 px-3 py-2.5 text-left transition-colors hover:bg-slate-50"
+                                        >
+                                            <span className="min-w-0 flex-1 text-[13px] font-semibold leading-5 text-slate-700">
+                                                {option.label}
+                                            </span>
+                                            <Plus className="h-4 w-4 shrink-0 text-slate-300 group-hover:text-slate-700" />
+                                        </button>
+                                    ))}
+                            </section>
+                        );
+                    })}
                     {matchingOptions.length === 0 && (
                         <div className="px-4 py-10 text-center text-xs font-medium text-slate-400">
                             {normalizedQuery ? '검색 결과가 없습니다.' : '선택할 항목이 없습니다.'}
