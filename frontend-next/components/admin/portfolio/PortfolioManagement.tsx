@@ -495,7 +495,7 @@ export function PortfolioManagement({
         setCreateForm({
             experienceId: String(experienceId),
             title: experience.title,
-            slug: asciiSlug || `case-study-${experienceId}`,
+            slug: asciiSlug ? `${asciiSlug}-${experienceId}` : `case-study-${experienceId}`,
         });
         setCreateStep(1);
     };
@@ -657,7 +657,7 @@ export function PortfolioManagement({
                                                 사례 기본 정보
                                             </h4>
                                             <p className="mt-1 text-xs leading-5 text-slate-500">
-                                                방문자에게 보일 제목과 관리 URL을 확인합니다.
+                                                방문자에게 보일 사례 제목을 확인합니다.
                                             </p>
                                         </div>
                                         <button
@@ -694,31 +694,6 @@ export function PortfolioManagement({
                                             placeholder="예: 장애 대응 체계를 다시 설계한 과정"
                                             className="mt-2 w-full rounded-lg border border-slate-300 bg-white px-3.5 py-3 text-sm outline-none transition-colors focus:border-slate-700 focus:ring-2 focus:ring-slate-200"
                                         />
-                                    </label>
-
-                                    <label className="mt-6 block text-sm font-medium text-slate-700">
-                                        URL 식별자
-                                        <div className="mt-2 flex items-center rounded-lg border border-slate-300 bg-white focus-within:border-slate-700 focus-within:ring-2 focus-within:ring-slate-200">
-                                            <span className="shrink-0 border-r border-slate-200 px-3 text-xs text-slate-400">
-                                                /portfolio/
-                                            </span>
-                                            <input
-                                                value={createForm.slug}
-                                                onChange={(event) =>
-                                                    setCreateForm((form) => ({
-                                                        ...form,
-                                                        slug: event.target.value
-                                                            .toLocaleLowerCase()
-                                                            .replace(/[^a-z0-9-]/g, ''),
-                                                    }))
-                                                }
-                                                placeholder="case-study"
-                                                className="min-w-0 flex-1 rounded-r-lg px-3 py-3 font-mono text-sm outline-none"
-                                            />
-                                        </div>
-                                        <span className="mt-1.5 block text-xs text-slate-400">
-                                            영문 소문자, 숫자, 하이픈만 사용할 수 있습니다.
-                                        </span>
                                     </label>
 
                                     {createMutation.error && (
