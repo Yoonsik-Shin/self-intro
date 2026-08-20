@@ -63,10 +63,17 @@ const FLOW_BACK_BUTTON_CLASS =
     'inline-flex items-center justify-center gap-1.5 rounded-lg border border-slate-300 bg-white px-4 py-2.5 text-xs font-black text-slate-600 transition-colors hover:border-slate-400 hover:bg-slate-50 hover:text-slate-900';
 const FLOW_NEXT_BUTTON_CLASS =
     'inline-flex items-center justify-center gap-1.5 rounded-lg bg-slate-900 px-4 py-2.5 text-xs font-black text-white transition-colors hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-40';
+const STUDY_SECTION_LABELS = {
+    FUNDAMENTAL: '기초 학습',
+    ADVANCED: '심화 학습',
+    RETROSPECT: '회고·정리',
+    ETC: '기타 학습',
+} as const;
 
 type EvidencePickerOption = {
     id: number;
     label: string;
+    category: string;
 };
 
 function EvidencePicker({
@@ -81,16 +88,49 @@ function EvidencePicker({
     searchPlaceholder: string;
 }) {
     const [query, setQuery] = useState('');
-    const [visibleCount, setVisibleCount] = useState(10);
+    const [visibleCount, setVisibleCount] = useState(12);
+    const listRef = useRef<HTMLDivElement | null>(null);
+    const loadMoreRef = useRef<HTMLDivElement | null>(null);
     const normalizedQuery = query.trim().toLocaleLowerCase();
     const selectedIdSet = new Set(selectedIds);
     const selectedOptions = options.filter((option) => selectedIdSet.has(option.id));
-    const matchingOptions = options.filter(
-        (option) =>
-            !selectedIdSet.has(option.id) &&
-            (!normalizedQuery || option.label.toLocaleLowerCase().includes(normalizedQuery))
-    );
+    const matchingOptions = options
+        .filter(
+            (option) =>
+                !selectedIdSet.has(option.id) &&
+                (!normalizedQuery ||
+                    option.label.toLocaleLowerCase().includes(normalizedQuery) ||
+                    option.category.toLocaleLowerCase().includes(normalizedQuery))
+        )
+        .sort(
+            (left, right) =>
+                left.category.localeCompare(right.category, 'ko') ||
+                left.label.localeCompare(right.label, 'ko')
+        );
     const visibleOptions = matchingOptions.slice(0, visibleCount);
+    const groupedVisibleOptions = visibleOptions.reduce((groups, option) => {
+        const group = groups.get(option.category) ?? [];
+        group.push(option);
+        groups.set(option.category, group);
+        return groups;
+    }, new Map<string, EvidencePickerOption[]>());
+    const hasMore = visibleOptions.length < matchingOptions.length;
+
+    useEffect(() => {
+        const root = listRef.current;
+        const target = loadMoreRef.current;
+        if (!root || !target || !hasMore) return;
+        const observer = new IntersectionObserver(
+            (entries) => {
+                if (entries[0]?.isIntersecting) {
+                    setVisibleCount((count) => Math.min(count + 12, matchingOptions.length));
+                }
+            },
+            { root, rootMargin: '0px 0px 120px 0px' }
+        );
+        observer.observe(target);
+        return () => observer.disconnect();
+    }, [hasMore, matchingOptions.length, visibleCount]);
 
     return (
         <div className="flex h-full min-h-0 flex-col">
@@ -131,7 +171,7 @@ function EvidencePicker({
                     value={query}
                     onChange={(event) => {
                         setQuery(event.target.value);
-                        setVisibleCount(10);
+                        setVisibleCount(12);
                     }}
                     placeholder={searchPlaceholder}
                     className="min-w-0 flex-1 bg-transparent text-sm text-slate-900 outline-none placeholder:text-slate-400"
@@ -141,36 +181,50 @@ function EvidencePicker({
                 </span>
             </label>
 
-            <div className="mt-2 min-h-0 flex-1 overflow-y-auto border-y border-slate-200">
-                {visibleOptions.map((option) => (
-                    <button
-                        key={option.id}
-                        type="button"
-                        onClick={() => onToggle(option.id)}
-                        className="group flex w-full items-center gap-3 border-b border-slate-200 px-3 py-3 text-left transition-colors last:border-b-0 hover:bg-slate-50"
-                    >
-                        <span className="min-w-0 flex-1 text-xs font-semibold leading-5 text-slate-700">
-                            {option.label}
-                        </span>
-                        <Plus className="h-4 w-4 shrink-0 text-slate-300 group-hover:text-slate-700" />
-                    </button>
+            <div
+                ref={listRef}
+                className="mt-2 min-h-0 flex-1 overflow-y-auto border-y border-slate-200"
+            >
+                {Array.from(groupedVisibleOptions).map(([category, categoryOptions]) => (
+                    <section key={category}>
+                        <div className="sticky top-0 z-[1] flex items-center justify-between border-b border-slate-200 bg-slate-100/95 px-3 py-2 backdrop-blur-sm">
+                            <span className="text-[10px] font-black uppercase tracking-[0.08em] text-slate-500">
+                                {category}
+                            </span>
+                            <span className="text-[9px] font-bold text-slate-400">
+                                {categoryOptions.length}개 표시
+                            </span>
+                        </div>
+                        {categoryOptions.map((option) => (
+                            <button
+                                key={option.id}
+                                type="button"
+                                onClick={() => onToggle(option.id)}
+                                className="group flex w-full items-center gap-3 border-b border-slate-200 px-3 py-3 text-left transition-colors hover:bg-slate-50"
+                            >
+                                <span className="min-w-0 flex-1 text-xs font-semibold leading-5 text-slate-700">
+                                    {option.label}
+                                </span>
+                                <Plus className="h-4 w-4 shrink-0 text-slate-300 group-hover:text-slate-700" />
+                            </button>
+                        ))}
+                    </section>
                 ))}
                 {matchingOptions.length === 0 && (
                     <div className="px-4 py-10 text-center text-xs font-medium text-slate-400">
                         {normalizedQuery ? '검색 결과가 없습니다.' : '선택할 항목이 없습니다.'}
                     </div>
                 )}
+                {hasMore && (
+                    <div
+                        ref={loadMoreRef}
+                        className="flex items-center justify-center gap-2 py-3 text-[10px] font-bold text-slate-400"
+                    >
+                        <Loader2 className="h-3.5 w-3.5 animate-spin" /> 아래로 스크롤하면 계속
+                        표시됩니다.
+                    </div>
+                )}
             </div>
-
-            {matchingOptions.length > visibleCount && (
-                <button
-                    type="button"
-                    onClick={() => setVisibleCount((count) => count + 10)}
-                    className="mt-2 shrink-0 py-2 text-xs font-black text-slate-500 hover:text-slate-900"
-                >
-                    더 보기 · {matchingOptions.length - visibleCount}개 남음
-                </button>
-            )}
         </div>
     );
 }
@@ -1365,6 +1419,10 @@ export function PortfolioManagement({
                                                                 ).map((study) => ({
                                                                     id: study.id,
                                                                     label: study.title,
+                                                                    category:
+                                                                        STUDY_SECTION_LABELS[
+                                                                            study.section
+                                                                        ],
                                                                 }))}
                                                                 selectedIds={studyIds}
                                                                 onToggle={(id) =>
@@ -1388,6 +1446,12 @@ export function PortfolioManagement({
                                                                     (competency) => ({
                                                                         id: competency.id,
                                                                         label: competency.title,
+                                                                        category:
+                                                                            competency.skills[0]
+                                                                                ?.category ||
+                                                                            competency.tags?.[0]
+                                                                                ?.name ||
+                                                                            '기타 역량',
                                                                     })
                                                                 )}
                                                                 selectedIds={competencyIds}
@@ -1411,6 +1475,9 @@ export function PortfolioManagement({
                                                                 options={skills.map((skill) => ({
                                                                     id: skill.id,
                                                                     label: skill.name,
+                                                                    category:
+                                                                        skill.category ||
+                                                                        '기타 기술',
                                                                 }))}
                                                                 selectedIds={skillIds}
                                                                 onToggle={(id) =>
