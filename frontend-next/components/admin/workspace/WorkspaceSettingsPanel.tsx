@@ -16,7 +16,7 @@ type Props = {
 
 export function WorkspaceSettingsPanel({ workspaceSlug, workspaceName, role }: Props) {
     return (
-        <div className="space-y-6">
+        <div className="space-y-4">
             <AdminPageHeader
                 eyebrow="Workspace Settings"
                 title="주소·이름·탈퇴·폐쇄 설정"

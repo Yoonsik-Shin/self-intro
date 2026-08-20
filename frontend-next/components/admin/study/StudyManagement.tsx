@@ -485,7 +485,7 @@ export function StudyManagement({
     }, [studies, studyEditingId, isStudyFormOpen, studyForm.title]);
 
     return (
-        <div className="space-y-6">
+        <div className="space-y-4">
             <AdminPageHeader
                 eyebrow="Source Record"
                 title="학습 기록 관리"

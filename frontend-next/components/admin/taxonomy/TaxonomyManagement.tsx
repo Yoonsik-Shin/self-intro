@@ -156,7 +156,7 @@ export function TaxonomyManagement() {
     );
 
     return (
-        <div className="space-y-6">
+        <div className="space-y-4">
             <AdminPageHeader
                 eyebrow="Platform Catalog"
                 title="카테고리 체계 관리"

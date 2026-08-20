@@ -81,7 +81,7 @@ export function WorkspaceHomeDashboard({
         : '비공개';
 
     return (
-        <section className="space-y-6">
+        <section className="space-y-4">
             <AdminPageHeader
                 eyebrow="Workspace Home"
                 title={workspaceName}

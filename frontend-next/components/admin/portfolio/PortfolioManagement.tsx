@@ -439,7 +439,7 @@ export function PortfolioManagement({
     };
 
     return (
-        <div className="space-y-6 lg:flex lg:h-full lg:min-h-0 lg:flex-col lg:gap-6 lg:space-y-0 lg:overflow-hidden">
+        <div className="space-y-4 lg:flex lg:h-full lg:min-h-0 lg:flex-col lg:gap-4 lg:space-y-0 lg:overflow-hidden">
             <AdminPageHeader
                 eyebrow="Source Record"
                 title="포트폴리오 사례 관리"

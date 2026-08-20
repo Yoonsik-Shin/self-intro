@@ -102,7 +102,7 @@ export function ProfileManagement({ workspaceSlug }: { workspaceSlug: string }) 
     };
 
     return (
-        <div className="space-y-6">
+        <div className="space-y-4">
             <AdminPageHeader
                 eyebrow="Source Record"
                 title="프로필 정보 관리"

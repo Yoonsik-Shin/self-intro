@@ -407,7 +407,7 @@ export function CompetencyManagement({
     const showList = !isFormOpen && !selectedCompetency;
 
     return (
-        <div className="space-y-6">
+        <div className="space-y-4">
             <AdminPageHeader
                 eyebrow="Source Record"
                 title="핵심 역량 관리"

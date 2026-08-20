@@ -67,7 +67,7 @@ export function WorkspaceMemberManagement({ workspaceSlug, role }: Props) {
         role === 'OWNER' ? ['ADMIN', 'EDITOR', 'VIEWER'] : ['EDITOR', 'VIEWER'];
 
     return (
-        <section className="space-y-6">
+        <section className="space-y-4">
             <div>
                 <AdminPageHeader
                     eyebrow="Workspace Access"

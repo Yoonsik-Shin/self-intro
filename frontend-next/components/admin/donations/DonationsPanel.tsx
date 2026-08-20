@@ -57,7 +57,7 @@ export function DonationsPanel() {
     });
 
     return (
-        <div className="space-y-6">
+        <div className="space-y-4">
             <AdminPageHeader
                 eyebrow="Platform Support"
                 title="후원 내역"

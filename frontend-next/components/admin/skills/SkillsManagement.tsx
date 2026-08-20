@@ -338,7 +338,7 @@ export function SkillsManagement({ workspaceSlug }: { workspaceSlug: string }) {
     };
 
     return (
-        <div className="space-y-6">
+        <div className="space-y-4">
             <AdminPageHeader
                 eyebrow="Source Record"
                 title="내 기술 스택"

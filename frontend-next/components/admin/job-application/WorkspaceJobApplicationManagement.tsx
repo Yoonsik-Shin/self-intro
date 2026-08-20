@@ -301,7 +301,7 @@ export function WorkspaceJobApplicationManagement({
         });
 
     return (
-        <div className="space-y-5">
+        <div className="space-y-4">
             <AdminPageHeader
                 eyebrow="Workspace Career Pipeline"
                 title="지원 현황"

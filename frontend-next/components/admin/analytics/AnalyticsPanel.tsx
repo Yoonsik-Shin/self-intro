@@ -48,7 +48,7 @@ export function AnalyticsPanel({ workspaceSlug }: { workspaceSlug?: string }) {
     });
 
     return (
-        <div className="space-y-6">
+        <div className="space-y-4">
             <AdminPageHeader
                 eyebrow={workspaceSlug ? 'Workspace Analytics' : 'Platform Analytics'}
                 title={workspaceSlug ? 'Workspace 방문자 통계' : '플랫폼 방문자 통계'}

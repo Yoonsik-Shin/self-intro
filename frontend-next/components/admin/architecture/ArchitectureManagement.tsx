@@ -47,7 +47,7 @@ export function ArchitectureManagement() {
     };
 
     return (
-        <div className="space-y-6">
+        <div className="space-y-4">
             <AdminPageHeader
                 eyebrow="플랫폼 운영"
                 title="시스템 아키텍처 관리"

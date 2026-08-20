@@ -209,7 +209,7 @@ export function CoreProjectManagement({
     const isLoading = isExperiencesLoading || isPlacementsLoading;
 
     return (
-        <div className="space-y-6">
+        <div className="space-y-4">
             <AdminPageHeader
                 eyebrow="Public Composition"
                 title="핵심 프로젝트 관리"

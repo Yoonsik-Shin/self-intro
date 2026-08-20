@@ -140,7 +140,7 @@ export function ExperienceTreeManagement({ workspaceSlug }: { workspaceSlug: str
     };
 
     return (
-        <div className="space-y-5">
+        <div className="space-y-4">
             <div>
                 <AdminPageHeader
                     headingAs="h1"

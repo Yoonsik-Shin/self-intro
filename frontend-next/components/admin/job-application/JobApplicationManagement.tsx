@@ -3282,7 +3282,7 @@ export function JobApplicationManagement({
     const isSaving = createMutation.isPending || updateMutation.isPending;
 
     return (
-        <div className="space-y-6">
+        <div className="space-y-4">
             <AdminPageHeader
                 title="지원 공고 관리"
                 description="지원한 채용 공고를 리스트로 관리하고, 보드에서 카드를 드래그해 전형 단계를 빠르게 옮길 수 있습니다."

@@ -48,7 +48,7 @@ export function WorkspaceSupportAccessPanel({ workspaceSlug }: { workspaceSlug: 
     }
 
     return (
-        <div className="space-y-6 text-slate-800">
+        <div className="space-y-4 text-slate-800">
             <AdminPageHeader
                 headingAs="h1"
                 eyebrow="Workspace Security"

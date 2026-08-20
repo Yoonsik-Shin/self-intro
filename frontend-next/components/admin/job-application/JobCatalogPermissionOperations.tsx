@@ -49,7 +49,7 @@ export function JobCatalogPermissionOperations() {
     const selected = postings.find((posting) => posting.id === selectedId) ?? null;
 
     return (
-        <div className="space-y-5">
+        <div className="space-y-4">
             <AdminPageHeader
                 eyebrow="Platform Catalog Governance"
                 title="공고 공유 심사"

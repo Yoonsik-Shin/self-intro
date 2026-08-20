@@ -572,7 +572,7 @@ export function PrintTemplateManagement({
     };
 
     return (
-        <div className="space-y-6">
+        <div className="space-y-4">
             <AdminPageHeader
                 eyebrow="지원·출력"
                 title="PDF 인쇄 템플릿 관리"

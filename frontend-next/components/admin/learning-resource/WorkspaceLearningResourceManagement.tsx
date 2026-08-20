@@ -150,7 +150,7 @@ export function WorkspaceLearningResourceManagement({ workspaceSlug }: { workspa
         });
 
     return (
-        <div className="space-y-6">
+        <div className="space-y-4">
             <AdminPageHeader
                 eyebrow="Workspace Learning"
                 title="학습 자료"

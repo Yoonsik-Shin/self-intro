@@ -882,7 +882,7 @@ export function ExperienceManagement({
     };
 
     return (
-        <div className="space-y-6">
+        <div className="space-y-4">
             <AdminPageHeader
                 eyebrow="Source Record"
                 title="이력 및 경력 관리"

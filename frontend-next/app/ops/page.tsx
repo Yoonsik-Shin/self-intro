@@ -160,7 +160,7 @@ function InvitationOperationsPanel() {
 
     return (
         <div className="text-slate-800">
-            <div className="space-y-6">
+            <div className="space-y-4">
                 <AdminPageHeader
                     headingAs="h1"
                     eyebrow="Platform Operations"

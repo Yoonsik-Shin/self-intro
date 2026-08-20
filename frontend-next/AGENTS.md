@@ -19,6 +19,8 @@ This version has breaking changes — APIs, conventions, and file structure may 
 - 관리 셸 바깥의 문서 스크롤을 만들지 않는다. 최상위 관리 컴포넌트는 셸이 제공하는 잔여
   화면 높이를 모두 사용한다.
 - 단일 열 화면은 해당 콘텐츠 열 내부에서만 스크롤한다. 공통 헤더는 열 상단에 유지한다.
+- 공통 헤더와 첫 콘텐츠 사이의 최상위 간격은 `space-y-4` 또는 `gap-4`(16px)로 통일하고,
+  `AdminPageHeader`에 별도 하단 padding을 중복해서 추가하지 않는다.
 - 목록·편집기·미리보기처럼 여러 열을 사용하는 화면은 각 열에 `min-h-0`와 적절한
   `overflow-y-auto`를 적용해 열마다 독립적으로 스크롤한다.
 - `100vh` 기반 임의 높이 계산보다 관리 셸의 `h-full`/`min-h-0` flex·grid 높이 전달을

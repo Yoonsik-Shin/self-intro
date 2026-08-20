@@ -40,7 +40,7 @@ export function SkillProposalOperations() {
     });
 
     return (
-        <div className="space-y-5">
+        <div className="space-y-4">
             <AdminPageHeader
                 eyebrow="Platform Catalog Governance"
                 title="기술 카탈로그 심사"
