@@ -1124,10 +1124,10 @@ export function AdminDashboardShell({ workspaceSlug }: { workspaceSlug: string }
                         }}
                     >
                         <aside
-                            className={`relative isolate col-start-1 row-start-1 min-h-0 min-w-0 overflow-x-hidden overflow-y-auto overscroll-contain transition-all duration-300 ease-in-out [scrollbar-width:none] [&::-webkit-scrollbar]:hidden ${isSidebarCollapsed ? 'rounded-r-2xl border-y border-r border-slate-200 bg-white shadow-sm' : ''}`}
+                            className={`relative isolate col-start-1 row-start-1 min-h-0 min-w-0 overflow-x-hidden overflow-y-auto overscroll-contain transition-all duration-300 ease-in-out [scrollbar-width:none] [&::-webkit-scrollbar]:hidden ${isSidebarCollapsed ? 'border-y border-r border-slate-200 bg-white shadow-sm' : ''}`}
                         >
                             {isSidebarCollapsed && (
-                                <div className="sticky top-0 z-30 mb-2 flex h-14 items-start justify-center rounded-tr-[15px] border-b border-slate-100 bg-white px-2 pt-3">
+                                <div className="sticky top-0 z-30 mb-2 flex h-14 items-start justify-center border-b border-slate-100 bg-white px-2 pt-3">
                                     <button
                                         type="button"
                                         onClick={() =>
