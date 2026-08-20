@@ -812,15 +812,7 @@ export function PortfolioManagement({
                 description="경력·프로젝트 원본을 연결하거나 독립 사례를 설계하고, 근거 기반 AI 초안과 revision을 관리합니다. 공개 순서는 공개 페이지에서 별도로 구성합니다."
                 contentInset="none"
                 actions={
-                    createOpen ? (
-                        <button
-                            type="button"
-                            onClick={() => setCreateOpen(false)}
-                            className="inline-flex items-center gap-1.5 rounded-xl border border-slate-300 bg-white px-4 py-2 text-sm font-bold text-slate-700 hover:bg-slate-50"
-                        >
-                            <ArrowLeft className="h-4 w-4" /> 사례 목록으로
-                        </button>
-                    ) : (
+                    !createOpen ? (
                         <button
                             type="button"
                             onClick={openCreateWorkspace}
@@ -828,7 +820,7 @@ export function PortfolioManagement({
                         >
                             <Plus className="h-4 w-4" /> 새 사례 설계
                         </button>
-                    )
+                    ) : undefined
                 }
             />
 
