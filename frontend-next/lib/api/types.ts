@@ -437,6 +437,10 @@ export type ExperienceDetail = {
     skills: Skill[];
 };
 
+export type CareerSummaryResponse = {
+    careerSummary: string;
+};
+
 export type Experience = {
     id: number;
     type: 'CAREER' | 'PROJECT' | 'EDUCATION' | 'CERTIFICATE';

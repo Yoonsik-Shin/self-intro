@@ -1,5 +1,6 @@
 import { request, requestEventStream } from './client';
 import type {
+    CareerSummaryResponse,
     Experience,
     ExperienceRequest,
     ExperienceSuggestionRequest,
@@ -13,6 +14,10 @@ export const experienceApi = {
     workspaceList: (workspaceSlug: string) =>
         request<Experience[]>(
             `/api/workspaces/${encodeURIComponent(workspaceSlug)}/experiences/manage`
+        ),
+    workspaceCareerSummary: (workspaceSlug: string) =>
+        request<CareerSummaryResponse>(
+            `/api/workspaces/${encodeURIComponent(workspaceSlug)}/experiences/manage/career-summary`
         ),
     workspaceCreate: (workspaceSlug: string, payload: ExperienceRequest) =>
         request<Experience>(

@@ -2,7 +2,7 @@
 
 import { useEffect, useLayoutEffect, useMemo, useRef, useState, type FormEvent } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { ApiError, profileApi } from '@/lib/api';
+import { ApiError, experienceApi, profileApi } from '@/lib/api';
 import { useAuthStore } from '@/store/useAuthStore';
 import { useAdminPreviewStore } from '@/store/useAdminPreviewStore';
 import { AdminPageHeader } from '@/components/admin/common/AdminPageHeader';
@@ -47,6 +47,15 @@ export function ProfileManagement({ workspaceSlug }: { workspaceSlug: string }) 
         queryFn: () => profileApi.getPrivate(workspaceSlug),
         retry: false,
     });
+
+    const { data: careerSummaryData, isLoading: isCareerSummaryLoading } = useQuery({
+        queryKey: ['career-summary', workspaceSlug],
+        queryFn: () => experienceApi.workspaceCareerSummary(workspaceSlug),
+        retry: false,
+    });
+    const careerDurationDisplay = isCareerSummaryLoading
+        ? '계산 중...'
+        : (careerSummaryData?.careerSummary ?? '경력 없음');
 
     const [editedProfileForm, setProfileForm] = useState<typeof emptyProfileForm | null>(null);
     const storedProfileForm = useMemo(
@@ -247,8 +256,8 @@ export function ProfileManagement({ workspaceSlug }: { workspaceSlug: string }) 
                             id="profile-career-duration"
                             type="text"
                             readOnly
-                            value="경력 관리 기능 연결 예정"
-                            title="Workspace별 경력 관리 API 전환 후 자동 계산됩니다."
+                            value={careerDurationDisplay}
+                            title="경력·프로젝트 관리에 등록된 CAREER 항목을 기준으로 자동 계산됩니다."
                             className="w-full cursor-not-allowed rounded-xl border border-slate-200 bg-slate-50 px-4 py-2.5 text-sm font-semibold text-slate-500"
                         />
                     </div>

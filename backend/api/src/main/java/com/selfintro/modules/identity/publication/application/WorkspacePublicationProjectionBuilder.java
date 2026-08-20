@@ -3,6 +3,7 @@ package com.selfintro.modules.identity.publication.application;
 import com.selfintro.bff.application.IntroductionChannel;
 import com.selfintro.bff.presentation.dto.IntroductionResponse;
 import com.selfintro.modules.competency.application.CompetencyService;
+import com.selfintro.modules.experience.application.CareerSummaryCalculator;
 import com.selfintro.modules.experience.application.ExperienceConnectionService;
 import com.selfintro.modules.experience.application.ExperiencePlacementService;
 import com.selfintro.modules.experience.application.ExperienceService;
@@ -28,8 +29,6 @@ import com.selfintro.modules.study.presentation.dto.StudyResponse;
 import com.selfintro.modules.study.presentation.dto.StudyTaxonomyResponse;
 import com.selfintro.modules.taxonomy.domain.entity.TaxonomyNode;
 import com.selfintro.modules.taxonomy.domain.repository.TaxonomyNodeRepository;
-import java.time.YearMonth;
-import java.time.temporal.ChronoUnit;
 import java.util.Comparator;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -66,7 +65,7 @@ public class WorkspacePublicationProjectionBuilder {
                 experience.experiences(),
                 experience.coreProjects(),
                 profile.skills(),
-                calculateCareerSummary(experience.experiences()),
+                CareerSummaryCalculator.calculate(experience.experiences()),
                 profile.competencies());
     }
 
@@ -335,45 +334,5 @@ public class WorkspacePublicationProjectionBuilder {
                         .toList();
         return new PublicExperienceSnapshot(
                 experiences, coreProjects, portfolioCaseStudyService.listPublished(workspaceId));
-    }
-
-    private String calculateCareerSummary(List<ExperienceResponse> experiences) {
-        List<ExperienceResponse> careers =
-                experiences.stream()
-                        .filter(experience -> "CAREER".equals(experience.type()))
-                        .sorted(Comparator.comparing(ExperienceResponse::periodStart))
-                        .toList();
-        long totalMonths = 0;
-        YearMonth mergedStart = null;
-        YearMonth mergedEnd = null;
-        for (ExperienceResponse career : careers) {
-            YearMonth start = YearMonth.from(career.periodStart());
-            YearMonth end =
-                    career.periodEnd() == null
-                            ? YearMonth.now()
-                            : YearMonth.from(career.periodEnd());
-            if (end.isBefore(start)) continue;
-            if (mergedStart == null) {
-                mergedStart = start;
-                mergedEnd = end;
-                continue;
-            }
-            if (!start.isAfter(mergedEnd.plusMonths(1))) {
-                if (end.isAfter(mergedEnd)) mergedEnd = end;
-            } else {
-                totalMonths += Math.max(1, ChronoUnit.MONTHS.between(mergedStart, mergedEnd));
-                mergedStart = start;
-                mergedEnd = end;
-            }
-        }
-        if (mergedStart != null) {
-            totalMonths += Math.max(1, ChronoUnit.MONTHS.between(mergedStart, mergedEnd));
-        }
-        if (totalMonths == 0) return "경력 없음";
-        long years = totalMonths / 12;
-        long months = totalMonths % 12;
-        if (years == 0) return months + "개월";
-        if (months == 0) return years + "년";
-        return years + "년 " + months + "개월";
     }
 }

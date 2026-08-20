@@ -2,7 +2,9 @@ package com.selfintro.modules.experience.presentation;
 
 import com.selfintro.global.web.CurrentWorkspace;
 import com.selfintro.global.web.WorkspaceAccessLevel;
+import com.selfintro.modules.experience.application.CareerSummaryCalculator;
 import com.selfintro.modules.experience.application.ExperienceService;
+import com.selfintro.modules.experience.presentation.dto.CareerSummaryResponse;
 import com.selfintro.modules.experience.presentation.dto.ExperienceRequest;
 import com.selfintro.modules.experience.presentation.dto.ExperienceResponse;
 import jakarta.validation.Valid;
@@ -29,6 +31,13 @@ public class WorkspaceExperienceManagementController {
     public List<ExperienceResponse> list(
             @CurrentWorkspace(WorkspaceAccessLevel.READ) Long workspaceId) {
         return experienceService.listAll(workspaceId);
+    }
+
+    @GetMapping("/career-summary")
+    public CareerSummaryResponse careerSummary(
+            @CurrentWorkspace(WorkspaceAccessLevel.READ) Long workspaceId) {
+        return new CareerSummaryResponse(
+                CareerSummaryCalculator.calculate(experienceService.listAll(workspaceId)));
     }
 
     @PostMapping
