@@ -7,7 +7,6 @@ import com.selfintro.modules.experiencetree.presentation.dto.DecisionStudyLinkRe
 import com.selfintro.modules.experiencetree.presentation.dto.ExperienceTreeResponse;
 import com.selfintro.modules.study.domain.entity.Study;
 import com.selfintro.modules.study.domain.enums.StudySection;
-import com.selfintro.modules.study.domain.enums.StudyStatus;
 import com.selfintro.modules.study.domain.repository.StudyRepository;
 import jakarta.persistence.EntityNotFoundException;
 import java.nio.charset.StandardCharsets;
@@ -153,7 +152,6 @@ public class ExperienceTreeService {
                 .findAllByWorkspaceIdAndSituationIdOrderByDisplayOrderAsc(
                         workspaceId, situation.getId())
                 .stream()
-                .filter(link -> admin || link.getStudy().getStatus() == StudyStatus.PUBLISHED)
                 .map(ExperienceTreeResponse.StudyLink::from)
                 .toList();
     }
@@ -235,16 +233,10 @@ public class ExperienceTreeService {
         int studyCount =
                 workspaceId == null
                         ? 0
-                        : (int)
-                                studyLinkRepository
-                                        .findAllByWorkspaceIdAndSituationIdOrderByDisplayOrderAsc(
-                                                workspaceId, value.getId())
-                                        .stream()
-                                        .filter(
-                                                link ->
-                                                        link.getStudy().getStatus()
-                                                                == StudyStatus.PUBLISHED)
-                                        .count();
+                        : studyLinkRepository
+                                .findAllByWorkspaceIdAndSituationIdOrderByDisplayOrderAsc(
+                                        workspaceId, value.getId())
+                                .size();
         return new ExperienceTreeResponse.SituationSummary(
                 value.getStableKey(),
                 value.getParent() == null ? null : value.getParent().getStableKey(),

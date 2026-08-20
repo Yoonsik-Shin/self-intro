@@ -6,7 +6,7 @@ import { workspaceApi } from '@/lib/api/workspace';
 import { AdminPageHeader } from '@/components/admin/common/AdminPageHeader';
 
 export type WorkspaceHomeDestination =
-    'EXPERIENCE' | 'STUDY' | 'SKILLS' | 'COMPETENCIES' | 'JOB_APPLICATIONS' | 'PUBLICATION';
+    'EXPERIENCE' | 'STUDY' | 'SKILLS' | 'COMPETENCIES' | 'JOB_APPLICATIONS' | 'PUBLIC_COMPOSITION';
 
 type Props = {
     workspaceSlug: string;
@@ -150,7 +150,7 @@ export function WorkspaceHomeDashboard({
                     icon={Radio}
                     loading={summaryQuery.isLoading}
                     error={summaryQuery.isError}
-                    onClick={() => onNavigate('PUBLICATION')}
+                    onClick={() => onNavigate('PUBLIC_COMPOSITION')}
                 />
             </div>
         </section>

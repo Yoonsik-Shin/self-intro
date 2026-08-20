@@ -1,26 +1,38 @@
 'use client';
 
+import { useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import {
+    Braces,
     Eye,
     EyeOff,
     FilePenLine,
     History,
     LoaderCircle,
-    Radio,
+    Pin,
+    PinOff,
     RotateCcw,
     Send,
 } from 'lucide-react';
 import { publicationApi } from '@/lib/api/publication';
-import { AdminPageHeader } from '@/components/admin/common/AdminPageHeader';
+
+const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL ?? '';
 
 type Props = {
     workspaceSlug: string;
     role: 'OWNER' | 'ADMIN' | 'EDITOR' | 'VIEWER';
-    onPreview?: () => void;
+    beforePublish?: () => Promise<void>;
+    onViewRevision?: (revisionNumber: number) => void;
 };
 
-export function WorkspacePublicationPanel({ workspaceSlug, role, onPreview }: Props) {
+export function WorkspacePublicationPanel({
+    workspaceSlug,
+    role,
+    beforePublish,
+    onViewRevision,
+}: Props) {
+    const [now] = useState(() => Date.now());
+    const [noteInput, setNoteInput] = useState('');
     const queryClient = useQueryClient();
     const queryKey = ['workspace-publication', workspaceSlug];
     const historyQueryKey = ['workspace-publication-history', workspaceSlug];
@@ -34,9 +46,13 @@ export function WorkspacePublicationPanel({ workspaceSlug, role, onPreview }: Pr
         queryFn: () => publicationApi.history(workspaceSlug),
     });
     const publishMutation = useMutation({
-        mutationFn: () => publicationApi.publish(workspaceSlug),
+        mutationFn: async () => {
+            await beforePublish?.();
+            return publicationApi.publish(workspaceSlug, noteInput.trim() || undefined);
+        },
         onSuccess: (status) => {
             queryClient.setQueryData(queryKey, status);
+            setNoteInput('');
             void queryClient.invalidateQueries({ queryKey: historyQueryKey });
         },
     });
@@ -52,6 +68,13 @@ export function WorkspacePublicationPanel({ workspaceSlug, role, onPreview }: Pr
             void queryClient.invalidateQueries({ queryKey: historyQueryKey });
         },
     });
+    const pinMutation = useMutation({
+        mutationFn: ({ revisionNumber, pinned }: { revisionNumber: number; pinned: boolean }) =>
+            pinned
+                ? publicationApi.pin(workspaceSlug, revisionNumber)
+                : publicationApi.unpin(workspaceSlug, revisionNumber),
+        onSuccess: () => void queryClient.invalidateQueries({ queryKey: historyQueryKey }),
+    });
     const pending =
         publishMutation.isPending || unpublishMutation.isPending || rollbackMutation.isPending;
     const error =
@@ -62,9 +85,6 @@ export function WorkspacePublicationPanel({ workspaceSlug, role, onPreview }: Pr
         rollbackMutation.error;
     const status = statusQuery.data;
     const published = status?.publicationStatus === 'PUBLISHED';
-    const publishedAt = status?.publishedAt
-        ? new Date(status.publishedAt).toLocaleString('ko-KR')
-        : null;
 
     const rollback = (revisionNumber: number) => {
         if (
@@ -77,283 +97,266 @@ export function WorkspacePublicationPanel({ workspaceSlug, role, onPreview }: Pr
     };
 
     return (
-        <div className="space-y-6">
-            <AdminPageHeader
-                eyebrow="Publication"
-                title={
-                    <span className="flex flex-wrap items-center gap-3">
-                        공개 페이지 버전 발행
-                        {status && (
-                            <span
-                                className={`rounded-full px-3 py-1 text-xs font-black ${
-                                    published
-                                        ? 'bg-emerald-100 text-emerald-700'
-                                        : 'bg-slate-100 text-slate-600'
-                                }`}
-                            >
-                                {published ? '공개 중' : '비공개'}
-                            </span>
-                        )}
-                    </span>
-                }
-                description={
-                    <>
-                        현재 Workspace에서 공개 대상으로 구성한 내용을 하나의 snapshot으로 묶습니다.{' '}
-                        <strong>발행</strong> 전까지 방문자는 이전 버전을 계속 봅니다.
-                    </>
-                }
-                actions={
-                    <>
-                        <button
-                            type="button"
-                            onClick={onPreview}
-                            className="inline-flex items-center gap-2 rounded-xl border border-slate-200 px-4 py-3 text-sm font-black text-slate-700 hover:bg-slate-50"
-                        >
-                            <Eye className="h-4 w-4" /> 공개 초안 미리보기
-                        </button>
-                        {published && (
-                            <a
-                                href={`/workspace/${encodeURIComponent(workspaceSlug)}`}
-                                target="_blank"
-                                rel="noreferrer"
-                                className="inline-flex items-center gap-2 rounded-xl border border-slate-200 px-4 py-3 text-sm font-black text-slate-700 hover:bg-slate-50"
-                            >
-                                <Eye className="h-4 w-4" /> 현재 공개 페이지
-                            </a>
-                        )}
-                        {canPublish && published && (
-                            <button
-                                type="button"
-                                disabled={pending}
-                                onClick={() => unpublishMutation.mutate()}
-                                className="inline-flex items-center gap-2 rounded-xl border border-red-200 px-4 py-3 text-sm font-black text-red-600 hover:bg-red-50 disabled:opacity-50"
-                            >
-                                {pending ? (
-                                    <LoaderCircle className="h-4 w-4 animate-spin" />
-                                ) : (
-                                    <EyeOff className="h-4 w-4" />
-                                )}
-                                공개 중지
-                            </button>
-                        )}
+        <div className="space-y-4">
+            <section className="space-y-3 rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
+                <div className="flex items-center gap-1.5 text-indigo-700">
+                    <FilePenLine className="h-3.5 w-3.5" />
+                    <h3 className="text-sm font-black text-slate-900">발행 준비 중인 초안</h3>
+                </div>
+                <div className="rounded-xl bg-indigo-50 px-4 py-3">
+                    <p className="text-xs leading-5 text-indigo-950">
+                        지금 편집한 프로필·경력·학습 기록은 아직 방문자에게 보이지 않습니다.
+                        미리보기로 확인한 뒤 발행을 눌러야 방문자에게 반영됩니다.
+                    </p>
+                    {canPublish && (
+                        <input
+                            type="text"
+                            value={noteInput}
+                            onChange={(event) => setNoteInput(event.target.value)}
+                            placeholder="발행 메모 (선택) — 예: 프로필 문구 수정, 신규 프로젝트 추가"
+                            maxLength={500}
+                            className="mt-3 w-full rounded-lg border border-indigo-200 bg-white px-3 py-2 text-xs font-semibold text-slate-800 outline-none placeholder:text-slate-400 focus:border-indigo-400 focus:ring-2 focus:ring-indigo-100"
+                        />
+                    )}
+                    <div className="mt-3 flex flex-wrap gap-2">
                         {canPublish && (
                             <button
                                 type="button"
                                 disabled={pending || statusQuery.isLoading}
                                 onClick={() => publishMutation.mutate()}
-                                className="inline-flex items-center gap-2 rounded-xl bg-slate-950 px-4 py-3 text-sm font-black text-white hover:bg-indigo-700 disabled:opacity-50"
+                                className="inline-flex items-center gap-1.5 rounded-lg bg-indigo-600 px-3 py-1.5 text-xs font-black text-white hover:bg-indigo-700 disabled:opacity-50"
                             >
                                 {pending ? (
-                                    <LoaderCircle className="h-4 w-4 animate-spin" />
+                                    <LoaderCircle className="h-3.5 w-3.5 animate-spin" />
                                 ) : (
-                                    <Send className="h-4 w-4" />
+                                    <Send className="h-3.5 w-3.5" />
                                 )}
                                 {status?.hasPublishedRevision ? '새 버전 발행' : '첫 버전 발행'}
                             </button>
                         )}
-                    </>
-                }
-            />
-            <section className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
-                <div className="max-w-2xl">
-                    <div className="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-xs font-semibold leading-6 text-slate-600">
-                        <p>
-                            <strong className="text-slate-950">독립 revision:</strong> 프로필 구성과
-                            경험 구성은 각각 불변 revision으로 저장된 뒤 전체 공개본이 두 revision을
-                            고정합니다.
-                        </p>
-                        <p className="mt-1">
-                            <strong className="text-slate-950">전체 공개본 snapshot:</strong> 학습
-                            기록·탐색 카테고리는 별도 revision 없이 이 버전에 함께 복사됩니다.
-                            포트폴리오는 사례 revision이 준비되고 경험 구성에서 선택된 경우에만
-                            포함됩니다.
-                        </p>
-                    </div>
-                    {error && (
-                        <p className="mt-3 text-sm font-bold text-red-600">
-                            {error instanceof Error
-                                ? error.message
-                                : '발행 상태를 처리하지 못했습니다.'}
-                        </p>
-                    )}
-                </div>
-                <div className="mt-7 grid gap-4 lg:grid-cols-2">
-                    <div
-                        className={`rounded-2xl border p-5 ${
-                            published
-                                ? 'border-emerald-200 bg-emerald-50/70'
-                                : 'border-slate-200 bg-slate-50'
-                        }`}
-                    >
-                        <div className="flex items-start gap-3">
-                            <span
-                                className={`mt-0.5 rounded-xl p-2 ${
-                                    published
-                                        ? 'bg-emerald-600 text-white'
-                                        : 'bg-slate-200 text-slate-600'
-                                }`}
-                            >
-                                <Radio className="h-4 w-4" />
-                            </span>
-                            <div className="min-w-0">
-                                <p className="text-xs font-black uppercase tracking-[0.12em] text-slate-500">
-                                    현재 방문자 공개 상태
-                                </p>
-                                {statusQuery.isLoading ? (
-                                    <p className="mt-2 flex items-center gap-2 text-sm font-bold text-slate-500">
-                                        <LoaderCircle className="h-4 w-4 animate-spin" /> 상태 확인
-                                        중
-                                    </p>
-                                ) : published && status?.revisionNumber ? (
-                                    <>
-                                        <p className="mt-2 text-lg font-black text-emerald-800">
-                                            v{status.revisionNumber} 공개 중
-                                        </p>
-                                        <p className="mt-1 text-xs font-semibold text-emerald-800/80">
-                                            {publishedAt ?? '발행 시각 정보 없음'} · 방문자는 이
-                                            불변 snapshot을 봅니다.
-                                        </p>
-                                    </>
-                                ) : status?.hasPublishedRevision ? (
-                                    <>
-                                        <p className="mt-2 text-lg font-black text-slate-800">
-                                            공개 중지됨
-                                        </p>
-                                        <p className="mt-1 text-xs font-semibold text-slate-600">
-                                            최근 발행본 v{status.revisionNumber}은 보존 중이지만
-                                            방문자 URL에는 노출되지 않습니다.
-                                        </p>
-                                    </>
-                                ) : (
-                                    <>
-                                        <p className="mt-2 text-lg font-black text-slate-800">
-                                            아직 공개된 버전 없음
-                                        </p>
-                                        <p className="mt-1 text-xs font-semibold text-slate-600">
-                                            첫 버전을 발행하기 전까지 방문자 URL에는 콘텐츠가
-                                            노출되지 않습니다.
-                                        </p>
-                                    </>
-                                )}
-                            </div>
-                        </div>
-                    </div>
-                    <div className="rounded-2xl border border-indigo-200 bg-indigo-50/60 p-5">
-                        <div className="flex items-start gap-3">
-                            <span className="mt-0.5 rounded-xl bg-indigo-600 p-2 text-white">
-                                <FilePenLine className="h-4 w-4" />
-                            </span>
-                            <div className="min-w-0">
-                                <p className="text-xs font-black uppercase tracking-[0.12em] text-indigo-700">
-                                    관리 중인 공개 초안
-                                </p>
-                                <p className="mt-2 text-lg font-black text-slate-900">
-                                    저장 내용은 아직 방문자에게 반영되지 않음
-                                </p>
-                                <p className="mt-1 text-xs font-semibold leading-5 text-slate-600">
-                                    초안 미리보기로 구성을 확인한 뒤 새 버전을 발행하세요. 발행하기
-                                    전까지 방문자는{' '}
-                                    {published && status?.revisionNumber
-                                        ? `현재 공개본 v${status.revisionNumber}`
-                                        : '공개 페이지 없음 상태'}
-                                    을 계속 봅니다.
-                                </p>
-                            </div>
-                        </div>
                     </div>
                 </div>
+                {error && (
+                    <p className="text-xs font-bold text-red-600">
+                        {error instanceof Error
+                            ? error.message
+                            : '발행 상태를 처리하지 못했습니다.'}
+                    </p>
+                )}
                 {!canPublish && (
-                    <p className="mt-5 rounded-2xl bg-amber-50 px-4 py-3 text-sm font-semibold text-amber-800">
+                    <p className="rounded-lg bg-amber-50 px-3 py-2 text-xs font-semibold text-amber-800">
                         발행과 공개 중지는 Workspace OWNER 또는 ADMIN만 할 수 있습니다.
                     </p>
                 )}
             </section>
-            <section className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
-                <div className="flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
-                    <div>
-                        <div className="flex items-center gap-2 text-slate-950">
-                            <History className="h-5 w-5" />
-                            <h3 className="text-lg font-black">발행 이력</h3>
-                        </div>
-                        {historyQuery.data && (
-                            <p className="mt-2 text-xs font-semibold text-slate-500">
-                                최근 {historyQuery.data.maximumRetainedRevisions}개는 항상 보존하며,
-                                그 이전 revision도 최소 {historyQuery.data.minimumRetentionDays}일간
-                                보존합니다.
-                            </p>
-                        )}
-                    </div>
+            <section className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
+                <div className="flex items-center gap-1.5 text-slate-500">
+                    <History className="h-3.5 w-3.5" />
+                    <h3 className="text-sm font-black text-slate-900">발행 이력</h3>
                 </div>
+                {historyQuery.data && (
+                    <p className="mt-1 text-[11px] font-semibold text-slate-500">
+                        최근 {historyQuery.data.maximumRetainedRevisions}개는 항상 보존하며, 그 이전
+                        revision도 최소 {historyQuery.data.minimumRetentionDays}일간 보존합니다.
+                    </p>
+                )}
                 {historyQuery.isLoading ? (
-                    <div className="mt-5 flex items-center gap-2 text-sm font-semibold text-slate-500">
-                        <LoaderCircle className="h-4 w-4 animate-spin" /> 발행 이력을 불러오는
+                    <div className="mt-4 flex items-center gap-2 text-xs font-semibold text-slate-500">
+                        <LoaderCircle className="h-3.5 w-3.5 animate-spin" /> 발행 이력을 불러오는
                         중입니다.
                     </div>
                 ) : historyQuery.data?.revisions.length ? (
-                    <div className="mt-5 divide-y divide-slate-100 rounded-2xl border border-slate-200">
-                        {historyQuery.data.revisions.map((revision) => (
-                            <div
-                                key={revision.revisionNumber}
-                                className="flex flex-col gap-3 px-4 py-4 sm:flex-row sm:items-center sm:justify-between"
-                            >
-                                <div>
-                                    <div className="flex flex-wrap items-center gap-2">
-                                        <strong className="text-sm text-slate-950">
-                                            v{revision.revisionNumber}
-                                        </strong>
-                                        <span className="rounded-full bg-slate-100 px-2 py-1 text-[11px] font-black text-slate-600">
-                                            {revision.operationType === 'ROLLBACK'
-                                                ? `v${revision.sourceRevisionNumber}에서 복원`
-                                                : '직접 발행'}
-                                        </span>
-                                        {revision.currentRevision && (
-                                            <span
-                                                className={`rounded-full px-2 py-1 text-[11px] font-black ${
-                                                    published
-                                                        ? 'bg-emerald-100 text-emerald-700'
-                                                        : 'bg-slate-200 text-slate-700'
-                                                }`}
-                                            >
-                                                {published ? '현재 공개본' : '최근 발행본'}
-                                            </span>
-                                        )}
-                                    </div>
-                                    <p className="mt-1 text-xs font-semibold text-slate-500">
-                                        {new Date(revision.publishedAt).toLocaleString('ko-KR')} ·
-                                        schema v{revision.schemaVersion}
-                                    </p>
-                                    {revision.schemaVersion >= 3 && (
-                                        <p className="mt-1 text-[11px] font-semibold text-slate-500">
-                                            프로필 revision #{revision.profileRevisionId ?? '-'} ·
-                                            경험 revision #{revision.experienceRevisionId ?? '-'} ·
-                                            구성 v{revision.draftConfigVersion ?? '-'}
-                                        </p>
-                                    )}
-                                    {revision.currentRevision && (
-                                        <p className="mt-2 text-[11px] font-bold text-slate-600">
-                                            {published
-                                                ? '현재 방문자 URL이 이 snapshot을 제공하고 있습니다.'
-                                                : '공개 중지 상태이므로 이 snapshot은 보존만 되고 노출되지 않습니다.'}
-                                        </p>
-                                    )}
-                                </div>
-                                {canPublish && revision.rollbackAvailable && (
-                                    <button
-                                        type="button"
-                                        disabled={pending}
-                                        onClick={() => rollback(revision.revisionNumber)}
-                                        className="inline-flex items-center justify-center gap-2 rounded-xl border border-indigo-200 px-3 py-2 text-xs font-black text-indigo-700 hover:bg-indigo-50 disabled:opacity-50"
+                    <div className="mt-3 divide-y divide-slate-200 border-t border-slate-200">
+                        {(() => {
+                            const { maximumRetainedRevisions, minimumRetentionDays } =
+                                historyQuery.data;
+                            return historyQuery.data.revisions.map((revision, index) => {
+                                const retainedByCount = index < maximumRetainedRevisions;
+                                const cutoffTime =
+                                    new Date(revision.publishedAt).getTime() +
+                                    minimumRetentionDays * 24 * 60 * 60 * 1000;
+                                const daysRemaining = Math.ceil(
+                                    (cutoffTime - now) / (24 * 60 * 60 * 1000)
+                                );
+                                const retentionLabel =
+                                    daysRemaining > 0
+                                        ? `보관 만료까지 ${daysRemaining}일 남음`
+                                        : '보관 기간이 지나 다음 발행 시 삭제될 수 있음';
+                                return (
+                                    <div
+                                        key={revision.revisionNumber}
+                                        className={`flex flex-col gap-2.5 px-3 py-3 ${
+                                            published && revision.currentRevision
+                                                ? 'bg-emerald-50'
+                                                : revision.pinned
+                                                  ? 'bg-amber-50'
+                                                  : ''
+                                        }`}
                                     >
-                                        {rollbackMutation.isPending ? (
-                                            <LoaderCircle className="h-4 w-4 animate-spin" />
-                                        ) : (
-                                            <RotateCcw className="h-4 w-4" />
-                                        )}
-                                        이 버전으로 복원
-                                    </button>
-                                )}
-                            </div>
-                        ))}
+                                        <div className="min-w-0">
+                                            <div className="flex flex-wrap items-center gap-2">
+                                                <strong className="text-xs text-slate-950">
+                                                    v{revision.revisionNumber}
+                                                </strong>
+                                                {revision.operationType === 'ROLLBACK' && (
+                                                    <span className="rounded-full bg-slate-100 px-2 py-1 text-[11px] font-black text-slate-600">
+                                                        v{revision.sourceRevisionNumber}에서 복원
+                                                    </span>
+                                                )}
+                                                {revision.currentRevision && (
+                                                    <span
+                                                        className={`rounded-full px-2 py-1 text-[11px] font-black ${
+                                                            published
+                                                                ? 'bg-emerald-100 text-emerald-700'
+                                                                : 'bg-slate-200 text-slate-700'
+                                                        }`}
+                                                    >
+                                                        {published ? '현재 공개본' : '최근 발행본'}
+                                                    </span>
+                                                )}
+                                                {revision.pinned && (
+                                                    <span className="inline-flex items-center gap-1 rounded-full bg-amber-100 px-2 py-1 text-[11px] font-black text-amber-700">
+                                                        <Pin className="h-3 w-3" /> 고정
+                                                    </span>
+                                                )}
+                                            </div>
+                                            <p className="mt-1 text-xs font-semibold text-slate-500">
+                                                {new Date(revision.publishedAt).toLocaleString(
+                                                    'ko-KR'
+                                                )}
+                                                {!revision.pinned && !retainedByCount && (
+                                                    <span
+                                                        className={
+                                                            daysRemaining > 0
+                                                                ? 'text-amber-600'
+                                                                : 'text-red-600'
+                                                        }
+                                                    >
+                                                        {' '}
+                                                        · {retentionLabel}
+                                                    </span>
+                                                )}
+                                                {revision.pinned && (
+                                                    <span className="text-amber-700">
+                                                        {' '}
+                                                        · 고정됨 — 보관 정책과 무관하게 삭제되지
+                                                        않음
+                                                    </span>
+                                                )}
+                                            </p>
+                                            {revision.note && (
+                                                <p className="mt-1 truncate text-xs font-semibold text-slate-700">
+                                                    “{revision.note}”
+                                                </p>
+                                            )}
+                                            {!published && revision.currentRevision && (
+                                                <p className="mt-1 text-[11px] font-bold text-slate-600">
+                                                    공개 중지 상태이므로 이 snapshot은 보존만 되고
+                                                    노출되지 않습니다.
+                                                </p>
+                                            )}
+                                        </div>
+                                        <div className="flex flex-wrap gap-1.5">
+                                            {published && revision.currentRevision ? (
+                                                <a
+                                                    href={`/workspace/${encodeURIComponent(workspaceSlug)}`}
+                                                    target="_blank"
+                                                    rel="noreferrer"
+                                                    className="inline-flex items-center justify-center gap-1.5 rounded-lg border border-emerald-200 bg-white px-2.5 py-1.5 text-[11px] font-black text-emerald-700 hover:bg-emerald-50"
+                                                >
+                                                    <Eye className="h-3.5 w-3.5" /> 현재 공개 페이지
+                                                </a>
+                                            ) : (
+                                                <button
+                                                    type="button"
+                                                    onClick={() =>
+                                                        onViewRevision?.(revision.revisionNumber)
+                                                    }
+                                                    className="inline-flex items-center justify-center gap-1.5 rounded-lg border border-slate-200 px-2.5 py-1.5 text-[11px] font-black text-slate-700 hover:bg-slate-50"
+                                                >
+                                                    <Eye className="h-3.5 w-3.5" /> 이 버전 보기
+                                                </button>
+                                            )}
+                                            <a
+                                                href={`${API_BASE_URL}/api/workspaces/${encodeURIComponent(workspaceSlug)}/publication/manage/revisions/${revision.revisionNumber}/preview`}
+                                                target="_blank"
+                                                rel="noreferrer"
+                                                title="원본 데이터(JSON) 보기 — 화면 렌더링 없이 확인합니다."
+                                                aria-label="원본 데이터 보기"
+                                                className="inline-flex items-center justify-center rounded-lg border border-slate-200 p-1.5 text-slate-500 hover:bg-slate-50 hover:text-slate-700"
+                                            >
+                                                <Braces className="h-3.5 w-3.5" />
+                                            </a>
+                                            {canPublish && (
+                                                <button
+                                                    type="button"
+                                                    disabled={pinMutation.isPending}
+                                                    title={
+                                                        revision.pinned
+                                                            ? '고정 해제'
+                                                            : '고정 — 자동 삭제 대상에서 제외'
+                                                    }
+                                                    aria-label={
+                                                        revision.pinned ? '고정 해제' : '고정'
+                                                    }
+                                                    onClick={() =>
+                                                        pinMutation.mutate({
+                                                            revisionNumber: revision.revisionNumber,
+                                                            pinned: !revision.pinned,
+                                                        })
+                                                    }
+                                                    className={`inline-flex items-center justify-center rounded-lg border p-1.5 disabled:opacity-50 ${
+                                                        revision.pinned
+                                                            ? 'border-amber-300 text-amber-700 hover:bg-amber-50'
+                                                            : 'border-slate-200 text-slate-500 hover:bg-slate-50 hover:text-slate-700'
+                                                    }`}
+                                                >
+                                                    {revision.pinned ? (
+                                                        <PinOff className="h-3.5 w-3.5" />
+                                                    ) : (
+                                                        <Pin className="h-3.5 w-3.5" />
+                                                    )}
+                                                </button>
+                                            )}
+                                            {canPublish && revision.rollbackAvailable && (
+                                                <button
+                                                    type="button"
+                                                    disabled={pending}
+                                                    onClick={() =>
+                                                        rollback(revision.revisionNumber)
+                                                    }
+                                                    className="inline-flex items-center justify-center gap-1.5 rounded-lg border border-indigo-200 px-2.5 py-1.5 text-[11px] font-black text-indigo-700 hover:bg-indigo-50 disabled:opacity-50"
+                                                >
+                                                    {rollbackMutation.isPending ? (
+                                                        <LoaderCircle className="h-3.5 w-3.5 animate-spin" />
+                                                    ) : (
+                                                        <RotateCcw className="h-3.5 w-3.5" />
+                                                    )}
+                                                    이 버전으로 복원
+                                                </button>
+                                            )}
+                                            {canPublish &&
+                                                published &&
+                                                revision.currentRevision && (
+                                                    <button
+                                                        type="button"
+                                                        disabled={pending}
+                                                        onClick={() => unpublishMutation.mutate()}
+                                                        className="inline-flex items-center justify-center gap-1.5 rounded-lg border border-red-200 px-2.5 py-1.5 text-[11px] font-black text-red-600 hover:bg-red-50 disabled:opacity-50"
+                                                    >
+                                                        {unpublishMutation.isPending ? (
+                                                            <LoaderCircle className="h-3.5 w-3.5 animate-spin" />
+                                                        ) : (
+                                                            <EyeOff className="h-3.5 w-3.5" />
+                                                        )}
+                                                        공개 중지
+                                                    </button>
+                                                )}
+                                        </div>
+                                    </div>
+                                );
+                            });
+                        })()}
                     </div>
                 ) : (
                     <p className="mt-5 rounded-2xl bg-slate-50 px-4 py-4 text-sm font-semibold text-slate-500">

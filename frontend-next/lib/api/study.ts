@@ -4,7 +4,6 @@ import type {
     StudyPage,
     StudyTaxonomyNode,
     Tag,
-    StudyStatus,
     StudySection,
     StudyRequest,
     StudySuggestionRequest,
@@ -70,7 +69,6 @@ export const studyApi = {
         params: {
             q?: string;
             taxonomyNodeId?: number;
-            status?: StudyStatus;
             skillIds?: number[];
             experienceIds?: number[];
             experienceDetailIds?: number[];
@@ -98,21 +96,6 @@ export const studyApi = {
         request<void>(`/api/workspaces/${encodeURIComponent(workspaceSlug)}/studies/manage/${id}`, {
             method: 'DELETE',
         }),
-    workspaceBatchPublish: (workspaceSlug: string, ids: number[]) =>
-        request<Study[]>(
-            `/api/workspaces/${encodeURIComponent(workspaceSlug)}/studies/manage/batch-publish`,
-            { method: 'POST', body: JSON.stringify(ids) }
-        ),
-    workspaceBatchUnpublish: (workspaceSlug: string, ids: number[]) =>
-        request<Study[]>(
-            `/api/workspaces/${encodeURIComponent(workspaceSlug)}/studies/manage/batch-unpublish`,
-            { method: 'POST', body: JSON.stringify(ids) }
-        ),
-    workspaceToggleStatus: (workspaceSlug: string, id: number) =>
-        request<Study>(
-            `/api/workspaces/${encodeURIComponent(workspaceSlug)}/studies/manage/${id}/toggle-status`,
-            { method: 'POST' }
-        ),
     publicTaxonomy: () => request<StudyTaxonomyNode[]>('/api/study-taxonomy'),
     tags: () => request<Tag[]>('/api/tags'),
     workspaceSuggest: (workspaceSlug: string, payload: StudySuggestionRequest) =>
@@ -137,7 +120,6 @@ export const studyApi = {
 function studyAdminSearchParams(params: {
     q?: string;
     taxonomyNodeId?: number;
-    status?: StudyStatus;
     skillIds?: number[];
     experienceIds?: number[];
     experienceDetailIds?: number[];
@@ -145,7 +127,6 @@ function studyAdminSearchParams(params: {
 }) {
     const search = studySearchParams(params);
     search.set('size', '100');
-    if (params.status) search.set('status', params.status);
     return search;
 }
 

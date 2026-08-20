@@ -1,22 +1,48 @@
 'use client';
 
-import { useState, type ReactNode } from 'react';
+import { useEffect, useRef, useState, type ReactNode } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { Check, Eye, EyeOff, Save, Search, X } from 'lucide-react';
 import {
+    Check,
+    ChevronDown,
+    ChevronLeft,
+    ChevronRight,
+    Eye,
+    EyeOff,
+    GripVertical,
+    History,
+    Plus,
+    Save,
+    Search,
+    SlidersHorizontal,
+    X,
+} from 'lucide-react';
+import {
+    publicationApi,
     publicPageApi,
     taxonomySchemeApi,
+    type IntroductionResponse,
     type PublicExperienceDraft,
+    type PublicExperiencePreview,
     type PublicProfileDraft,
+    type PublicProfileItemSelection,
     type PublicStudyDraft,
+    type PublicStudyPreview,
     type TaxonomyScheme,
 } from '@/lib/api';
 import { AdminPageHeader } from '@/components/admin/common/AdminPageHeader';
+import { SkillBadgeIcon } from '@/lib/SkillBadgeIcon';
+import { WorkspacePublicationPanel } from './WorkspacePublicationPanel';
 
-type Section = 'profile' | 'experience' | 'study';
+export type PublicCompositionSection = 'profile' | 'experience' | 'study';
 type PublicDraft = PublicProfileDraft | PublicExperienceDraft | PublicStudyDraft;
 
-const SECTION_COPY: Record<Section, { eyebrow: string; title: string; description: string }> = {
+const SECTION_ORDER: PublicCompositionSection[] = ['profile', 'experience', 'study'];
+
+const SECTION_COPY: Record<
+    PublicCompositionSection,
+    { eyebrow: string; title: string; description: string }
+> = {
     profile: {
         eyebrow: 'PUBLIC PROFILE DRAFT',
         title: '프로필 구성',
@@ -35,14 +61,398 @@ const SECTION_COPY: Record<Section, { eyebrow: string; title: string; descriptio
     },
 };
 
+type PreviewTarget = { kind: 'live' } | { kind: 'revision'; revisionNumber: number };
+type DragSide = 'left' | 'right' | null;
+
+const MIN_LEFT_WIDTH = 320;
+const MAX_LEFT_WIDTH = 720;
+const MIN_RIGHT_WIDTH = 320;
+const MAX_RIGHT_WIDTH = 560;
+
 export function PublicPageCompositionManagement({
     workspaceSlug,
+    role,
     section,
-    onPreview,
+    onSectionChange,
 }: {
     workspaceSlug: string;
-    section: Section;
-    onPreview?: () => void;
+    role: 'OWNER' | 'ADMIN' | 'EDITOR' | 'VIEWER';
+    section: PublicCompositionSection;
+    onSectionChange: (section: PublicCompositionSection) => void;
+}) {
+    const [previewTarget, setPreviewTarget] = useState<PreviewTarget>({ kind: 'live' });
+    const [liveDraft, setLiveDraft] = useState<PublicDraft | null>(null);
+    const [leftWidth, setLeftWidth] = useState(MIN_LEFT_WIDTH);
+    const [rightWidth, setRightWidth] = useState(MIN_RIGHT_WIDTH);
+    const [dragSide, setDragSide] = useState<DragSide>(null);
+    const [isLeftCollapsed, setIsLeftCollapsed] = useState(false);
+    const [isRightCollapsed, setIsRightCollapsed] = useState(false);
+    const containerRef = useRef<HTMLDivElement>(null);
+    const queryClient = useQueryClient();
+
+    useEffect(() => {
+        if (!dragSide) return;
+        const previousUserSelect = document.body.style.userSelect;
+        document.body.style.userSelect = 'none';
+        const handleMove = (event: MouseEvent) => {
+            event.preventDefault();
+            const container = containerRef.current;
+            if (!container) return;
+            const rect = container.getBoundingClientRect();
+            if (dragSide === 'left') {
+                setLeftWidth(
+                    Math.min(MAX_LEFT_WIDTH, Math.max(MIN_LEFT_WIDTH, event.clientX - rect.left))
+                );
+            } else {
+                setRightWidth(
+                    Math.min(MAX_RIGHT_WIDTH, Math.max(MIN_RIGHT_WIDTH, rect.right - event.clientX))
+                );
+            }
+        };
+        const handleUp = () => setDragSide(null);
+        window.addEventListener('mousemove', handleMove);
+        window.addEventListener('mouseup', handleUp);
+        return () => {
+            document.body.style.userSelect = previousUserSelect;
+            window.removeEventListener('mousemove', handleMove);
+            window.removeEventListener('mouseup', handleUp);
+        };
+    }, [dragSide]);
+
+    const saveCurrentDraft = async () => {
+        if (!liveDraft) return;
+        if (section === 'profile') {
+            await publicPageApi.updateProfile(workspaceSlug, liveDraft as PublicProfileDraft);
+        } else if (section === 'experience') {
+            await publicPageApi.updateExperience(workspaceSlug, liveDraft as PublicExperienceDraft);
+        } else {
+            await publicPageApi.updateStudy(workspaceSlug, liveDraft as PublicStudyDraft);
+        }
+        void queryClient.invalidateQueries({
+            queryKey: ['workspace', workspaceSlug, 'public-page-draft', section],
+        });
+    };
+
+    return (
+        <div className="flex h-full min-h-0 flex-col gap-6 overflow-y-auto xl:overflow-hidden">
+            <div className="shrink-0">
+                <AdminPageHeader
+                    eyebrow="PUBLIC PAGE"
+                    title="공개 페이지 구성·발행"
+                    description="왼쪽에서 공개할 항목을 선택하면 가운데 미리보기에 바로 반영됩니다. 오른쪽에서 발행 이력을 확인하고 새 버전을 발행합니다."
+                />
+            </div>
+            <div
+                ref={containerRef}
+                className="flex min-h-0 flex-1 flex-col items-stretch gap-6 xl:flex-row xl:gap-2"
+            >
+                {isLeftCollapsed ? (
+                    <CollapsedRail
+                        label="구성"
+                        icon={<SlidersHorizontal size={16} />}
+                        expandIcon={<ChevronRight size={14} />}
+                        onExpand={() => setIsLeftCollapsed(false)}
+                    />
+                ) : (
+                    <>
+                        <div
+                            style={{ width: leftWidth }}
+                            className="flex min-w-0 shrink-0 flex-col gap-4 xl:h-full xl:min-h-0 xl:max-w-full xl:overflow-y-auto xl:overscroll-contain"
+                        >
+                            <div className="sticky top-0 z-10 flex shrink-0 items-center gap-1 rounded-2xl border border-slate-200 bg-white p-1 shadow-sm">
+                                <div className="flex min-w-0 flex-1 items-center gap-1 overflow-x-auto">
+                                    {SECTION_ORDER.map((value) => (
+                                        <button
+                                            key={value}
+                                            type="button"
+                                            onClick={() => onSectionChange(value)}
+                                            className={`shrink-0 rounded-xl px-4 py-2 text-sm font-black transition ${
+                                                section === value
+                                                    ? 'bg-slate-950 text-white'
+                                                    : 'text-slate-600 hover:bg-slate-100'
+                                            }`}
+                                        >
+                                            {SECTION_COPY[value].title}
+                                        </button>
+                                    ))}
+                                </div>
+                                <div className="h-6 w-px shrink-0 bg-slate-200" />
+                                <button
+                                    type="button"
+                                    onClick={() => setIsLeftCollapsed(true)}
+                                    aria-label="구성 패널 접기"
+                                    title="구성 패널 접기"
+                                    className="shrink-0 rounded-xl p-2 text-slate-400 transition hover:bg-slate-100 hover:text-indigo-600"
+                                >
+                                    <ChevronLeft size={16} />
+                                </button>
+                            </div>
+                            <div className="min-h-0 flex-1">
+                                <CompositionSectionEditor
+                                    key={section}
+                                    workspaceSlug={workspaceSlug}
+                                    section={section}
+                                    onDraftChange={setLiveDraft}
+                                />
+                            </div>
+                        </div>
+                        <ResizeHandle
+                            active={dragSide === 'left'}
+                            onMouseDown={(event) => {
+                                event.preventDefault();
+                                setDragSide('left');
+                            }}
+                        />
+                    </>
+                )}
+
+                <CompositionPreviewPane
+                    workspaceSlug={workspaceSlug}
+                    section={section}
+                    target={previewTarget}
+                    draft={liveDraft}
+                    onReturnToLive={() => setPreviewTarget({ kind: 'live' })}
+                />
+
+                {isRightCollapsed ? (
+                    <CollapsedRail
+                        label="발행·이력"
+                        icon={<History size={16} />}
+                        expandIcon={<ChevronLeft size={14} />}
+                        onExpand={() => setIsRightCollapsed(false)}
+                    />
+                ) : (
+                    <>
+                        <ResizeHandle
+                            active={dragSide === 'right'}
+                            onMouseDown={(event) => {
+                                event.preventDefault();
+                                setDragSide('right');
+                            }}
+                        />
+                        <div
+                            style={{ width: rightWidth }}
+                            className="flex min-w-0 shrink-0 flex-col gap-2 xl:h-full xl:min-h-0 xl:max-w-full xl:overflow-y-auto xl:overscroll-contain"
+                        >
+                            <div className="sticky top-0 z-10 flex shrink-0 items-center justify-between gap-1 rounded-2xl border border-slate-200 bg-white p-1 shadow-sm">
+                                <span className="flex items-center gap-1.5 px-3 py-1.5 text-sm font-black text-slate-700">
+                                    <History size={15} /> 발행·이력
+                                </span>
+                                <button
+                                    type="button"
+                                    onClick={() => setIsRightCollapsed(true)}
+                                    aria-label="발행 이력 패널 접기"
+                                    title="발행 이력 패널 접기"
+                                    className="shrink-0 rounded-xl p-2 text-slate-400 transition hover:bg-slate-100 hover:text-indigo-600"
+                                >
+                                    <ChevronRight size={16} />
+                                </button>
+                            </div>
+                            <div className="min-h-0 flex-1">
+                                <WorkspacePublicationPanel
+                                    workspaceSlug={workspaceSlug}
+                                    role={role}
+                                    beforePublish={saveCurrentDraft}
+                                    onViewRevision={(revisionNumber) =>
+                                        setPreviewTarget({ kind: 'revision', revisionNumber })
+                                    }
+                                />
+                            </div>
+                        </div>
+                    </>
+                )}
+            </div>
+        </div>
+    );
+}
+
+function ResizeHandle({
+    active,
+    onMouseDown,
+}: {
+    active: boolean;
+    onMouseDown: (event: React.MouseEvent) => void;
+}) {
+    return (
+        <div
+            role="separator"
+            aria-orientation="vertical"
+            onMouseDown={onMouseDown}
+            className={`group relative hidden w-8 shrink-0 cursor-col-resize items-center justify-center self-stretch xl:flex ${
+                active ? 'select-none' : ''
+            }`}
+        >
+            <div
+                className={`h-full w-1 rounded-full transition-colors ${
+                    active ? 'bg-indigo-500' : 'bg-slate-300 group-hover:bg-indigo-400'
+                }`}
+            />
+            <GripVertical
+                className={`absolute h-6 w-4 rounded border bg-white transition-colors ${
+                    active
+                        ? 'border-indigo-400 text-indigo-500'
+                        : 'border-slate-300 text-slate-400 group-hover:border-indigo-400 group-hover:text-indigo-500'
+                }`}
+            />
+        </div>
+    );
+}
+
+function CollapsedRail({
+    label,
+    icon,
+    expandIcon,
+    onExpand,
+}: {
+    label: string;
+    icon: ReactNode;
+    expandIcon: ReactNode;
+    onExpand: () => void;
+}) {
+    return (
+        <button
+            type="button"
+            onClick={onExpand}
+            title={`${label} 펼치기`}
+            className="group flex shrink-0 items-center justify-center gap-3 rounded-2xl border border-slate-200 bg-white px-4 py-3 text-slate-400 transition hover:border-indigo-300 hover:bg-indigo-50 hover:text-indigo-600 xl:w-10 xl:flex-col xl:gap-4 xl:self-stretch xl:py-4"
+        >
+            {icon}
+            <span className="h-px w-4 bg-slate-200 transition-colors group-hover:bg-indigo-300 xl:h-4 xl:w-px" />
+            {expandIcon}
+        </button>
+    );
+}
+
+function CompositionPreviewPane({
+    workspaceSlug,
+    section,
+    target,
+    draft,
+    onReturnToLive,
+}: {
+    workspaceSlug: string;
+    section: PublicCompositionSection;
+    target: PreviewTarget;
+    draft: PublicDraft | null;
+    onReturnToLive: () => void;
+}) {
+    const isLive = target.kind === 'live';
+    const iframeRef = useRef<HTMLIFrameElement>(null);
+    const [iframeReady, setIframeReady] = useState(false);
+
+    const [debouncedDraft, setDebouncedDraft] = useState(draft);
+    useEffect(() => {
+        if (!isLive) return;
+        const timer = setTimeout(() => setDebouncedDraft(draft), 500);
+        return () => clearTimeout(timer);
+    }, [draft, isLive]);
+
+    const previewQuery = useQuery<
+        IntroductionResponse | PublicExperiencePreview | PublicStudyPreview
+    >({
+        queryKey: isLive
+            ? ['workspace', workspaceSlug, 'composition-live-preview', section, debouncedDraft]
+            : [
+                  'workspace',
+                  workspaceSlug,
+                  'composition-revision-preview',
+                  section,
+                  target.kind === 'revision' ? target.revisionNumber : null,
+              ],
+        queryFn: () => {
+            if (target.kind === 'revision') {
+                if (section === 'study') {
+                    return publicationApi.previewRevisionStudy(
+                        workspaceSlug,
+                        target.revisionNumber
+                    );
+                }
+                return publicationApi.previewRevision(workspaceSlug, target.revisionNumber);
+            }
+            if (section === 'profile') {
+                return publicPageApi.previewIntroductionLive(workspaceSlug, {
+                    profile: debouncedDraft as PublicProfileDraft,
+                });
+            }
+            if (section === 'experience') {
+                return publicPageApi.previewExperienceLive(workspaceSlug, {
+                    experience: debouncedDraft as PublicExperienceDraft,
+                });
+            }
+            return publicPageApi.previewStudyLive(workspaceSlug, {
+                study: debouncedDraft as PublicStudyDraft,
+            });
+        },
+        enabled: target.kind === 'revision' || debouncedDraft !== null,
+    });
+
+    useEffect(() => {
+        const handleMessage = (event: MessageEvent) => {
+            if (event.origin !== window.location.origin) return;
+            const data = event.data as { type?: string; height?: number } | null;
+            if (data?.type === 'live-preview-ready') {
+                setIframeReady(true);
+            }
+        };
+        window.addEventListener('message', handleMessage);
+        return () => window.removeEventListener('message', handleMessage);
+    }, []);
+
+    const bannerMessage = isLive
+        ? '실시간 미리보기 · 방문자에게 공개되지 않습니다.'
+        : `v${target.kind === 'revision' ? target.revisionNumber : ''} 미리보기 · 방문자에게 공개되지 않습니다.`;
+
+    useEffect(() => {
+        if (!iframeReady || !previewQuery.data) return;
+        iframeRef.current?.contentWindow?.postMessage(
+            {
+                type: 'live-preview-data',
+                section,
+                workspaceSlug,
+                message: bannerMessage,
+                data: previewQuery.data,
+            },
+            window.location.origin
+        );
+    }, [iframeReady, previewQuery.data, section, workspaceSlug, bannerMessage]);
+
+    return (
+        <div className="flex min-w-0 flex-1 flex-col gap-3 xl:h-full xl:min-h-0 xl:overflow-hidden">
+            {!isLive && (
+                <div className="sticky top-0 z-10 flex shrink-0 flex-wrap items-center justify-between gap-3 rounded-2xl border border-indigo-200 bg-indigo-50 px-4 py-3">
+                    <span className="flex items-center gap-2 text-sm font-black text-indigo-900">
+                        <Eye size={16} /> v{target.kind === 'revision' ? target.revisionNumber : ''}{' '}
+                        미리보기 · {SECTION_COPY[section].title}
+                    </span>
+                    <button
+                        type="button"
+                        onClick={onReturnToLive}
+                        className="inline-flex items-center gap-1.5 rounded-xl border border-indigo-200 bg-white px-3 py-1.5 text-xs font-black text-indigo-700 hover:bg-indigo-100"
+                    >
+                        <X size={14} /> 실시간 미리보기로 돌아가기
+                    </button>
+                </div>
+            )}
+            <div className="min-h-0 flex-1 overflow-hidden overscroll-contain">
+                <iframe
+                    ref={iframeRef}
+                    src={`/workspace/${encodeURIComponent(workspaceSlug)}/preview/live`}
+                    title="실시간 미리보기"
+                    className="h-full min-h-[400px] w-full border-0"
+                />
+            </div>
+        </div>
+    );
+}
+
+function CompositionSectionEditor({
+    workspaceSlug,
+    section,
+    onDraftChange,
+}: {
+    workspaceSlug: string;
+    section: PublicCompositionSection;
+    onDraftChange?: (draft: PublicDraft | null) => void;
 }) {
     const queryClient = useQueryClient();
     const queryKey = ['workspace', workspaceSlug, 'public-page-draft', section];
@@ -55,13 +465,13 @@ export function PublicPageCompositionManagement({
         },
     });
     const [localDraft, setLocalDraft] = useState<PublicDraft | null>(null);
-    const [searchQueries, setSearchQueries] = useState<Record<Section, string>>({
-        profile: '',
-        experience: '',
-        study: '',
-    });
-    const searchQuery = searchQueries[section];
+    const [searchQuery, setSearchQuery] = useState('');
     const draft = localDraft ?? query.data ?? null;
+
+    useEffect(() => {
+        onDraftChange?.(draft);
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [draft]);
 
     const mutation = useMutation({
         mutationFn: async () => {
@@ -84,11 +494,6 @@ export function PublicPageCompositionManagement({
     });
 
     const copy = SECTION_COPY[section];
-    const saveAndPreview = () => {
-        mutation.mutate(undefined, {
-            onSuccess: () => onPreview?.(),
-        });
-    };
     if (query.isError) {
         return (
             <div className="rounded-3xl border border-red-200 bg-red-50 p-8 text-red-700">
@@ -105,45 +510,27 @@ export function PublicPageCompositionManagement({
     }
 
     return (
-        <div className="space-y-6">
-            <AdminPageHeader
-                eyebrow={copy.eyebrow}
-                title={copy.title}
-                description={copy.description}
-                actions={
-                    <>
-                        <button
-                            type="button"
-                            disabled={mutation.isPending}
-                            onClick={saveAndPreview}
-                            className="inline-flex items-center gap-2 rounded-2xl border border-slate-300 bg-white px-5 py-3 text-sm font-black text-slate-800 disabled:opacity-50"
-                        >
-                            <Eye size={17} /> 저장 후 미리보기
-                        </button>
-                        <button
-                            type="button"
-                            disabled={mutation.isPending}
-                            onClick={() => mutation.mutate()}
-                            className="inline-flex items-center gap-2 rounded-2xl bg-slate-950 px-5 py-3 text-sm font-black text-white shadow-lg disabled:opacity-50"
-                        >
-                            <Save size={17} /> {mutation.isPending ? '저장 중…' : '초안 저장'}
-                        </button>
-                    </>
-                }
-            />
-
-            <div className="rounded-2xl border border-indigo-100 bg-indigo-50 px-5 py-4 text-sm font-semibold text-indigo-900">
-                여기서 저장한 내용은 초안입니다. 저장 후 미리보기에서는 확인할 수 있지만, 방문자
-                화면은 ‘전체 공개본 발행’을 실행할 때만 바뀝니다.
+        <div className="space-y-4">
+            <div className="flex items-start justify-between gap-3">
+                <p className="min-w-0 text-xs leading-5 text-slate-500">{copy.description}</p>
+                <button
+                    type="button"
+                    disabled={mutation.isPending}
+                    onClick={() => mutation.mutate()}
+                    title="지금 선택 상태를 서버에 저장합니다. 새로고침해도 유지되고, '발행'을 눌러도 자동으로 먼저 저장됩니다."
+                    className="inline-flex shrink-0 items-center gap-1.5 rounded-xl bg-slate-950 px-3.5 py-2 text-xs font-black text-white disabled:opacity-50"
+                >
+                    <Save className="h-3.5 w-3.5" /> {mutation.isPending ? '저장 중…' : '초안 저장'}
+                </button>
             </div>
 
-            <CompositionSearch
-                section={section}
-                value={searchQuery}
-                onChange={(value) =>
-                    setSearchQueries((current) => ({ ...current, [section]: value }))
-                }
-            />
+            <p className="rounded-xl bg-indigo-50 px-3.5 py-2.5 text-xs leading-5 text-indigo-900">
+                오른쪽 미리보기에는 저장 전이라도 바로 반영됩니다. 다만 새로고침하면 저장 안 한
+                내용은 사라지니, 계속 작업할 땐 ‘초안 저장’으로 남겨두세요. ‘발행’을 누르면 지금
+                선택 상태가 자동으로 저장된 뒤 방문자 화면에 반영됩니다.
+            </p>
+
+            <CompositionSearch section={section} value={searchQuery} onChange={setSearchQuery} />
 
             {section === 'profile' && (
                 <ProfileEditor
@@ -169,12 +556,12 @@ export function PublicPageCompositionManagement({
             )}
 
             {mutation.isSuccess && (
-                <p className="flex items-center gap-2 text-sm font-bold text-emerald-700">
-                    <Check size={16} /> 공개 구성 초안을 저장했습니다.
+                <p className="flex items-center gap-1.5 text-xs font-bold text-emerald-700">
+                    <Check size={14} /> 공개 구성 초안을 저장했습니다.
                 </p>
             )}
             {mutation.isError && (
-                <p className="text-sm font-bold text-red-700">초안을 저장하지 못했습니다.</p>
+                <p className="text-xs font-bold text-red-700">초안을 저장하지 못했습니다.</p>
             )}
         </div>
     );
@@ -185,7 +572,7 @@ function CompositionSearch({
     value,
     onChange,
 }: {
-    section: Section;
+    section: PublicCompositionSection;
     value: string;
     onChange: (value: string) => void;
 }) {
@@ -193,25 +580,25 @@ function CompositionSearch({
         <label className="relative block">
             <span className="sr-only">{SECTION_COPY[section].title} 항목 검색</span>
             <Search
-                size={18}
+                size={15}
                 aria-hidden="true"
-                className="pointer-events-none absolute left-4 top-1/2 -translate-y-1/2 text-slate-400"
+                className="pointer-events-none absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400"
             />
             <input
                 type="search"
                 value={value}
                 onChange={(event) => onChange(event.target.value)}
                 placeholder={`${SECTION_COPY[section].title} 항목 검색`}
-                className="w-full rounded-2xl border border-slate-200 bg-white py-3.5 pl-11 pr-12 text-sm font-semibold text-slate-900 shadow-sm outline-none transition focus:border-indigo-400 focus:ring-4 focus:ring-indigo-100"
+                className="w-full rounded-xl border border-slate-200 bg-white py-2 pl-9 pr-9 text-xs font-semibold text-slate-900 outline-none transition focus:border-indigo-400 focus:ring-2 focus:ring-indigo-100"
             />
             {value && (
                 <button
                     type="button"
                     onClick={() => onChange('')}
                     aria-label="검색어 지우기"
-                    className="absolute right-3 top-1/2 inline-flex h-8 w-8 -translate-y-1/2 items-center justify-center rounded-full text-slate-400 transition hover:bg-slate-100 hover:text-slate-700"
+                    className="absolute right-2 top-1/2 inline-flex h-6 w-6 -translate-y-1/2 items-center justify-center rounded-full text-slate-400 transition hover:bg-slate-100 hover:text-slate-700"
                 >
-                    <X size={17} aria-hidden="true" />
+                    <X size={14} aria-hidden="true" />
                 </button>
             )}
         </label>
@@ -228,12 +615,136 @@ function EmptySearchResult() {
     return <p className="py-5 text-sm font-medium text-slate-400">일치하는 항목이 없습니다.</p>;
 }
 
-function SectionCard({ title, children }: { title: string; children: ReactNode }) {
+function SectionCard({
+    title,
+    children,
+    defaultOpen = true,
+    forceOpen = false,
+    badge,
+}: {
+    title: string;
+    children: ReactNode;
+    defaultOpen?: boolean;
+    forceOpen?: boolean;
+    badge?: ReactNode;
+}) {
+    const [open, setOpen] = useState(defaultOpen);
+    const isOpen = open || forceOpen;
     return (
-        <section className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
-            <h3 className="mb-4 text-lg font-black text-slate-900">{title}</h3>
-            <div className="divide-y divide-slate-100">{children}</div>
+        <section className="min-w-0 overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
+            <button
+                type="button"
+                onClick={() => setOpen((value) => !value)}
+                className="flex w-full items-center justify-between gap-2 px-4 py-3 text-left"
+            >
+                <span className="flex min-w-0 items-center gap-2">
+                    <span className="truncate text-sm font-black text-slate-900">{title}</span>
+                    {badge}
+                </span>
+                <ChevronDown
+                    className={`h-4 w-4 shrink-0 text-slate-400 transition-transform ${isOpen ? 'rotate-180' : ''}`}
+                />
+            </button>
+            {isOpen && (
+                <div className="min-w-0 divide-y divide-slate-100 border-t border-slate-100 px-4 pb-3">
+                    {children}
+                </div>
+            )}
         </section>
+    );
+}
+
+function SelectionList({
+    items,
+    onToggle,
+    addLabel,
+    emptyLabel,
+    showIcon = false,
+}: {
+    items: PublicProfileItemSelection[];
+    onToggle: (id: number, enabled: boolean) => void;
+    addLabel: string;
+    emptyLabel: string;
+    showIcon?: boolean;
+}) {
+    const [isAdding, setIsAdding] = useState(false);
+    const [addQuery, setAddQuery] = useState('');
+    const selected = items.filter((item) => item.enabled);
+    const available = items.filter((item) => !item.enabled && matchesSearch(addQuery, item.label));
+
+    return (
+        <div className="space-y-1 py-1">
+            {selected.length === 0 && (
+                <p className="py-2 text-xs font-medium text-slate-400">{emptyLabel}</p>
+            )}
+            {selected.map((item) => (
+                <div
+                    key={item.id}
+                    className="flex items-center justify-between gap-2 rounded-lg px-1.5 py-1.5 hover:bg-slate-50"
+                >
+                    <span className="flex min-w-0 items-center gap-2">
+                        {showIcon && <SkillBadgeIcon name={item.label} className="h-5 w-5" />}
+                        <span className="truncate text-xs font-bold text-slate-800">
+                            {item.label}
+                        </span>
+                    </span>
+                    <button
+                        type="button"
+                        aria-label={`${item.label} 제외`}
+                        onClick={() => onToggle(item.id, false)}
+                        className="shrink-0 rounded-full p-1 text-slate-400 hover:bg-slate-200 hover:text-slate-700"
+                    >
+                        <X size={13} />
+                    </button>
+                </div>
+            ))}
+            <button
+                type="button"
+                onClick={() => setIsAdding((value) => !value)}
+                className={`flex w-full items-center gap-1.5 rounded-lg border border-dashed px-2 py-1.5 text-xs font-bold transition ${
+                    isAdding
+                        ? 'border-indigo-300 text-indigo-600'
+                        : 'border-slate-300 text-slate-500 hover:border-indigo-300 hover:text-indigo-600'
+                }`}
+            >
+                <Plus size={13} /> {addLabel}
+            </button>
+            {isAdding && (
+                <div className="rounded-xl border border-slate-200 bg-slate-50 p-2">
+                    <input
+                        type="search"
+                        value={addQuery}
+                        onChange={(event) => setAddQuery(event.target.value)}
+                        placeholder="검색해서 추가"
+                        autoFocus
+                        className="w-full rounded-lg border border-slate-200 bg-white px-2.5 py-1.5 text-xs outline-none focus:border-indigo-400 focus:ring-2 focus:ring-indigo-100"
+                    />
+                    <div className="mt-2 max-h-48 space-y-0.5 overflow-auto">
+                        {available.length === 0 && (
+                            <p className="py-1 text-xs text-slate-400">추가할 항목이 없습니다.</p>
+                        )}
+                        {available.map((item) => (
+                            <button
+                                key={item.id}
+                                type="button"
+                                onClick={() => onToggle(item.id, true)}
+                                className="flex w-full items-center justify-between gap-2 rounded-lg px-1.5 py-1.5 text-left hover:bg-white"
+                            >
+                                <span className="flex min-w-0 items-center gap-2">
+                                    {showIcon && (
+                                        <SkillBadgeIcon name={item.label} className="h-5 w-5" />
+                                    )}
+                                    <span className="truncate text-xs font-bold text-slate-600">
+                                        {item.label}
+                                    </span>
+                                </span>
+                                <Plus size={13} className="shrink-0 text-slate-400" />
+                            </button>
+                        ))}
+                    </div>
+                </div>
+            )}
+        </div>
     );
 }
 
@@ -249,18 +760,20 @@ function ToggleRow({
     detail?: string;
 }) {
     return (
-        <label className="flex cursor-pointer items-center justify-between gap-4 py-3.5">
-            <span>
-                <span className="block text-sm font-bold text-slate-800">{label}</span>
-                {detail && <span className="mt-1 block text-xs text-slate-500">{detail}</span>}
+        <label className="flex min-w-0 cursor-pointer items-center justify-between gap-3 py-2">
+            <span className="block min-w-0">
+                <span className="block truncate text-xs font-bold text-slate-800">{label}</span>
+                {detail && (
+                    <span className="mt-0.5 block text-[11px] text-slate-500">{detail}</span>
+                )}
             </span>
-            <span className="flex items-center gap-2 text-xs font-black text-slate-500">
-                {checked ? <Eye size={17} /> : <EyeOff size={17} />}
+            <span className="flex shrink-0 items-center gap-1.5 text-slate-500">
+                {checked ? <Eye size={14} /> : <EyeOff size={14} />}
                 <input
                     type="checkbox"
                     checked={checked}
                     onChange={(event) => onChange(event.target.checked)}
-                    className="h-5 w-5 rounded border-slate-300 accent-slate-950"
+                    className="h-4 w-4 rounded border-slate-300 accent-slate-950"
                 />
             </span>
         </label>
@@ -288,15 +801,23 @@ function ProfileEditor({
         ['showPhone', '전화번호'],
     ];
     const visibleFields = fields.filter(([, label]) => matchesSearch(searchQuery, label));
-    const visibleSkills = draft.skills.filter((item) =>
-        matchesSearch(searchQuery, item.label, item.featured ? '대표 기술' : undefined)
+    const searchActive = searchQuery.trim().length > 0;
+    const enabledFieldCount = fields.filter(([key]) => draft[key] as boolean).length;
+    const countBadge = (count: number, label: string) => (
+        <span className="shrink-0 rounded-full bg-slate-100 px-2 py-0.5 text-[10px] font-black text-slate-500">
+            {count}
+            {label}
+        </span>
     );
-    const visibleCompetencies = draft.competencies.filter((item) =>
-        matchesSearch(searchQuery, item.label)
-    );
+
     return (
-        <div className="grid gap-6 xl:grid-cols-2">
-            <SectionCard title="프로필 필드">
+        <div className="grid gap-4">
+            <SectionCard
+                title="프로필 필드"
+                defaultOpen={false}
+                forceOpen={searchActive}
+                badge={countBadge(enabledFieldCount, `/${fields.length} 표시`)}
+            >
                 {visibleFields.length === 0 && <EmptySearchResult />}
                 {visibleFields.map(([key, label]) => (
                     <ToggleRow
@@ -307,43 +828,53 @@ function ProfileEditor({
                     />
                 ))}
             </SectionCard>
-            <div className="space-y-6">
-                <SectionCard title="공개 기술">
-                    {visibleSkills.length === 0 && <EmptySearchResult />}
-                    {visibleSkills.map((item) => (
-                        <ToggleRow
-                            key={item.id}
-                            label={item.label}
-                            checked={item.enabled}
-                            detail={item.featured ? '대표 기술' : undefined}
-                            onChange={(enabled) =>
-                                onChange({
-                                    ...draft,
-                                    skills: draft.skills.map((value) =>
-                                        value.id === item.id ? { ...value, enabled } : value
-                                    ),
-                                })
-                            }
-                        />
-                    ))}
+            <div className="space-y-4">
+                <SectionCard
+                    title="공개 기술"
+                    defaultOpen={false}
+                    forceOpen={searchActive}
+                    badge={countBadge(
+                        draft.skills.filter((item) => item.enabled).length,
+                        '개 선택'
+                    )}
+                >
+                    <SelectionList
+                        items={draft.skills}
+                        addLabel="기술 추가"
+                        emptyLabel="공개할 기술을 추가해 주세요."
+                        showIcon
+                        onToggle={(id, enabled) =>
+                            onChange({
+                                ...draft,
+                                skills: draft.skills.map((value) =>
+                                    value.id === id ? { ...value, enabled } : value
+                                ),
+                            })
+                        }
+                    />
                 </SectionCard>
-                <SectionCard title="대표 역량">
-                    {visibleCompetencies.length === 0 && <EmptySearchResult />}
-                    {visibleCompetencies.map((item) => (
-                        <ToggleRow
-                            key={item.id}
-                            label={item.label}
-                            checked={item.enabled}
-                            onChange={(enabled) =>
-                                onChange({
-                                    ...draft,
-                                    competencies: draft.competencies.map((value) =>
-                                        value.id === item.id ? { ...value, enabled } : value
-                                    ),
-                                })
-                            }
-                        />
-                    ))}
+                <SectionCard
+                    title="대표 역량"
+                    defaultOpen={false}
+                    forceOpen={searchActive}
+                    badge={countBadge(
+                        draft.competencies.filter((item) => item.enabled).length,
+                        '개 선택'
+                    )}
+                >
+                    <SelectionList
+                        items={draft.competencies}
+                        addLabel="역량 추가"
+                        emptyLabel="공개할 역량을 추가해 주세요."
+                        onToggle={(id, enabled) =>
+                            onChange({
+                                ...draft,
+                                competencies: draft.competencies.map((value) =>
+                                    value.id === id ? { ...value, enabled } : value
+                                ),
+                            })
+                        }
+                    />
                 </SectionCard>
             </div>
         </div>
@@ -393,7 +924,7 @@ function ExperienceEditor({
     };
 
     return (
-        <div className="space-y-6">
+        <div className="space-y-4">
             <SectionCard title="공개 경험·타임라인">
                 <p className="pb-4 text-sm font-medium leading-6 text-slate-500">
                     타임라인이나 대표 프로젝트 노출을 켜면 해당 경험도 함께 공개됩니다. 경험 공개를
@@ -439,7 +970,7 @@ function ExperienceEditor({
                     </div>
                 ))}
             </SectionCard>
-            <div className="grid gap-6 xl:grid-cols-2">
+            <div className="grid gap-4">
                 <SectionCard title="세부 성과">
                     {visibleDetails.length === 0 && <EmptySearchResult />}
                     {visibleDetails.map((item) => (
@@ -592,7 +1123,7 @@ function StudyEditor({
     };
 
     return (
-        <div className="space-y-6">
+        <div className="space-y-4">
             <SectionCard title="학습 분류 체계">
                 <p className="py-3 text-sm text-slate-500">
                     직군에 맞는 분류 체계를 선택합니다. 여러 체계를 함께 쓸 수 있으며 대표 체계는
@@ -653,7 +1184,7 @@ function StudyEditor({
                     </button>
                 </div>
             </SectionCard>
-            <div className="grid gap-6 xl:grid-cols-2">
+            <div className="grid gap-4">
                 <SectionCard title="공개 학습 기록">
                     {visibleStudies.length === 0 && <EmptySearchResult />}
                     {visibleStudies.map((item) => (

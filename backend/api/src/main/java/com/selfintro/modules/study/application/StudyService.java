@@ -16,7 +16,6 @@ import com.selfintro.modules.study.domain.entity.StudyRelation;
 import com.selfintro.modules.study.domain.entity.StudyTaxonomyCuration;
 import com.selfintro.modules.study.domain.entity.Tag;
 import com.selfintro.modules.study.domain.enums.StudySection;
-import com.selfintro.modules.study.domain.enums.StudyStatus;
 import com.selfintro.modules.study.domain.repository.StudyRepository;
 import com.selfintro.modules.study.domain.repository.StudySearchCondition;
 import com.selfintro.modules.study.domain.repository.StudyTaxonomyCurationRepository;
@@ -69,55 +68,6 @@ public class StudyService {
     private final AfterCommitRabbitEventPublisher eventPublisher;
     private final PublicWorkspaceResolver publicWorkspaceResolver;
 
-    public StudyPageResponse searchPublished(
-            String keyword,
-            Long taxonomyNodeId,
-            List<String> tags,
-            List<Long> skillIds,
-            List<Long> experienceIds,
-            List<Long> experienceDetailIds,
-            StudySection section,
-            int page,
-            int size) {
-        Long workspaceId = publicWorkspaceResolver.requireDefaultPublicWorkspace().getId();
-        return searchPublished(
-                workspaceId,
-                keyword,
-                taxonomyNodeId,
-                tags,
-                skillIds,
-                experienceIds,
-                experienceDetailIds,
-                section,
-                page,
-                size);
-    }
-
-    public StudyPageResponse searchPublished(
-            Long workspaceId,
-            String keyword,
-            Long taxonomyNodeId,
-            List<String> tags,
-            List<Long> skillIds,
-            List<Long> experienceIds,
-            List<Long> experienceDetailIds,
-            StudySection section,
-            int page,
-            int size) {
-        return search(
-                workspaceId,
-                keyword,
-                taxonomyNodeId,
-                tags,
-                skillIds,
-                experienceIds,
-                experienceDetailIds,
-                StudyStatus.PUBLISHED,
-                section,
-                page,
-                size);
-    }
-
     public StudyPageResponse searchAdmin(
             String keyword,
             Long taxonomyNodeId,
@@ -125,7 +75,6 @@ public class StudyService {
             List<Long> skillIds,
             List<Long> experienceIds,
             List<Long> experienceDetailIds,
-            StudyStatus status,
             StudySection section,
             int page,
             int size) {
@@ -137,7 +86,6 @@ public class StudyService {
                 skillIds,
                 experienceIds,
                 experienceDetailIds,
-                status,
                 section,
                 page,
                 size);
@@ -151,7 +99,6 @@ public class StudyService {
             List<Long> skillIds,
             List<Long> experienceIds,
             List<Long> experienceDetailIds,
-            StudyStatus status,
             StudySection section,
             int page,
             int size) {
@@ -163,7 +110,6 @@ public class StudyService {
                 skillIds,
                 experienceIds,
                 experienceDetailIds,
-                status,
                 section,
                 page,
                 size);
@@ -177,7 +123,6 @@ public class StudyService {
             List<Long> skillIds,
             List<Long> experienceIds,
             List<Long> experienceDetailIds,
-            StudyStatus status,
             StudySection section,
             int page,
             int size) {
@@ -197,30 +142,14 @@ public class StudyService {
                                         skillIds,
                                         experienceIds,
                                         experienceDetailIds,
-                                        status,
                                         section),
                                 PageRequest.of(Math.max(page, 0), safeSize))
                         .map(this::toResponse);
         return StudyPageResponse.from(result);
     }
 
-    public StudyResponse findPublishedBySlug(String slug) {
-        return findPublishedBySlug(
-                publicWorkspaceResolver.requireDefaultPublicWorkspace().getId(), slug);
-    }
-
-    public StudyResponse findPublishedBySlug(Long workspaceId, String slug) {
-        Study study =
-                studyRepository
-                        .findByWorkspaceIdAndSlug(workspaceId, slug)
-                        .filter(value -> value.getStatus() == StudyStatus.PUBLISHED)
-                        .orElseThrow(() -> new EntityNotFoundException("Study not found: " + slug));
-        return toResponse(study);
-    }
-
     public List<StudyResponse> getPublishedForPublication(Long workspaceId) {
         return studyRepository.findAllByWorkspaceIdOrderByTitleAsc(workspaceId).stream()
-                .filter(study -> study.getStatus() == StudyStatus.PUBLISHED)
                 .sorted(
                         Comparator.comparing(
                                         Study::getLearnedAt,
@@ -266,7 +195,7 @@ public class StudyService {
     }
 
     public List<StudyTaxonomyResponse> findPublicTaxonomy(Long workspaceId) {
-        Map<Long, Long> totals = rolledUpPublishedCounts(workspaceId);
+        Map<Long, Long> totals = rolledUpCounts(workspaceId);
         return curationRepository.findAllByWorkspaceIdOrderByDisplayOrderAsc(workspaceId).stream()
                 .map(
                         curation ->
@@ -336,15 +265,13 @@ public class StudyService {
             allEntries = true)
     public StudyResponse create(Long workspaceId, StudyRequest request) {
         String slug = uniqueSlug(workspaceId, request.slug(), request.title(), null);
-        LocalDateTime publishedAt =
-                resolvePublishedAt(request.status(), request.publishedAt(), null);
+        LocalDateTime publishedAt = resolvePublishedAt(request.publishedAt(), null);
         Study study =
                 Study.create(
                         slug,
                         request.title().trim(),
                         request.summary().trim(),
                         request.contentMarkdown(),
-                        request.status(),
                         request.learnedAt(),
                         publishedAt);
         study.assignWorkspace(workspaceId);
@@ -389,14 +316,13 @@ public class StudyService {
                         .orElseThrow(() -> new EntityNotFoundException("Study not found: " + id));
         String slug = uniqueSlug(workspaceId, request.slug(), request.title(), id);
         LocalDateTime publishedAt =
-                resolvePublishedAt(request.status(), request.publishedAt(), study.getPublishedAt());
+                resolvePublishedAt(request.publishedAt(), study.getPublishedAt());
 
         study.update(
                 slug,
                 request.title().trim(),
                 request.summary().trim(),
                 request.contentMarkdown(),
-                request.status(),
                 request.learnedAt(),
                 publishedAt);
         study.changeSection(request.section());
@@ -440,157 +366,6 @@ public class StudyService {
         studyRepository.delete(study);
         storageService.deleteAll(objectKeys);
         publishVectorDeleteEvent(workspaceId, id);
-    }
-
-    @Transactional
-    @CacheEvict(
-            value = {
-                "bff:learning",
-                "bff:introduction",
-                "experience-tree:index",
-                "experience-tree:detail",
-                "experience-tree:studies"
-            },
-            allEntries = true)
-    public List<StudyResponse> batchPublish(List<Long> ids) {
-        return batchPublish(publicWorkspaceResolver.requireDefaultPublicWorkspace().getId(), ids);
-    }
-
-    @Transactional
-    @CacheEvict(
-            value = {
-                "bff:learning",
-                "bff:introduction",
-                "experience-tree:index",
-                "experience-tree:detail",
-                "experience-tree:studies"
-            },
-            allEntries = true)
-    public List<StudyResponse> batchPublish(Long workspaceId, List<Long> ids) {
-        if (ids == null || ids.isEmpty()) {
-            return List.of();
-        }
-        List<Study> studies = requireWorkspaceStudies(workspaceId, ids);
-        LocalDateTime now = LocalDateTime.now();
-        for (Study study : studies) {
-            if (study.getStatus() != StudyStatus.PUBLISHED) {
-                LocalDateTime publishedAt =
-                        study.getPublishedAt() != null ? study.getPublishedAt() : now;
-                study.update(
-                        study.getSlug(),
-                        study.getTitle(),
-                        study.getSummary(),
-                        study.getContentMarkdown(),
-                        StudyStatus.PUBLISHED,
-                        study.getLearnedAt(),
-                        publishedAt);
-            }
-        }
-        return studies.stream().map(this::toResponse).toList();
-    }
-
-    @Transactional
-    @CacheEvict(
-            value = {
-                "bff:learning",
-                "bff:introduction",
-                "experience-tree:index",
-                "experience-tree:detail",
-                "experience-tree:studies"
-            },
-            allEntries = true)
-    public List<StudyResponse> batchUnpublish(List<Long> ids) {
-        return batchUnpublish(publicWorkspaceResolver.requireDefaultPublicWorkspace().getId(), ids);
-    }
-
-    @Transactional
-    @CacheEvict(
-            value = {
-                "bff:learning",
-                "bff:introduction",
-                "experience-tree:index",
-                "experience-tree:detail",
-                "experience-tree:studies"
-            },
-            allEntries = true)
-    public List<StudyResponse> batchUnpublish(Long workspaceId, List<Long> ids) {
-        if (ids == null || ids.isEmpty()) {
-            return List.of();
-        }
-        List<Study> studies = requireWorkspaceStudies(workspaceId, ids);
-        for (Study study : studies) {
-            if (study.getStatus() != StudyStatus.DRAFT) {
-                study.update(
-                        study.getSlug(),
-                        study.getTitle(),
-                        study.getSummary(),
-                        study.getContentMarkdown(),
-                        StudyStatus.DRAFT,
-                        study.getLearnedAt(),
-                        study.getPublishedAt());
-            }
-        }
-        return studies.stream().map(this::toResponse).toList();
-    }
-
-    @Transactional
-    @CacheEvict(
-            value = {
-                "bff:learning",
-                "bff:introduction",
-                "experience-tree:index",
-                "experience-tree:detail",
-                "experience-tree:studies"
-            },
-            allEntries = true)
-    public StudyResponse toggleStatus(Long id) {
-        return toggleStatus(publicWorkspaceResolver.requireDefaultPublicWorkspace().getId(), id);
-    }
-
-    @Transactional
-    @CacheEvict(
-            value = {
-                "bff:learning",
-                "bff:introduction",
-                "experience-tree:index",
-                "experience-tree:detail",
-                "experience-tree:studies"
-            },
-            allEntries = true)
-    public StudyResponse toggleStatus(Long workspaceId, Long id) {
-        Study study =
-                studyRepository
-                        .findByIdAndWorkspaceId(id, workspaceId)
-                        .orElseThrow(() -> new EntityNotFoundException("Study not found: " + id));
-        StudyStatus newStatus =
-                study.getStatus() == StudyStatus.PUBLISHED
-                        ? StudyStatus.DRAFT
-                        : StudyStatus.PUBLISHED;
-        LocalDateTime publishedAt =
-                newStatus == StudyStatus.PUBLISHED
-                        ? (study.getPublishedAt() != null
-                                ? study.getPublishedAt()
-                                : LocalDateTime.now())
-                        : study.getPublishedAt();
-
-        study.update(
-                study.getSlug(),
-                study.getTitle(),
-                study.getSummary(),
-                study.getContentMarkdown(),
-                newStatus,
-                study.getLearnedAt(),
-                publishedAt);
-        return toResponse(study);
-    }
-
-    private List<Study> requireWorkspaceStudies(Long workspaceId, List<Long> ids) {
-        Set<Long> distinctIds = new LinkedHashSet<>(ids);
-        List<Study> studies = studyRepository.findAllByWorkspaceIdAndIdIn(workspaceId, distinctIds);
-        if (studies.size() != distinctIds.size()) {
-            throw new EntityNotFoundException("Study not found in workspace");
-        }
-        return studies;
     }
 
     private void publishVectorSyncEvent(Study saved) {
@@ -640,13 +415,11 @@ public class StudyService {
         return result;
     }
 
-    /** 노드별 직접 attach + 하위 노드 attach 전부를 합산한 PUBLISHED count. */
-    private Map<Long, Long> rolledUpPublishedCounts(Long workspaceId) {
+    /** 노드별 직접 attach + 하위 노드 attach 전부를 합산한 count. */
+    private Map<Long, Long> rolledUpCounts(Long workspaceId) {
         List<TaxonomyNode> all = taxonomyNodeRepository.findAll();
         Map<Long, Long> direct =
-                studyRepository
-                        .countByTaxonomyNodeAndStatus(workspaceId, StudyStatus.PUBLISHED)
-                        .stream()
+                studyRepository.countByTaxonomyNode(workspaceId).stream()
                         .collect(
                                 Collectors.toMap(
                                         StudyRepository.TaxonomyNodeCountProjection
@@ -837,11 +610,7 @@ public class StudyService {
                 .replaceAll("^-+|-+$", "");
     }
 
-    private LocalDateTime resolvePublishedAt(
-            StudyStatus status, LocalDateTime requested, LocalDateTime existing) {
-        if (status != StudyStatus.PUBLISHED) {
-            return requested;
-        }
+    private LocalDateTime resolvePublishedAt(LocalDateTime requested, LocalDateTime existing) {
         if (requested != null) {
             return requested;
         }

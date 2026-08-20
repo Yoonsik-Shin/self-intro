@@ -43,19 +43,19 @@ public class CompetencyService {
 
     public List<CompetencyResponse> getAll() {
         return competencyRepository.findAllByOrderByDisplayOrderAsc().stream()
-                .map(competency -> CompetencyResponse.from(competency, false))
+                .map(competency -> CompetencyResponse.from(competency))
                 .toList();
     }
 
     public List<CompetencyResponse> getVisible() {
         return competencyRepository.findAllByVisibleTrueOrderByDisplayOrderAsc().stream()
-                .map(competency -> CompetencyResponse.from(competency, true))
+                .map(competency -> CompetencyResponse.from(competency))
                 .toList();
     }
 
     public List<CompetencyResponse> getAll(Long workspaceId) {
         return competencyRepository.findAllByWorkspaceIdOrderByDisplayOrderAsc(workspaceId).stream()
-                .map(competency -> CompetencyResponse.from(competency, false))
+                .map(competency -> CompetencyResponse.from(competency))
                 .toList();
     }
 
@@ -63,7 +63,7 @@ public class CompetencyService {
         return competencyRepository
                 .findAllByWorkspaceIdAndVisibleTrueOrderByDisplayOrderAsc(workspaceId)
                 .stream()
-                .map(competency -> CompetencyResponse.from(competency, true))
+                .map(competency -> CompetencyResponse.from(competency))
                 .toList();
     }
 
@@ -76,7 +76,7 @@ public class CompetencyService {
         }
         return orderedIds.stream()
                 .map(selected::get)
-                .map(competency -> CompetencyResponse.from(competency, true))
+                .map(competency -> CompetencyResponse.from(competency))
                 .toList();
     }
 
@@ -91,7 +91,7 @@ public class CompetencyService {
                         request.displayOrder(),
                         request.visible());
         replaceLinks(competency, request);
-        return CompetencyResponse.from(competencyRepository.save(competency), false);
+        return CompetencyResponse.from(competencyRepository.save(competency));
     }
 
     @Transactional
@@ -106,7 +106,7 @@ public class CompetencyService {
                         request.displayOrder(),
                         false);
         replaceLinks(workspaceId, competency, request);
-        return CompetencyResponse.from(competencyRepository.save(competency), false);
+        return CompetencyResponse.from(competencyRepository.save(competency));
     }
 
     @Transactional
@@ -122,7 +122,7 @@ public class CompetencyService {
         competencyRepository.flush();
         replaceLinks(competency, request);
         competencyRepository.flush();
-        return CompetencyResponse.from(competency, false);
+        return CompetencyResponse.from(competency);
     }
 
     @Transactional
@@ -136,7 +136,7 @@ public class CompetencyService {
         competencyRepository.flush();
         replaceLinks(workspaceId, competency, request);
         competencyRepository.flush();
-        return CompetencyResponse.from(competency, false);
+        return CompetencyResponse.from(competency);
     }
 
     @Transactional
@@ -161,7 +161,7 @@ public class CompetencyService {
         }
         competencyRepository.flush();
         return competencies.stream()
-                .map(competency -> CompetencyResponse.from(competency, false))
+                .map(competency -> CompetencyResponse.from(competency))
                 .toList();
     }
 
@@ -175,7 +175,7 @@ public class CompetencyService {
         competencies.forEach(competency -> competency.changeVisibility(visible));
         competencyRepository.flush();
         return competencies.stream()
-                .map(competency -> CompetencyResponse.from(competency, false))
+                .map(competency -> CompetencyResponse.from(competency))
                 .toList();
     }
 
@@ -187,7 +187,7 @@ public class CompetencyService {
                         .orElseThrow(() -> new IllegalArgumentException("존재하지 않는 핵심 역량입니다."));
         competency.changeVisibility(!competency.isVisible());
         competencyRepository.flush();
-        return CompetencyResponse.from(competency, false);
+        return CompetencyResponse.from(competency);
     }
 
     @Transactional
@@ -196,7 +196,7 @@ public class CompetencyService {
         Competency competency = requireOwned(workspaceId, id);
         competency.changeVisibility(!competency.isVisible());
         competencyRepository.flush();
-        return CompetencyResponse.from(competency, false);
+        return CompetencyResponse.from(competency);
     }
 
     @Transactional

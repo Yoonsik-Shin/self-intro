@@ -9,7 +9,6 @@ import {
     Plus,
     RefreshCw,
     Search,
-    Sparkles,
     Trash2,
     WandSparkles,
 } from 'lucide-react';
@@ -44,7 +43,6 @@ const emptyStudyForm: StudyForm = {
     title: '',
     summary: '',
     contentMarkdown: '',
-    status: 'DRAFT',
     section: 'ETC',
     taxonomyNodeIds: [],
     tagNames: '',
@@ -225,8 +223,6 @@ export function StudyManagement({
     const [relatedStudySearch, setRelatedStudySearch] = useState('');
     const [studyFilter, setStudyFilter] = useState<string>('ALL');
     const [sectionFilter, setSectionFilter] = useState<StudyForm['section'] | 'ALL'>('ALL');
-    const [statusFilter, setStatusFilter] = useState<'ALL' | 'DRAFT' | 'PUBLISHED'>('ALL');
-    const [selectedStudyIds, setSelectedStudyIds] = useState<number[]>([]);
     const [studySearch, setStudySearch] = useState<string>('');
     const [studyAiInstruction, setStudyAiInstruction] = useState('');
     const [studyAiSuggestions, setStudyAiSuggestions] = useState<StudySuggestion[]>([]);
@@ -249,19 +245,11 @@ export function StudyManagement({
         setStudyAiFactCount(0);
     }, [resetStudyAiStreamBase]);
 
-    const counts = useMemo(() => {
-        const total = studies?.length ?? 0;
-        const draft = studies?.filter((s) => s.status === 'DRAFT').length ?? 0;
-        const published = studies?.filter((s) => s.status === 'PUBLISHED').length ?? 0;
-        return { total, draft, published };
-    }, [studies]);
-
     const filteredStudies = useMemo(() => {
         return studies?.filter((study) => {
             const matchesCategory =
                 studyFilter === 'ALL' ||
                 study.taxonomyNodes.some((node) => node.slug === studyFilter);
-            const matchesStatus = statusFilter === 'ALL' || study.status === statusFilter;
             const matchesSection = sectionFilter === 'ALL' || study.section === sectionFilter;
             const matchesSearch =
                 !studySearch ||
@@ -274,9 +262,9 @@ export function StudyManagement({
                 study.skills.some((skill) =>
                     skill.name.toLowerCase().includes(studySearch.toLowerCase())
                 );
-            return matchesCategory && matchesStatus && matchesSection && matchesSearch;
+            return matchesCategory && matchesSection && matchesSearch;
         });
-    }, [studies, studyFilter, statusFilter, sectionFilter, studySearch]);
+    }, [studies, studyFilter, sectionFilter, studySearch]);
 
     const selectedStudy = useMemo(
         () => studies?.find((study) => study.id === selectedStudyId) ?? null,
@@ -351,80 +339,9 @@ export function StudyManagement({
             queryClient.invalidateQueries({ queryKey: ['learning'] });
             queryClient.invalidateQueries({ queryKey: ['studies'] });
             if (selectedStudyId === deletedId) setSelectedStudyId(null);
-            setSelectedStudyIds((prev) => prev.filter((id) => id !== deletedId));
         },
         onError: handleMutationError,
     });
-
-    const batchPublishMutation = useMutation({
-        mutationFn: (ids: number[]) => studyApi.workspaceBatchPublish(workspaceSlug, ids),
-        onSuccess: (updatedStudies) => {
-            queryClient.invalidateQueries({ queryKey: ['learning'] });
-            queryClient.invalidateQueries({ queryKey: ['studies'] });
-            setSelectedStudyIds([]);
-            alert(`${updatedStudies.length}개의 학습 기록을 작성 완료로 전환했습니다.`);
-        },
-        onError: handleMutationError,
-    });
-
-    const batchUnpublishMutation = useMutation({
-        mutationFn: (ids: number[]) => studyApi.workspaceBatchUnpublish(workspaceSlug, ids),
-        onSuccess: (updatedStudies) => {
-            queryClient.invalidateQueries({ queryKey: ['learning'] });
-            queryClient.invalidateQueries({ queryKey: ['studies'] });
-            setSelectedStudyIds([]);
-            alert(`${updatedStudies.length}개의 학습 기록을 작성 중으로 되돌렸습니다.`);
-        },
-        onError: handleMutationError,
-    });
-
-    const toggleStatusMutation = useMutation({
-        mutationFn: (id: number) => studyApi.workspaceToggleStatus(workspaceSlug, id),
-        onSuccess: () => {
-            queryClient.invalidateQueries({ queryKey: ['learning'] });
-            queryClient.invalidateQueries({ queryKey: ['studies'] });
-        },
-        onError: handleMutationError,
-    });
-
-    const toggleSelectStudy = (id: number) => {
-        setSelectedStudyIds((prev) =>
-            prev.includes(id) ? prev.filter((i) => i !== id) : [...prev, id]
-        );
-    };
-
-    const toggleSelectAllFiltered = () => {
-        if (!filteredStudies) return;
-        const filteredIds = filteredStudies.map((s) => s.id);
-        const allSelected = filteredIds.every((id) => selectedStudyIds.includes(id));
-        if (allSelected) {
-            setSelectedStudyIds((prev) => prev.filter((id) => !filteredIds.includes(id)));
-        } else {
-            setSelectedStudyIds((prev) => Array.from(new Set([...prev, ...filteredIds])));
-        }
-    };
-
-    const handleBatchPublish = (idsToPublish: number[]) => {
-        if (idsToPublish.length === 0) return;
-        if (
-            window.confirm(
-                `선택한 ${idsToPublish.length}개의 학습 기록을 모두 작성 완료로 전환하시겠습니까?`
-            )
-        ) {
-            batchPublishMutation.mutate(idsToPublish);
-        }
-    };
-
-    const handleBatchUnpublish = (idsToUnpublish: number[]) => {
-        if (idsToUnpublish.length === 0) return;
-        if (
-            window.confirm(
-                `선택한 ${idsToUnpublish.length}개의 학습 기록을 모두 작성 중으로 되돌리시겠습니까?`
-            )
-        ) {
-            batchUnpublishMutation.mutate(idsToUnpublish);
-        }
-    };
 
     const handleStudySubmit = (e: FormEvent<HTMLFormElement>) => {
         e.preventDefault();
@@ -515,7 +432,6 @@ export function StudyManagement({
                 title: study.title,
                 summary: study.summary,
                 contentMarkdown: study.contentMarkdown,
-                status: study.status,
                 section: study.section,
                 taxonomyNodeIds: study.taxonomyNodes.map((node) => node.id),
                 tagNames: study.tags.map((tag) => tag.name).join(', '),
@@ -549,7 +465,6 @@ export function StudyManagement({
                         title: target.title,
                         summary: target.summary,
                         contentMarkdown: target.contentMarkdown,
-                        status: target.status,
                         section: target.section,
                         taxonomyNodeIds: target.taxonomyNodes.map((node) => node.id),
                         tagNames: target.tags.map((tag) => tag.name).join(', '),
@@ -596,51 +511,7 @@ export function StudyManagement({
 
             {!isStudyFormOpen && !selectedStudy && (
                 <div className="sticky top-14 z-20 flex flex-col gap-3 bg-white/95 p-4 rounded-2xl border border-slate-200 shadow-sm backdrop-blur-xl animate-fadeIn">
-                    <div className="flex flex-col sm:flex-row gap-3 items-start sm:items-center justify-between">
-                        {/* Status Filter Pills */}
-                        <div className="flex items-center gap-1 rounded-xl bg-slate-100/80 p-1 border border-slate-200/60">
-                            {(
-                                [
-                                    { key: 'ALL', label: '전체', count: counts.total },
-                                    { key: 'DRAFT', label: '작성 중', count: counts.draft },
-                                    {
-                                        key: 'PUBLISHED',
-                                        label: '작성 완료',
-                                        count: counts.published,
-                                    },
-                                ] as const
-                            ).map((item) => (
-                                <button
-                                    key={item.key}
-                                    type="button"
-                                    onClick={() => {
-                                        setStatusFilter(item.key);
-                                        setSelectedStudyIds([]);
-                                    }}
-                                    className={`flex items-center gap-1.5 px-3 py-1.5 text-xs font-black rounded-lg transition ${
-                                        statusFilter === item.key
-                                            ? 'bg-white text-slate-900 shadow-xs'
-                                            : 'text-slate-600 hover:text-slate-900'
-                                    }`}
-                                >
-                                    {item.label}
-                                    <span
-                                        className={`rounded-md px-1.5 py-0.5 text-[10px] font-extrabold ${
-                                            statusFilter === item.key
-                                                ? item.key === 'DRAFT'
-                                                    ? 'bg-amber-100 text-amber-800'
-                                                    : item.key === 'PUBLISHED'
-                                                      ? 'bg-emerald-100 text-emerald-800'
-                                                      : 'bg-slate-200 text-slate-700'
-                                                : 'bg-slate-200/60 text-slate-500'
-                                        }`}
-                                    >
-                                        {item.count}
-                                    </span>
-                                </button>
-                            ))}
-                        </div>
-
+                    <div className="flex flex-col sm:flex-row gap-3 items-start sm:items-center justify-end">
                         {/* Search Input */}
                         <div className="w-full sm:w-64 relative">
                             <input
@@ -694,96 +565,6 @@ export function StudyManagement({
                                     {category.name}
                                 </button>
                             )
-                        )}
-                    </div>
-                </div>
-            )}
-
-            {!isStudyFormOpen && !selectedStudy && statusFilter !== 'ALL' && (
-                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 rounded-2xl border border-slate-200 bg-slate-50/80 px-4 py-3 shadow-xs">
-                    <div className="flex items-center gap-3">
-                        <label className="flex items-center gap-2 cursor-pointer select-none text-xs font-bold text-slate-700">
-                            <input
-                                type="checkbox"
-                                checked={Boolean(
-                                    filteredStudies &&
-                                    filteredStudies.length > 0 &&
-                                    filteredStudies.every((s) => selectedStudyIds.includes(s.id))
-                                )}
-                                onChange={toggleSelectAllFiltered}
-                                className="h-4 w-4 rounded border-slate-300 text-indigo-600 focus:ring-indigo-500"
-                            />
-                            현재 {statusFilter === 'DRAFT' ? '작성 중' : '작성 완료'} 목록 전체 선택
-                            ({filteredStudies?.length ?? 0}개 중 {selectedStudyIds.length}개 선택됨)
-                        </label>
-                    </div>
-
-                    <div className="flex flex-wrap items-center gap-2">
-                        {statusFilter === 'DRAFT' && (
-                            <>
-                                {selectedStudyIds.length > 0 && (
-                                    <button
-                                        type="button"
-                                        onClick={() => handleBatchPublish(selectedStudyIds)}
-                                        disabled={batchPublishMutation.isPending}
-                                        className="inline-flex items-center gap-1.5 rounded-xl bg-indigo-600 px-3.5 py-2 text-xs font-bold text-white shadow-xs transition hover:bg-indigo-700 disabled:opacity-50"
-                                    >
-                                        <Check className="h-3.5 w-3.5" />
-                                        선택한 {selectedStudyIds.length}개 작성 완료
-                                    </button>
-                                )}
-
-                                {counts.draft > 0 && (
-                                    <button
-                                        type="button"
-                                        onClick={() => {
-                                            const draftIds =
-                                                studies
-                                                    ?.filter((s) => s.status === 'DRAFT')
-                                                    .map((s) => s.id) ?? [];
-                                            handleBatchPublish(draftIds);
-                                        }}
-                                        disabled={batchPublishMutation.isPending}
-                                        className="inline-flex items-center gap-1.5 rounded-xl border border-amber-300 bg-amber-50 px-3.5 py-2 text-xs font-bold text-amber-800 transition hover:bg-amber-100 disabled:opacity-50"
-                                    >
-                                        <Sparkles className="h-3.5 w-3.5 text-amber-600" />
-                                        작성 중 {counts.draft}개 전체 완료
-                                    </button>
-                                )}
-                            </>
-                        )}
-
-                        {statusFilter === 'PUBLISHED' && (
-                            <>
-                                {selectedStudyIds.length > 0 && (
-                                    <button
-                                        type="button"
-                                        onClick={() => handleBatchUnpublish(selectedStudyIds)}
-                                        disabled={batchUnpublishMutation.isPending}
-                                        className="inline-flex items-center gap-1.5 rounded-xl bg-amber-600 px-3.5 py-2 text-xs font-bold text-white shadow-xs transition hover:bg-amber-700 disabled:opacity-50"
-                                    >
-                                        <Check className="h-3.5 w-3.5" />
-                                        선택한 {selectedStudyIds.length}개 작성 중으로 전환
-                                    </button>
-                                )}
-
-                                {counts.published > 0 && (
-                                    <button
-                                        type="button"
-                                        onClick={() => {
-                                            const publishedIds =
-                                                studies
-                                                    ?.filter((s) => s.status === 'PUBLISHED')
-                                                    .map((s) => s.id) ?? [];
-                                            handleBatchUnpublish(publishedIds);
-                                        }}
-                                        disabled={batchUnpublishMutation.isPending}
-                                        className="inline-flex items-center gap-1.5 rounded-xl border border-slate-300 bg-slate-100 px-3.5 py-2 text-xs font-bold text-slate-800 transition hover:bg-slate-200 disabled:opacity-50"
-                                    >
-                                        작성 완료 {counts.published}개 전체 되돌리기
-                                    </button>
-                                )}
-                            </>
                         )}
                     </div>
                 </div>
@@ -987,24 +768,6 @@ export function StudyManagement({
                                 <option value="ADVANCED">Advanced · 심화 구현</option>
                                 <option value="RETROSPECT">Retrospect · 경험 회고</option>
                                 <option value="ETC">ETC · 기타 자료</option>
-                            </select>
-                        </div>
-                        <div>
-                            <label className="mb-1.5 block text-xs font-bold uppercase tracking-wider text-slate-400">
-                                작성 상태
-                            </label>
-                            <select
-                                value={studyForm.status}
-                                onChange={(e) =>
-                                    setStudyForm({
-                                        ...studyForm,
-                                        status: e.target.value as StudyForm['status'],
-                                    })
-                                }
-                                className="w-full rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-sm transition focus:border-slate-800 focus:outline-none focus:ring-2 focus:ring-slate-200"
-                            >
-                                <option value="DRAFT">작성 중</option>
-                                <option value="PUBLISHED">작성 완료</option>
                             </select>
                         </div>
                     </div>
@@ -1378,28 +1141,12 @@ export function StudyManagement({
                     {!isStudyListLoading &&
                         !isStudyListError &&
                         filteredStudies?.map((study) => {
-                            const isSelected = selectedStudyIds.includes(study.id);
                             return (
                                 <div
                                     key={study.id}
-                                    className={`rounded-xl border p-4 shadow-xs transition ${
-                                        isSelected
-                                            ? 'border-indigo-400 bg-indigo-50/20'
-                                            : 'border-slate-200 bg-white hover:border-slate-300 hover:shadow-md'
-                                    }`}
+                                    className="rounded-xl border border-slate-200 bg-white p-4 shadow-xs transition hover:border-slate-300 hover:shadow-md"
                                 >
                                     <div className="flex items-center justify-between gap-3">
-                                        {statusFilter !== 'ALL' && (
-                                            <div className="flex items-center shrink-0 pr-1">
-                                                <input
-                                                    type="checkbox"
-                                                    checked={isSelected}
-                                                    onChange={() => toggleSelectStudy(study.id)}
-                                                    className="h-4 w-4 rounded border-slate-300 text-indigo-600 focus:ring-indigo-500 cursor-pointer"
-                                                />
-                                            </div>
-                                        )}
-
                                         <button
                                             type="button"
                                             className="min-w-0 flex-1 text-left"
@@ -1420,17 +1167,6 @@ export function StudyManagement({
                                                         )
                                                         .join(' / ') || '미분류'}
                                                 </span>
-                                                <span
-                                                    className={`rounded-md px-2 py-0.5 text-[10px] font-black ${
-                                                        study.status === 'PUBLISHED'
-                                                            ? 'bg-emerald-50 text-emerald-700 border border-emerald-200/60'
-                                                            : 'bg-amber-50 text-amber-700 border border-amber-200/60'
-                                                    }`}
-                                                >
-                                                    {study.status === 'PUBLISHED'
-                                                        ? '작성 완료'
-                                                        : '작성 중'}
-                                                </span>
                                             </div>
                                             <p className="mt-1 text-base font-black text-slate-800 transition hover:text-slate-950">
                                                 {study.title}
@@ -1441,28 +1177,6 @@ export function StudyManagement({
                                         </button>
 
                                         <div className="flex shrink-0 items-center gap-2">
-                                            <button
-                                                type="button"
-                                                onClick={() =>
-                                                    toggleStatusMutation.mutate(study.id)
-                                                }
-                                                disabled={toggleStatusMutation.isPending}
-                                                title={
-                                                    study.status === 'PUBLISHED'
-                                                        ? '작성 중으로 되돌리기'
-                                                        : '작성 완료로 전환'
-                                                }
-                                                className={`px-2.5 py-1 text-xs font-bold rounded-lg border transition ${
-                                                    study.status === 'PUBLISHED'
-                                                        ? 'border-slate-200 bg-slate-50 text-slate-600 hover:bg-slate-100 hover:text-slate-900'
-                                                        : 'border-emerald-200 bg-emerald-50 text-emerald-700 hover:bg-emerald-100'
-                                                }`}
-                                            >
-                                                {study.status === 'PUBLISHED'
-                                                    ? '작성 중 전환'
-                                                    : '작성 완료'}
-                                            </button>
-
                                             <button
                                                 type="button"
                                                 onClick={() => openStudyEditor(study)}

@@ -1,4 +1,3 @@
-export type StudyStatus = 'DRAFT' | 'PUBLISHED';
 export type StudySection = 'FUNDAMENTAL' | 'ADVANCED' | 'RETROSPECT' | 'ETC';
 export type StudyRelationType = 'RELATED' | 'PREREQUISITE' | 'FOLLOW_UP' | 'APPLIED_TO';
 
@@ -64,7 +63,6 @@ export type Study = {
     title: string;
     summary: string;
     contentMarkdown: string;
-    status: StudyStatus;
     section: StudySection;
     taxonomyNodes: TaxonomyNode[];
     tags: Tag[];
@@ -89,7 +87,6 @@ export type StudyRequest = {
     title: string;
     summary: string;
     contentMarkdown: string;
-    status: StudyStatus;
     section: StudySection;
     taxonomyNodeIds: number[];
     tagNames: string[];
@@ -495,7 +492,6 @@ export type CompetencyStudy = {
     id: number;
     slug: string;
     title: string;
-    status: StudyStatus;
 };
 
 export type Competency = {

@@ -853,7 +853,7 @@ export function CompetencyManagement({
                                 checked={form.studyIds.includes(study.id)}
                                 onChange={() => toggleStudy(study.id)}
                                 label={study.title}
-                                meta={study.status}
+                                meta={study.section}
                             />
                         ))}
                     </SelectionSection>

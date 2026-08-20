@@ -1,7 +1,6 @@
 package com.selfintro.modules.study.domain.repository;
 
 import com.selfintro.modules.study.domain.entity.*;
-import com.selfintro.modules.study.domain.enums.StudyStatus;
 import java.util.Collection;
 import java.util.List;
 import java.util.Optional;
@@ -36,9 +35,8 @@ public interface StudyRepository extends JpaRepository<Study, Long>, StudyReposi
     @Query(
             "select tn.id as taxonomyNodeId, count(s) as count from Study s "
                     + "join s.taxonomyNodes tn where s.workspaceId = :workspaceId "
-                    + "and s.status = :status group by tn.id")
-    List<TaxonomyNodeCountProjection> countByTaxonomyNodeAndStatus(
-            @Param("workspaceId") Long workspaceId, @Param("status") StudyStatus status);
+                    + "group by tn.id")
+    List<TaxonomyNodeCountProjection> countByTaxonomyNode(@Param("workspaceId") Long workspaceId);
 
     interface TaxonomyNodeCountProjection {
         Long getTaxonomyNodeId();

@@ -169,9 +169,6 @@ export function CompetencyDetailPanel({
                                         <p className="text-xs font-bold leading-snug text-slate-700">
                                             {study.title}
                                         </p>
-                                        <p className="mt-1 text-[10px] font-bold text-slate-400">
-                                            {study.status}
-                                        </p>
                                     </div>
                                 ))}
                             </div>

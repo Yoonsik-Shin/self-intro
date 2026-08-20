@@ -108,11 +108,6 @@ export function StudyDetailPanel({
                                 {taxonomyBreadcrumbLabel(node, taxonomyNodesById)}
                             </span>
                         ))}
-                        <span
-                            className={`rounded-full px-2.5 py-1 ${study.status === 'PUBLISHED' ? 'bg-emerald-100 text-emerald-700' : 'bg-amber-100 text-amber-700'}`}
-                        >
-                            {study.status === 'PUBLISHED' ? '작성 완료' : '작성 중'}
-                        </span>
                         <span className="inline-flex items-center gap-1">
                             <CalendarDays className="h-3.5 w-3.5" />
                             {study.learnedAt}

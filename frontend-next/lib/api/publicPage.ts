@@ -103,6 +103,31 @@ export const publicPageApi = {
         request<PublicStudyPreview>(
             `/api/workspaces/${encodeURIComponent(workspaceSlug)}/public-page/draft/preview/study`
         ),
+    /**
+     * 저장 여부와 무관하게 지금 화면에 있는 초안 그대로 계산만 해서 돌려준다(DB에 안 씀).
+     * 넘기지 않은 쪽은 이미 저장된 초안을 그대로 쓴다.
+     */
+    previewIntroductionLive: (
+        workspaceSlug: string,
+        payload: { profile?: PublicProfileDraft; experience?: PublicExperienceDraft }
+    ) =>
+        request<IntroductionResponse>(
+            `/api/workspaces/${encodeURIComponent(workspaceSlug)}/public-page/draft/preview/introduction`,
+            { method: 'POST', body: JSON.stringify(payload) }
+        ),
+    previewExperienceLive: (
+        workspaceSlug: string,
+        payload: { experience?: PublicExperienceDraft }
+    ) =>
+        request<PublicExperiencePreview>(
+            `/api/workspaces/${encodeURIComponent(workspaceSlug)}/public-page/draft/preview/experience`,
+            { method: 'POST', body: JSON.stringify(payload) }
+        ),
+    previewStudyLive: (workspaceSlug: string, payload: { study?: PublicStudyDraft }) =>
+        request<PublicStudyPreview>(
+            `/api/workspaces/${encodeURIComponent(workspaceSlug)}/public-page/draft/preview/study`,
+            { method: 'POST', body: JSON.stringify(payload) }
+        ),
     profile: (workspaceSlug: string) =>
         request<PublicProfileDraft>(draftPath(workspaceSlug, 'profile')),
     updateProfile: (workspaceSlug: string, payload: PublicProfileDraft) =>

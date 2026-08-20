@@ -4,7 +4,6 @@ import com.selfintro.modules.experience.domain.repository.ExperienceRepository;
 import com.selfintro.modules.identity.domain.*;
 import com.selfintro.modules.profile.domain.repository.ProfileRepository;
 import com.selfintro.modules.securityaudit.application.SecurityAuditService;
-import com.selfintro.modules.study.domain.enums.StudyStatus;
 import com.selfintro.modules.study.domain.repository.StudyRepository;
 import com.selfintro.modules.supportaccess.domain.*;
 import java.time.LocalDateTime;
@@ -174,16 +173,11 @@ public class SupportAccessService {
                                             .findAllByWorkspaceIdOrderByDisplayOrderAsc(
                                                     workspace.getId())
                                             .size());
-                    case STUDY_READ -> {
-                        var studies =
-                                studyRepository.findAllByWorkspaceIdOrderByTitleAsc(
-                                        workspace.getId());
-                        yield new StudyDiagnostic(
-                                studies.size(),
-                                studies.stream()
-                                        .filter(study -> study.getStatus() == StudyStatus.PUBLISHED)
-                                        .count());
-                    }
+                    case STUDY_READ ->
+                            new CountDiagnostic(
+                                    studyRepository
+                                            .findAllByWorkspaceIdOrderByTitleAsc(workspace.getId())
+                                            .size());
                 };
         return new SupportSnapshot(
                 grant.getId(),
@@ -271,6 +265,4 @@ public class SupportAccessService {
             LocalDateTime updatedAt) {}
 
     public record CountDiagnostic(int count) {}
-
-    public record StudyDiagnostic(int totalCount, long publishedCount) {}
 }

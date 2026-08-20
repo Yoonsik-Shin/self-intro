@@ -13,7 +13,9 @@ public record WorkspacePublicationRevisionResponse(
         int schemaVersion,
         LocalDateTime publishedAt,
         boolean currentRevision,
-        boolean rollbackAvailable) {
+        boolean rollbackAvailable,
+        boolean pinned,
+        String note) {
 
     public static WorkspacePublicationRevisionResponse from(
             WorkspacePublicationRevision revision,
@@ -30,6 +32,8 @@ public record WorkspacePublicationRevisionResponse(
                 revision.getSchemaVersion(),
                 revision.getPublishedAt(),
                 current,
-                !current && revision.getSchemaVersion() == currentSchemaVersion);
+                !current && revision.getSchemaVersion() == currentSchemaVersion,
+                revision.isPinned(),
+                revision.getNote());
     }
 }

@@ -62,6 +62,12 @@ public class WorkspacePublicationRevision {
     @Column(name = "created_at", nullable = false, updatable = false)
     private LocalDateTime createdAt;
 
+    @Column(name = "pinned", nullable = false)
+    private boolean pinned;
+
+    @Column(name = "note", length = 500, updatable = false)
+    private String note;
+
     public static WorkspacePublicationRevision create(
             Long workspaceId,
             int revisionNumber,
@@ -72,6 +78,7 @@ public class WorkspacePublicationRevision {
             Long experienceRevisionId,
             Integer draftConfigVersion,
             Long publishedByUserId,
+            String note,
             LocalDateTime now) {
         WorkspacePublicationRevision revision = new WorkspacePublicationRevision();
         revision.workspaceId = workspaceId;
@@ -83,6 +90,7 @@ public class WorkspacePublicationRevision {
         revision.experienceRevisionId = experienceRevisionId;
         revision.draftConfigVersion = draftConfigVersion;
         revision.publishedByUserId = publishedByUserId;
+        revision.note = note;
         revision.publishedAt = now;
         revision.createdAt = now;
         return revision;
@@ -107,6 +115,11 @@ public class WorkspacePublicationRevision {
                 null,
                 null,
                 publishedByUserId,
+                null,
                 now);
+    }
+
+    public void setPinned(boolean pinned) {
+        this.pinned = pinned;
     }
 }

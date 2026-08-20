@@ -40,9 +40,6 @@ public class StudyRepositoryImpl implements StudyRepositoryCustom {
         if (condition.experienceDetailIds() != null && !condition.experienceDetailIds().isEmpty()) {
             where.and(study.experienceDetails.any().id.in(condition.experienceDetailIds()));
         }
-        if (condition.status() != null) {
-            where.and(study.status.eq(condition.status()));
-        }
         if (condition.section() != null) {
             where.and(study.section.eq(condition.section()));
         }

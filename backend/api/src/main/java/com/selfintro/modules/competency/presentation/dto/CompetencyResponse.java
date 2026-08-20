@@ -4,7 +4,6 @@ import com.selfintro.modules.competency.domain.entity.Competency;
 import com.selfintro.modules.competency.domain.entity.CompetencyEvidence;
 import com.selfintro.modules.skill.presentation.dto.SkillResponse;
 import com.selfintro.modules.study.domain.entity.Study;
-import com.selfintro.modules.study.domain.enums.StudyStatus;
 import java.util.Comparator;
 import java.util.List;
 
@@ -18,7 +17,7 @@ public record CompetencyResponse(
         List<TagResponse> tags,
         List<EvidenceResponse> evidences,
         List<StudyReferenceResponse> relatedStudies) {
-    public static CompetencyResponse from(Competency competency, boolean publicOnly) {
+    public static CompetencyResponse from(Competency competency) {
         List<EvidenceResponse> evidences =
                 competency.getEvidences().stream()
                         .sorted(
@@ -30,7 +29,6 @@ public record CompetencyResponse(
         List<StudyReferenceResponse> studies =
                 competency.getStudyLinks().stream()
                         .map(link -> link.getStudy())
-                        .filter(study -> !publicOnly || study.getStatus() == StudyStatus.PUBLISHED)
                         .map(StudyReferenceResponse::from)
                         .toList();
         return new CompetencyResponse(
@@ -79,10 +77,9 @@ public record CompetencyResponse(
         }
     }
 
-    public record StudyReferenceResponse(Long id, String slug, String title, String status) {
+    public record StudyReferenceResponse(Long id, String slug, String title) {
         static StudyReferenceResponse from(Study study) {
-            return new StudyReferenceResponse(
-                    study.getId(), study.getSlug(), study.getTitle(), study.getStatus().name());
+            return new StudyReferenceResponse(study.getId(), study.getSlug(), study.getTitle());
         }
     }
 }

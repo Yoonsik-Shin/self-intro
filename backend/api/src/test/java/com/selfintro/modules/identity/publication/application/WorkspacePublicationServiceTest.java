@@ -28,6 +28,20 @@ class WorkspacePublicationServiceTest {
                 .containsExactly(1);
     }
 
+    @Test
+    void retentionSkipsPinnedRevisions() {
+        LocalDateTime now = LocalDateTime.of(2026, 8, 11, 0, 0);
+        WorkspacePublicationRevision pinnedOld = revision(1, now.minusDays(200));
+        pinnedOld.setPinned(true);
+        List<WorkspacePublicationRevision> revisions =
+                List.of(revision(4, now.minusDays(1)), revision(3, now.minusDays(2)), pinnedOld);
+
+        var expired =
+                WorkspacePublicationService.expiredRevisions(revisions, 2, now.minusDays(180));
+
+        assertThat(expired).isEmpty();
+    }
+
     private WorkspacePublicationRevision revision(int revisionNumber, LocalDateTime createdAt) {
         return WorkspacePublicationRevision.create(
                 1L,

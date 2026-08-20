@@ -4,7 +4,7 @@ import { useMemo, useState } from 'react';
 import { Cpu } from 'lucide-react';
 import ReactMarkdown from 'react-markdown';
 import type { Experience, Skill } from '@/lib/api/types';
-import { groupCoreSkills, type Milestone } from '@/lib/introDerivations';
+import { groupSkillsByUsage, type Milestone } from '@/lib/introDerivations';
 import { getDisplayCategory } from '@/lib/skillCategory';
 import { SkillBadgeIcon } from '@/lib/SkillBadgeIcon';
 import { resumeMarkdownComponents } from '@/lib/markdown';
@@ -36,7 +36,7 @@ export function SkillsSection({
     workspaceSlug,
 }: Props) {
     const [selectedSkillId, setSelectedSkillId] = useState<number | null>(null);
-    const groups = useMemo(() => groupCoreSkills(skills), [skills]);
+    const groups = useMemo(() => groupSkillsByUsage(skills), [skills]);
     const selectedSkill = useMemo(
         () => groups.flatMap((g) => g.skills).find((s) => s.id === selectedSkillId),
         [groups, selectedSkillId]

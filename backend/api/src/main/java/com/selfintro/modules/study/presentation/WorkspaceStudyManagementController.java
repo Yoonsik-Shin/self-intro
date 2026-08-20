@@ -4,7 +4,6 @@ import com.selfintro.global.web.CurrentWorkspace;
 import com.selfintro.global.web.WorkspaceAccessLevel;
 import com.selfintro.modules.study.application.StudyService;
 import com.selfintro.modules.study.domain.enums.StudySection;
-import com.selfintro.modules.study.domain.enums.StudyStatus;
 import com.selfintro.modules.study.presentation.dto.StudyPageResponse;
 import com.selfintro.modules.study.presentation.dto.StudyRequest;
 import com.selfintro.modules.study.presentation.dto.StudyResponse;
@@ -39,7 +38,6 @@ public class WorkspaceStudyManagementController {
             @RequestParam(required = false) List<Long> skillIds,
             @RequestParam(required = false) List<Long> experienceIds,
             @RequestParam(required = false) List<Long> experienceDetailIds,
-            @RequestParam(required = false) StudyStatus status,
             @RequestParam(required = false) StudySection section,
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "100") int size) {
@@ -51,7 +49,6 @@ public class WorkspaceStudyManagementController {
                 skillIds,
                 experienceIds,
                 experienceDetailIds,
-                status,
                 section,
                 page,
                 size);
@@ -83,26 +80,5 @@ public class WorkspaceStudyManagementController {
             @PathVariable Long id) {
         studyService.delete(workspaceId, id);
         return ResponseEntity.noContent().build();
-    }
-
-    @PostMapping("/batch-publish")
-    public List<StudyResponse> batchPublish(
-            @CurrentWorkspace Long workspaceId,
-            @RequestBody List<Long> ids) {
-        return studyService.batchPublish(workspaceId, ids);
-    }
-
-    @PostMapping("/batch-unpublish")
-    public List<StudyResponse> batchUnpublish(
-            @CurrentWorkspace Long workspaceId,
-            @RequestBody List<Long> ids) {
-        return studyService.batchUnpublish(workspaceId, ids);
-    }
-
-    @PostMapping("/{id}/toggle-status")
-    public StudyResponse toggleStatus(
-            @CurrentWorkspace Long workspaceId,
-            @PathVariable Long id) {
-        return studyService.toggleStatus(workspaceId, id);
     }
 }
