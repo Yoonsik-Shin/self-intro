@@ -87,6 +87,7 @@ export function PortfolioManagement({
     const [detailView, setDetailView] = useState<'EDITOR' | 'REVISIONS'>('EDITOR');
     const [selectedRevisionId, setSelectedRevisionId] = useState<number | null>(null);
     const [createOpen, setCreateOpen] = useState(false);
+    const [createStep, setCreateStep] = useState<0 | 1>(0);
     const [createForm, setCreateForm] = useState({ experienceId: '', slug: '', title: '' });
     const [createSourceQuery, setCreateSourceQuery] = useState('');
     const [content, setContent] = useState<PortfolioCaseStudyContent>(EMPTY_CONTENT);
@@ -289,6 +290,7 @@ export function PortfolioManagement({
         onSuccess: (created) => {
             queryClient.invalidateQueries({ queryKey: ['portfolio-case-studies', workspaceSlug] });
             setCreateOpen(false);
+            setCreateStep(0);
             setCreateForm({ experienceId: '', slug: '', title: '' });
             setSelectedId(created.id);
         },
@@ -478,6 +480,7 @@ export function PortfolioManagement({
         setSelectedId(null);
         setCreateForm({ experienceId: '', slug: '', title: '' });
         setCreateSourceQuery('');
+        setCreateStep(0);
         setCreateOpen(true);
     };
 
@@ -494,6 +497,7 @@ export function PortfolioManagement({
             title: experience.title,
             slug: asciiSlug || `case-study-${experienceId}`,
         });
+        setCreateStep(1);
     };
 
     return (
@@ -524,34 +528,63 @@ export function PortfolioManagement({
             />
 
             {createOpen ? (
-                <section className="bg-white py-2 lg:flex lg:min-h-0 lg:flex-1 lg:flex-col lg:overflow-hidden">
-                    <div className="max-w-3xl shrink-0">
-                        <h3 className="text-2xl font-semibold tracking-tight text-slate-950">
+                <section className="flex min-h-[38rem] flex-col py-1 lg:min-h-0 lg:flex-1 lg:overflow-hidden">
+                    <div className="mx-auto w-full max-w-4xl shrink-0">
+                        <h3 className="text-xl font-semibold tracking-tight text-slate-950">
                             어떤 경험을 하나의 사례로 보여줄까요?
                         </h3>
-                        <p className="mt-2 text-sm leading-6 text-slate-500">
+                        <p className="mt-1.5 max-w-3xl text-sm leading-6 text-slate-500">
                             먼저 경력·프로젝트 원본을 고릅니다. 사례 작업공간을 만든 뒤 학습 기록,
                             기술, 핵심 역량을 근거로 연결해 AI 초안을 만들 수 있습니다.
                         </p>
+                        <ol className="mt-5 grid max-w-md grid-cols-2 gap-2 border-y border-slate-200 py-3">
+                            {(['원본 선택', '기본 정보'] as const).map((label, index) => (
+                                <li key={label}>
+                                    <button
+                                        type="button"
+                                        disabled={index === 1 && !selectedCreateExperience}
+                                        onClick={() => setCreateStep(index as 0 | 1)}
+                                        className={`flex items-center gap-2 text-xs font-black transition ${
+                                            createStep === index
+                                                ? 'text-slate-950'
+                                                : index < createStep
+                                                  ? 'text-slate-500 hover:text-slate-800'
+                                                  : 'cursor-default text-slate-300'
+                                        }`}
+                                    >
+                                        <span
+                                            className={`grid h-5 w-5 place-items-center rounded-full text-[9px] ${
+                                                index <= createStep
+                                                    ? 'bg-slate-900 text-white'
+                                                    : 'bg-slate-200 text-slate-400'
+                                            }`}
+                                        >
+                                            {index + 1}
+                                        </span>
+                                        {label}
+                                    </button>
+                                </li>
+                            ))}
+                        </ol>
                     </div>
 
-                    <div className="mt-9 grid gap-10 lg:min-h-0 lg:flex-1 lg:grid-cols-[minmax(15rem,0.72fr)_minmax(23rem,1.28fr)] xl:gap-14 xl:grid-cols-[minmax(17rem,0.68fr)_minmax(25rem,1.32fr)]">
-                        <div className="lg:flex lg:min-h-0 lg:flex-col">
-                            <div className="flex items-end justify-between gap-4">
+                    {createStep === 0 ? (
+                        <div className="mx-auto mt-6 flex min-h-0 w-full max-w-4xl flex-1 flex-col">
+                            <div className="flex shrink-0 items-end justify-between gap-4">
                                 <div>
-                                    <h4 className="text-base font-semibold text-slate-900">
+                                    <h4 className="text-sm font-black text-slate-900">
                                         출발점 선택
                                     </h4>
-                                    <p className="mt-1.5 text-sm text-slate-500">
+                                    <p className="mt-1 text-xs text-slate-500">
                                         등록된 회사 경력과 프로젝트만 표시합니다.
                                     </p>
                                 </div>
-                                <span className="shrink-0 text-xs text-slate-400">
+                                <span className="shrink-0 text-[11px] font-bold text-slate-400">
                                     {projectOptions.length}개 원본
                                 </span>
                             </div>
 
-                            <label className="mt-5 flex items-center gap-2 border-b border-slate-300 py-2.5 focus-within:border-slate-900">
+                            <label className="mt-4 flex shrink-0 items-center gap-2 border-b border-slate-300 py-2.5 focus-within:border-slate-900">
                                 <Search className="h-4 w-4 shrink-0 text-slate-400" />
                                 <span className="sr-only">경력·프로젝트 원본 검색</span>
                                 <input
@@ -562,7 +595,7 @@ export function PortfolioManagement({
                                 />
                             </label>
 
-                            <div className="mt-3 max-h-[28rem] overflow-y-auto border-t border-slate-200 lg:min-h-0 lg:max-h-none lg:flex-1">
+                            <div className="mt-2 min-h-0 flex-1 overflow-y-auto border-y border-slate-200">
                                 {filteredProjectOptions.map((experience) => {
                                     const isSelected =
                                         createForm.experienceId === String(experience.id);
@@ -574,7 +607,7 @@ export function PortfolioManagement({
                                             key={experience.id}
                                             type="button"
                                             onClick={() => selectCreateExperience(experience.id)}
-                                            className={`group flex w-full items-center gap-3 border-b border-l-2 border-b-slate-200 px-3 py-3.5 text-left transition-colors duration-150 ${
+                                            className={`group flex w-full items-center gap-3 border-b border-l-2 border-b-slate-200 px-3 py-3 text-left transition-colors duration-150 ${
                                                 isSelected
                                                     ? 'border-l-slate-900 bg-slate-50'
                                                     : 'border-l-transparent bg-white hover:bg-slate-50'
@@ -592,10 +625,10 @@ export function PortfolioManagement({
                                                         </>
                                                     )}
                                                 </div>
-                                                <p className="mt-1 truncate text-sm font-medium text-slate-900">
+                                                <p className="mt-1 truncate text-[13px] font-semibold text-slate-900">
                                                     {experience.title}
                                                 </p>
-                                                <p className="mt-0.5 truncate text-xs text-slate-500">
+                                                <p className="mt-0.5 truncate text-[11px] text-slate-500">
                                                     {experienceOrgName(experience)}
                                                 </p>
                                             </div>
@@ -622,18 +655,29 @@ export function PortfolioManagement({
                                 )}
                             </div>
                         </div>
+                    ) : (
+                        <div className="mx-auto mt-6 min-h-0 w-full max-w-2xl flex-1 overflow-y-auto pr-1">
+                            {selectedCreateExperience && (
+                                <>
+                                    <div className="flex items-end justify-between gap-4">
+                                        <div>
+                                            <h4 className="text-sm font-black text-slate-900">
+                                                사례 기본 정보
+                                            </h4>
+                                            <p className="mt-1 text-xs leading-5 text-slate-500">
+                                                방문자에게 보일 제목과 관리 URL을 확인합니다.
+                                            </p>
+                                        </div>
+                                        <button
+                                            type="button"
+                                            onClick={() => setCreateStep(0)}
+                                            className="inline-flex items-center gap-1 text-[11px] font-black text-slate-500 hover:text-slate-900"
+                                        >
+                                            <ArrowLeft className="h-3.5 w-3.5" /> 원본 다시 선택
+                                        </button>
+                                    </div>
 
-                        <div className="border-t border-slate-200 pt-8 lg:flex lg:min-h-0 lg:flex-col lg:border-l lg:border-t-0 lg:pl-10 lg:pt-0 xl:pl-14">
-                            <h4 className="text-base font-semibold text-slate-900">
-                                사례 기본 정보
-                            </h4>
-                            <p className="mt-1.5 text-sm leading-6 text-slate-500">
-                                방문자에게 보일 제목과 관리 URL을 확인합니다.
-                            </p>
-
-                            {selectedCreateExperience ? (
-                                <div className="mt-7 lg:min-h-0 lg:flex-1 lg:overflow-y-auto lg:pr-2">
-                                    <div className="border-b border-slate-200 pb-5">
+                                    <div className="mt-5 border-y border-slate-200 py-4">
                                         <p className="text-xs text-slate-400">연결 원본</p>
                                         <p className="mt-1.5 text-sm font-semibold text-slate-900">
                                             {selectedCreateExperience.title}
@@ -643,7 +687,7 @@ export function PortfolioManagement({
                                         </p>
                                     </div>
 
-                                    <label className="mt-7 block text-sm font-medium text-slate-700">
+                                    <label className="mt-6 block text-sm font-medium text-slate-700">
                                         사례 제목
                                         <input
                                             value={createForm.title}
@@ -691,7 +735,14 @@ export function PortfolioManagement({
                                         </p>
                                     )}
 
-                                    <div className="mt-8 flex justify-end">
+                                    <div className="mt-8 flex items-center justify-between border-t border-slate-200 pt-4">
+                                        <button
+                                            type="button"
+                                            onClick={() => setCreateStep(0)}
+                                            className="inline-flex items-center gap-1.5 px-2 py-2 text-xs font-black text-slate-500"
+                                        >
+                                            <ArrowLeft className="h-3.5 w-3.5" /> 이전
+                                        </button>
                                         <button
                                             type="button"
                                             disabled={
@@ -711,20 +762,10 @@ export function PortfolioManagement({
                                             )}
                                         </button>
                                     </div>
-                                </div>
-                            ) : (
-                                <div className="mt-12 max-w-sm">
-                                    <FolderGit2 className="h-6 w-6 text-slate-300" />
-                                    <p className="mt-4 text-sm font-medium text-slate-600">
-                                        왼쪽에서 원본을 선택하세요.
-                                    </p>
-                                    <p className="mt-1.5 text-sm leading-6 text-slate-400">
-                                        선택한 원본을 기준으로 제목과 URL을 먼저 채워드립니다.
-                                    </p>
-                                </div>
+                                </>
                             )}
                         </div>
-                    </div>
+                    )}
                 </section>
             ) : (
                 <div
