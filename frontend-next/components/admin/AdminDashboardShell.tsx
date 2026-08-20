@@ -350,7 +350,7 @@ const ADMIN_MENU_GROUPS: AdminMenuGroup[] = [
         items: [
             {
                 id: 'PLATFORM_OVERVIEW',
-                label: '사용자·Workspace 현황',
+                label: '사용자·Workspace',
                 description: '개인정보 없이 플랫폼 계정·Workspace·Membership 집계를 확인합니다.',
                 icon: LayoutDashboard,
                 operatorSection: '사용자·서비스 운영',
@@ -1135,7 +1135,7 @@ export function AdminDashboardShell({ workspaceSlug }: { workspaceSlug: string }
                                             }`}
                                         >
                                             <h2
-                                                className={`shrink-0 whitespace-nowrap text-xs font-black tracking-[0.01em] ${group.requiresPlatformOperator ? 'text-white' : 'text-slate-600'}`}
+                                                className={`shrink-0 whitespace-nowrap text-[13px] font-black tracking-[0.01em] ${group.requiresPlatformOperator ? 'text-white' : 'text-slate-600'}`}
                                             >
                                                 {group.label}
                                             </h2>
@@ -1204,7 +1204,7 @@ export function AdminDashboardShell({ workspaceSlug }: { workspaceSlug: string }
                                                             aria-current={
                                                                 isActive ? 'page' : undefined
                                                             }
-                                                            className={`flex items-center rounded-xl text-xs font-bold transition-all duration-300 ease-in-out ${
+                                                            className={`flex items-center rounded-xl text-[13px] font-bold transition-all duration-300 ease-in-out ${
                                                                 isSidebarCollapsed
                                                                     ? 'mx-auto h-10 w-10 justify-center'
                                                                     : 'w-full gap-1.5 px-2 py-2 text-left'
