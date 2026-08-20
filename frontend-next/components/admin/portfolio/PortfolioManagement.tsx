@@ -3,9 +3,10 @@
 import { useMemo, useRef, useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import {
+    ArrowLeft,
+    ArrowRight,
     BriefcaseBusiness,
     CheckCircle2,
-    Clock3,
     FileText,
     FolderGit2,
     History,
@@ -27,6 +28,7 @@ import type { PortfolioCaseStudy, PortfolioCaseStudyContent } from '@/lib/api/ty
 import { experienceOrgName, experienceTypeLabel } from '@/lib/format';
 import { AiRevisionChat, type AiRevisionChatMessage } from '@/components/shared/AiRevisionChat';
 import { AiStageBubble, useAiSuggestionStream } from '../ai/AiDraftAssistant';
+import { AdminPageHeader } from '@/components/admin/common/AdminPageHeader';
 
 const EMPTY_CONTENT: PortfolioCaseStudyContent = {
     summary: '',
@@ -137,6 +139,9 @@ export function PortfolioManagement({
         () => experiences.filter((e) => e.type === 'PROJECT' || e.type === 'CAREER'),
         [experiences]
     );
+    const selectedCreateExperience = createForm.experienceId
+        ? experienceById.get(Number(createForm.experienceId))
+        : null;
     const normalizedSearchQuery = searchQuery.trim().toLocaleLowerCase();
     const filteredCaseStudies = useMemo(
         () =>
@@ -397,724 +402,967 @@ export function PortfolioManagement({
         }));
     };
 
+    const openCreateWorkspace = () => {
+        setSelectedId(null);
+        setCreateForm({ experienceId: '', slug: '', title: '' });
+        setCreateOpen(true);
+    };
+
+    const selectCreateExperience = (experienceId: number) => {
+        const experience = experienceById.get(experienceId);
+        if (!experience) return;
+        const asciiSlug = experience.title
+            .normalize('NFKD')
+            .toLocaleLowerCase()
+            .replace(/[^a-z0-9]+/g, '-')
+            .replace(/^-+|-+$/g, '');
+        setCreateForm({
+            experienceId: String(experienceId),
+            title: experience.title,
+            slug: asciiSlug || `case-study-${experienceId}`,
+        });
+    };
+
     return (
-        <div className="flex h-full min-h-0 gap-4">
-            {/* 원본 목록: 공개 페이지 포함 여부가 아니라 Workspace에 저장된 사례 원본을 탐색한다. */}
-            <div className="flex w-80 shrink-0 flex-col overflow-hidden rounded-xl border border-slate-200 bg-white">
-                <div className="border-b border-slate-200 p-4">
-                    <div className="flex items-start justify-between gap-3">
-                        <div>
-                            <h2 className="flex items-center gap-2 text-base font-black text-slate-900">
-                                <FolderGit2 className="h-4 w-4" /> 포트폴리오 원본
-                            </h2>
-                            <p className="mt-1 text-[11px] font-medium leading-4 text-slate-500">
-                                사례 원본과 공개 구성에 사용할 기준 revision을 준비합니다.
-                            </p>
-                        </div>
+        <div className="space-y-6">
+            <AdminPageHeader
+                eyebrow="Source Record"
+                title="포트폴리오 사례 관리"
+                description="경력과 프로젝트 원본에서 보여줄 사례를 설계하고, 근거 기반 AI 초안과 revision을 관리합니다. 공개 순서는 공개 페이지에서 별도로 구성합니다."
+                actions={
+                    createOpen ? (
                         <button
                             type="button"
-                            onClick={() => setCreateOpen(true)}
-                            className="inline-flex shrink-0 items-center gap-1 rounded-lg bg-slate-950 px-2.5 py-1.5 text-[11px] font-bold text-white hover:bg-slate-800"
+                            onClick={() => setCreateOpen(false)}
+                            className="inline-flex items-center gap-1.5 rounded-xl border border-slate-300 bg-white px-4 py-2 text-sm font-bold text-slate-700 hover:bg-slate-50"
                         >
-                            <Plus className="h-3.5 w-3.5" /> 새 사례
+                            <ArrowLeft className="h-4 w-4" /> 사례 목록으로
                         </button>
-                    </div>
-                    <label className="relative mt-3 block">
-                        <Search className="pointer-events-none absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-slate-400" />
-                        <input
-                            value={searchQuery}
-                            onChange={(event) => setSearchQuery(event.target.value)}
-                            placeholder="제목, URL, 연결 경험 검색"
-                            className="w-full rounded-lg border border-slate-200 bg-slate-50 py-2 pl-8 pr-3 text-xs font-medium text-slate-800 outline-none transition focus:border-blue-400 focus:bg-white"
-                        />
-                    </label>
-                    <div className="mt-2 grid grid-cols-3 rounded-lg bg-slate-100 p-1 text-[10px] font-black">
-                        {(
-                            [
-                                ['ALL', `전체 ${caseStudies.length}`],
-                                ['DRAFT', `기준본 없음 ${draftCount}`],
-                                ['PUBLISHED', `준비됨 ${publishedCount}`],
-                            ] as const
-                        ).map(([value, label]) => (
-                            <button
-                                key={value}
-                                type="button"
-                                onClick={() => setStatusFilter(value)}
-                                className={`rounded-md px-1.5 py-1.5 transition ${
-                                    statusFilter === value
-                                        ? 'bg-white text-slate-950 shadow-sm'
-                                        : 'text-slate-500 hover:text-slate-800'
-                                }`}
-                            >
-                                {label}
-                            </button>
-                        ))}
-                    </div>
-                </div>
-                <div className="min-h-0 flex-1 space-y-2 overflow-y-auto p-3">
-                    {filteredCaseStudies.map((cs: PortfolioCaseStudy) => {
-                        const sourceExperience = experienceById.get(cs.experienceId);
-                        const isSelected = selectedId === cs.id;
-                        return (
-                            <button
-                                key={cs.id}
-                                type="button"
-                                onClick={() => {
-                                    setSelectedId(cs.id);
-                                    setDetailView('EDITOR');
-                                }}
-                                className={`w-full rounded-xl border p-3 text-left transition ${
-                                    isSelected
-                                        ? 'border-blue-400 bg-blue-50 shadow-sm'
-                                        : 'border-slate-200 bg-white hover:border-slate-300 hover:bg-slate-50'
-                                }`}
-                            >
-                                <div className="flex items-start justify-between gap-2">
-                                    <span className="line-clamp-2 text-xs font-black leading-5 text-slate-900">
-                                        {cs.title}
-                                    </span>
-                                    <span
-                                        className={`inline-flex shrink-0 items-center gap-1 rounded-full px-2 py-1 text-[9px] font-black ${
-                                            cs.status === 'PUBLISHED'
-                                                ? 'bg-emerald-100 text-emerald-700'
-                                                : cs.status === 'ARCHIVED'
-                                                  ? 'bg-amber-100 text-amber-700'
-                                                  : 'bg-slate-100 text-slate-500'
-                                        }`}
-                                    >
-                                        {cs.status === 'PUBLISHED' ? (
-                                            <CheckCircle2 className="h-2.5 w-2.5" />
-                                        ) : (
-                                            <Clock3 className="h-2.5 w-2.5" />
-                                        )}
-                                        {STATUS_LABELS[cs.status]}
-                                    </span>
-                                </div>
-                                {sourceExperience && (
-                                    <span className="mt-2 flex items-center gap-1 truncate text-[10px] font-bold text-slate-500">
-                                        <BriefcaseBusiness className="h-3 w-3 shrink-0" />
-                                        {experienceOrgName(sourceExperience)} ·{' '}
-                                        {sourceExperience.title}
-                                    </span>
-                                )}
-                                <span className="mt-1 block truncate font-mono text-[9px] text-slate-400">
-                                    /{cs.slug}
-                                </span>
-                            </button>
-                        );
-                    })}
-                    {filteredCaseStudies.length === 0 && (
-                        <div className="rounded-xl border border-dashed border-slate-300 px-4 py-8 text-center">
-                            <FileText className="mx-auto h-5 w-5 text-slate-300" />
-                            <p className="mt-2 text-xs font-bold text-slate-500">
-                                조건에 맞는 사례가 없습니다.
-                            </p>
-                        </div>
-                    )}
-                </div>
-            </div>
-
-            {createOpen && (
-                <div className="fixed inset-0 z-[90] flex items-center justify-center bg-black/40">
-                    <div className="w-full max-w-md rounded-xl bg-white p-5 shadow-xl">
-                        <div className="mb-3 flex items-center justify-between">
-                            <h3 className="text-sm font-black text-slate-900">새 케이스스터디</h3>
-                            <button type="button" onClick={() => setCreateOpen(false)}>
-                                <X className="h-4 w-4 text-slate-400" />
-                            </button>
-                        </div>
-                        <div className="space-y-2.5">
-                            <label className="block text-xs font-bold text-slate-600">
-                                프로젝트
-                                <select
-                                    value={createForm.experienceId}
-                                    onChange={(e) =>
-                                        setCreateForm((f) => ({
-                                            ...f,
-                                            experienceId: e.target.value,
-                                        }))
-                                    }
-                                    className="mt-1 w-full rounded-md border border-slate-300 px-2 py-1.5 text-sm"
-                                >
-                                    <option value="">선택</option>
-                                    {projectOptions.map((p) => (
-                                        <option key={p.id} value={p.id}>
-                                            [{experienceTypeLabel(p.type)}] {experienceOrgName(p)} —{' '}
-                                            {p.title}
-                                        </option>
-                                    ))}
-                                </select>
-                            </label>
-                            <label className="block text-xs font-bold text-slate-600">
-                                slug (URL)
-                                <input
-                                    value={createForm.slug}
-                                    onChange={(e) =>
-                                        setCreateForm((f) => ({ ...f, slug: e.target.value }))
-                                    }
-                                    placeholder="my-project-case-study"
-                                    className="mt-1 w-full rounded-md border border-slate-300 px-2 py-1.5 text-sm"
-                                />
-                            </label>
-                            <label className="block text-xs font-bold text-slate-600">
-                                제목
-                                <input
-                                    value={createForm.title}
-                                    onChange={(e) =>
-                                        setCreateForm((f) => ({ ...f, title: e.target.value }))
-                                    }
-                                    className="mt-1 w-full rounded-md border border-slate-300 px-2 py-1.5 text-sm"
-                                />
-                            </label>
-                        </div>
+                    ) : (
                         <button
                             type="button"
-                            disabled={
-                                !createForm.experienceId ||
-                                !createForm.slug.trim() ||
-                                !createForm.title.trim() ||
-                                createMutation.isPending
-                            }
-                            onClick={() => createMutation.mutate()}
-                            className="mt-4 w-full rounded-md bg-blue-600 py-2 text-xs font-black text-white disabled:opacity-40"
+                            onClick={openCreateWorkspace}
+                            className="inline-flex items-center gap-1.5 rounded-xl bg-slate-900 px-4 py-2 text-sm font-bold text-white shadow-sm hover:bg-slate-800"
                         >
-                            {createMutation.isPending ? '생성 중...' : '생성'}
+                            <Plus className="h-4 w-4" /> 새 사례 설계
                         </button>
-                    </div>
-                </div>
-            )}
+                    )
+                }
+            />
 
-            {/* 상세 편집 */}
-            {selectedCaseStudy ? (
-                <div className="flex-1 space-y-4 overflow-y-auto rounded-xl border border-slate-200 bg-white p-4">
-                    <div className="border-b border-slate-100 pb-4">
-                        <div className="flex items-start justify-between gap-4">
-                            <div className="min-w-0">
-                                <span className="text-[10px] font-black uppercase tracking-[0.16em] text-blue-600">
-                                    원본 사례 편집
-                                </span>
-                                <div className="mt-1 flex flex-wrap items-center gap-2">
-                                    <h2 className="truncate text-base font-black text-slate-900">
-                                        {selectedCaseStudy.title}
-                                    </h2>
-                                    <span
-                                        className={`rounded-full px-2 py-1 text-[9px] font-black ${
-                                            selectedCaseStudy.status === 'PUBLISHED'
-                                                ? 'bg-emerald-100 text-emerald-700'
-                                                : 'bg-slate-100 text-slate-500'
-                                        }`}
-                                    >
-                                        {STATUS_LABELS[selectedCaseStudy.status]}
-                                    </span>
-                                    {hasUnsavedChanges && detailView === 'EDITOR' && (
-                                        <span className="rounded-full bg-amber-100 px-2 py-1 text-[9px] font-black text-amber-700">
-                                            저장하지 않은 변경
-                                        </span>
-                                    )}
+            {createOpen ? (
+                <section className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
+                    <div className="border-b border-slate-200 px-5 py-5 sm:px-7">
+                        <p className="text-xs font-black uppercase tracking-[0.14em] text-slate-500">
+                            New case study
+                        </p>
+                        <h3 className="mt-1 text-xl font-black tracking-tight text-slate-950">
+                            어떤 경험을 하나의 사례로 보여줄까요?
+                        </h3>
+                        <p className="mt-2 max-w-3xl text-sm leading-6 text-slate-500">
+                            먼저 경력·프로젝트 원본을 고릅니다. 사례 작업공간을 만든 뒤 학습 기록,
+                            기술, 핵심 역량을 근거로 연결해 AI 초안을 만들 수 있습니다.
+                        </p>
+                    </div>
+
+                    <div className="grid lg:grid-cols-[minmax(0,1.45fr)_minmax(20rem,0.75fr)]">
+                        <div className="border-b border-slate-200 p-5 sm:p-7 lg:border-b-0 lg:border-r">
+                            <div className="mb-4 flex items-center justify-between gap-4">
+                                <div>
+                                    <p className="text-sm font-black text-slate-900">
+                                        1. 출발점 선택
+                                    </p>
+                                    <p className="mt-1 text-xs text-slate-500">
+                                        등록된 회사 경력과 프로젝트만 표시합니다.
+                                    </p>
                                 </div>
-                                <p className="mt-1 truncate text-[11px] text-slate-400">
-                                    /{selectedCaseStudy.slug}
-                                    {selectedSourceExperience && (
-                                        <>
-                                            {' · '}
-                                            {experienceOrgName(selectedSourceExperience)} ·{' '}
-                                            {selectedSourceExperience.title}
-                                        </>
-                                    )}
-                                </p>
+                                <span className="text-xs font-bold text-slate-400">
+                                    {projectOptions.length}개 원본
+                                </span>
                             </div>
-                            <button
-                                type="button"
-                                onClick={() => {
-                                    if (window.confirm('이 케이스스터디를 삭제할까요?')) {
-                                        deleteMutation.mutate(selectedCaseStudy.id);
-                                    }
-                                }}
-                                className="inline-flex shrink-0 items-center gap-1.5 rounded-md border border-rose-200 px-2.5 py-1.5 text-[11px] font-bold text-rose-600 hover:bg-rose-50"
-                            >
-                                <Trash2 className="h-3.5 w-3.5" /> 삭제
-                            </button>
-                        </div>
 
-                        <div className="mt-4 flex flex-wrap items-end justify-between gap-3">
-                            <div className="inline-flex rounded-lg bg-slate-100 p-1">
-                                <button
-                                    type="button"
-                                    onClick={() => setDetailView('EDITOR')}
-                                    className={`inline-flex items-center gap-1.5 rounded-md px-3 py-1.5 text-[11px] font-black transition ${
-                                        detailView === 'EDITOR'
-                                            ? 'bg-white text-slate-950 shadow-sm'
-                                            : 'text-slate-500'
-                                    }`}
-                                >
-                                    <FileText className="h-3.5 w-3.5" /> 내용 편집
-                                </button>
-                                <button
-                                    type="button"
-                                    onClick={() => setDetailView('REVISIONS')}
-                                    className={`inline-flex items-center gap-1.5 rounded-md px-3 py-1.5 text-[11px] font-black transition ${
-                                        detailView === 'REVISIONS'
-                                            ? 'bg-white text-slate-950 shadow-sm'
-                                            : 'text-slate-500'
-                                    }`}
-                                >
-                                    <History className="h-3.5 w-3.5" /> revision 이력{' '}
-                                    {detail?.revisions.length ?? 0}
-                                </button>
-                            </div>
-                            <p className="max-w-xl text-[10px] font-medium leading-4 text-slate-500">
-                                기준 revision은 공개 구성에서 선택할 후보입니다. 실제 방문자 노출과
-                                순서는 <strong>공개 페이지 → 경험 구성</strong>에서만 결정합니다.
-                            </p>
-                        </div>
-                    </div>
-
-                    {detailView === 'REVISIONS' && (
-                        <div className="space-y-3">
-                            <div className="rounded-xl border border-blue-100 bg-blue-50/60 p-4">
-                                <h3 className="text-xs font-black text-slate-900">
-                                    저장된 revision
-                                </h3>
-                                <p className="mt-1 text-[11px] leading-5 text-slate-500">
-                                    원하는 시점의 내용을 편집기로 불러오거나, 검토가 끝난 revision을
-                                    공개 구성용 기준본으로 지정할 수 있습니다.
-                                </p>
-                            </div>
-                            {detail?.revisions.map((revision) => {
-                                const isPublished =
-                                    selectedCaseStudy.publishedRevisionId === revision.id;
-                                const isSelected = selectedRevisionId === revision.id;
-                                return (
-                                    <div
-                                        key={revision.id}
-                                        className={`rounded-xl border p-4 ${
-                                            isSelected
-                                                ? 'border-blue-300 bg-blue-50/40'
-                                                : 'border-slate-200'
-                                        }`}
-                                    >
-                                        <div className="flex flex-wrap items-start justify-between gap-3">
-                                            <div>
-                                                <div className="flex items-center gap-2">
-                                                    <span className="text-sm font-black text-slate-900">
-                                                        v{revision.version}
-                                                    </span>
-                                                    <span className="rounded-full bg-slate-100 px-2 py-1 text-[9px] font-black text-slate-600">
-                                                        {revision.source === 'AI'
-                                                            ? 'AI 초안'
-                                                            : '직접 편집'}
-                                                    </span>
-                                                    {isPublished && (
-                                                        <span className="inline-flex items-center gap-1 rounded-full bg-emerald-100 px-2 py-1 text-[9px] font-black text-emerald-700">
-                                                            <CheckCircle2 className="h-2.5 w-2.5" />{' '}
-                                                            현재 기준 revision
-                                                        </span>
-                                                    )}
-                                                </div>
-                                                <p className="mt-1 text-[10px] text-slate-400">
-                                                    {new Date(revision.createdAt).toLocaleString(
-                                                        'ko-KR'
-                                                    )}
-                                                </p>
-                                                <p className="mt-2 line-clamp-2 text-xs leading-5 text-slate-600">
-                                                    {revision.content.summary ||
-                                                        '한줄 요약이 없는 revision입니다.'}
-                                                </p>
-                                            </div>
-                                            <div className="flex items-center gap-2">
-                                                <button
-                                                    type="button"
-                                                    onClick={() => {
-                                                        setSelectedRevisionId(revision.id);
-                                                        setContent(revision.content);
-                                                        setStudyIds(
-                                                            revision.content.sourceStudyIds
-                                                        );
-                                                        setDetailView('EDITOR');
-                                                    }}
-                                                    className="rounded-lg border border-slate-300 px-3 py-2 text-[10px] font-black text-slate-700 hover:bg-slate-50"
+                            <div className="grid max-h-[32rem] gap-2.5 overflow-y-auto pr-1 sm:grid-cols-2">
+                                {projectOptions.map((experience) => {
+                                    const isSelected =
+                                        createForm.experienceId === String(experience.id);
+                                    const existingCaseStudy = caseStudies.find(
+                                        (caseStudy) => caseStudy.experienceId === experience.id
+                                    );
+                                    return (
+                                        <button
+                                            key={experience.id}
+                                            type="button"
+                                            onClick={() => selectCreateExperience(experience.id)}
+                                            className={`group rounded-xl border p-4 text-left transition ${
+                                                isSelected
+                                                    ? 'border-slate-900 bg-slate-900 text-white shadow-sm'
+                                                    : 'border-slate-200 bg-white hover:border-slate-400 hover:bg-slate-50'
+                                            }`}
+                                        >
+                                            <div className="flex items-start justify-between gap-3">
+                                                <span
+                                                    className={`text-[11px] font-black ${isSelected ? 'text-slate-300' : 'text-slate-500'}`}
                                                 >
-                                                    편집기로 불러오기
-                                                </button>
-                                                {!isPublished && (
-                                                    <button
-                                                        type="button"
-                                                        onClick={() =>
-                                                            publishMutation.mutate(revision.id)
-                                                        }
-                                                        disabled={publishMutation.isPending}
-                                                        className="rounded-lg bg-emerald-600 px-3 py-2 text-[10px] font-black text-white disabled:opacity-50"
+                                                    {experienceTypeLabel(experience.type)}
+                                                </span>
+                                                {existingCaseStudy && (
+                                                    <span
+                                                        className={`text-[10px] font-bold ${isSelected ? 'text-slate-300' : 'text-amber-700'}`}
                                                     >
-                                                        기준 revision으로 지정
-                                                    </button>
+                                                        기존 사례 있음
+                                                    </span>
                                                 )}
                                             </div>
-                                        </div>
+                                            <p className="mt-3 line-clamp-2 text-sm font-black leading-5">
+                                                {experience.title}
+                                            </p>
+                                            <p
+                                                className={`mt-2 truncate text-xs ${isSelected ? 'text-slate-300' : 'text-slate-500'}`}
+                                            >
+                                                {experienceOrgName(experience)}
+                                            </p>
+                                        </button>
+                                    );
+                                })}
+                                {projectOptions.length === 0 && (
+                                    <div className="col-span-full rounded-xl border border-dashed border-slate-300 px-5 py-12 text-center">
+                                        <BriefcaseBusiness className="mx-auto h-6 w-6 text-slate-300" />
+                                        <p className="mt-3 text-sm font-bold text-slate-600">
+                                            연결할 경력·프로젝트 원본이 없습니다.
+                                        </p>
+                                        <p className="mt-1 text-xs text-slate-400">
+                                            먼저 이력 및 경력 관리에서 원본을 등록해 주세요.
+                                        </p>
                                     </div>
-                                );
-                            })}
-                            {detail?.revisions.length === 0 && (
-                                <div className="rounded-xl border border-dashed border-slate-300 py-12 text-center text-xs font-bold text-slate-400">
-                                    아직 저장된 revision이 없습니다.
+                                )}
+                            </div>
+                        </div>
+
+                        <div className="bg-slate-50/70 p-5 sm:p-7">
+                            <p className="text-sm font-black text-slate-900">2. 사례 기본 정보</p>
+                            <p className="mt-1 text-xs leading-5 text-slate-500">
+                                방문자에게 보일 제목과 관리 URL을 확인합니다.
+                            </p>
+
+                            {selectedCreateExperience ? (
+                                <div className="mt-5 space-y-5">
+                                    <div className="rounded-xl border border-slate-200 bg-white p-4">
+                                        <p className="text-[11px] font-bold text-slate-400">
+                                            연결 원본
+                                        </p>
+                                        <p className="mt-1 text-sm font-black text-slate-900">
+                                            {selectedCreateExperience.title}
+                                        </p>
+                                        <p className="mt-1 text-xs text-slate-500">
+                                            {experienceOrgName(selectedCreateExperience)}
+                                        </p>
+                                    </div>
+
+                                    <label className="block text-xs font-black text-slate-700">
+                                        사례 제목
+                                        <input
+                                            value={createForm.title}
+                                            onChange={(event) =>
+                                                setCreateForm((form) => ({
+                                                    ...form,
+                                                    title: event.target.value,
+                                                }))
+                                            }
+                                            placeholder="예: 장애 대응 체계를 다시 설계한 과정"
+                                            className="mt-2 w-full rounded-xl border border-slate-300 bg-white px-3.5 py-3 text-sm font-medium outline-none transition focus:border-slate-700 focus:ring-2 focus:ring-slate-200"
+                                        />
+                                    </label>
+
+                                    <label className="block text-xs font-black text-slate-700">
+                                        URL 식별자
+                                        <div className="mt-2 flex items-center rounded-xl border border-slate-300 bg-white focus-within:border-slate-700 focus-within:ring-2 focus-within:ring-slate-200">
+                                            <span className="shrink-0 border-r border-slate-200 px-3 text-xs font-bold text-slate-400">
+                                                /portfolio/
+                                            </span>
+                                            <input
+                                                value={createForm.slug}
+                                                onChange={(event) =>
+                                                    setCreateForm((form) => ({
+                                                        ...form,
+                                                        slug: event.target.value
+                                                            .toLocaleLowerCase()
+                                                            .replace(/[^a-z0-9-]/g, ''),
+                                                    }))
+                                                }
+                                                placeholder="case-study"
+                                                className="min-w-0 flex-1 rounded-r-xl px-3 py-3 font-mono text-sm outline-none"
+                                            />
+                                        </div>
+                                        <span className="mt-1.5 block text-[11px] font-medium text-slate-400">
+                                            영문 소문자, 숫자, 하이픈만 사용할 수 있습니다.
+                                        </span>
+                                    </label>
+
+                                    {createMutation.error && (
+                                        <p className="rounded-xl border border-rose-200 bg-rose-50 px-3 py-2 text-xs font-bold text-rose-700">
+                                            {createMutation.error instanceof Error
+                                                ? createMutation.error.message
+                                                : '사례 작업공간을 만들지 못했습니다.'}
+                                        </p>
+                                    )}
+
+                                    <button
+                                        type="button"
+                                        disabled={
+                                            !createForm.experienceId ||
+                                            !createForm.slug.trim() ||
+                                            !createForm.title.trim() ||
+                                            createMutation.isPending
+                                        }
+                                        onClick={() => createMutation.mutate()}
+                                        className="inline-flex w-full items-center justify-center gap-2 rounded-xl bg-slate-900 px-4 py-3 text-sm font-black text-white transition hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-40"
+                                    >
+                                        {createMutation.isPending
+                                            ? '작업공간 만드는 중...'
+                                            : '사례 작업공간 만들기'}
+                                        {!createMutation.isPending && (
+                                            <ArrowRight className="h-4 w-4" />
+                                        )}
+                                    </button>
+                                </div>
+                            ) : (
+                                <div className="mt-5 rounded-xl border border-dashed border-slate-300 bg-white px-5 py-12 text-center">
+                                    <FolderGit2 className="mx-auto h-6 w-6 text-slate-300" />
+                                    <p className="mt-3 text-sm font-bold text-slate-600">
+                                        왼쪽에서 원본을 선택하세요.
+                                    </p>
+                                    <p className="mt-1 text-xs leading-5 text-slate-400">
+                                        선택한 원본을 기준으로 제목과 URL을 먼저 채워드립니다.
+                                    </p>
                                 </div>
                             )}
                         </div>
-                    )}
+                    </div>
+                </section>
+            ) : (
+                <div className="grid min-h-[44rem] gap-4 lg:grid-cols-[20rem_minmax(0,1fr)]">
+                    {/* 원본 목록: 공개 페이지 포함 여부가 아니라 Workspace에 저장된 사례 원본을 탐색한다. */}
+                    <aside className="flex min-h-[34rem] flex-col overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
+                        <div className="border-b border-slate-200 p-4">
+                            <div className="flex items-center justify-between gap-3">
+                                <p className="text-sm font-black text-slate-900">사례 원본</p>
+                                <span className="text-xs font-bold text-slate-400">
+                                    {caseStudies.length}개
+                                </span>
+                            </div>
+                            <label className="relative mt-3 block">
+                                <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
+                                <input
+                                    type="search"
+                                    value={searchQuery}
+                                    onChange={(event) => setSearchQuery(event.target.value)}
+                                    placeholder="제목, URL, 연결 경험 검색"
+                                    className="w-full rounded-xl border border-slate-200 bg-slate-50 py-2.5 pl-9 pr-3 text-xs font-medium text-slate-800 outline-none transition focus:border-slate-700 focus:bg-white"
+                                />
+                            </label>
+                            <div className="mt-3 grid grid-cols-3 gap-1 text-[10px] font-black">
+                                {(
+                                    [
+                                        ['ALL', `전체 ${caseStudies.length}`],
+                                        ['DRAFT', `작성 중 ${draftCount}`],
+                                        ['PUBLISHED', `기준본 ${publishedCount}`],
+                                    ] as const
+                                ).map(([value, label]) => (
+                                    <button
+                                        key={value}
+                                        type="button"
+                                        onClick={() => setStatusFilter(value)}
+                                        className={`rounded-lg border px-1.5 py-2 transition ${
+                                            statusFilter === value
+                                                ? 'border-slate-900 bg-slate-900 text-white'
+                                                : 'border-slate-200 text-slate-500 hover:border-slate-400 hover:text-slate-800'
+                                        }`}
+                                    >
+                                        {label}
+                                    </button>
+                                ))}
+                            </div>
+                        </div>
+                        <div className="min-h-0 flex-1 space-y-2 overflow-y-auto p-3">
+                            {filteredCaseStudies.map((caseStudy: PortfolioCaseStudy) => {
+                                const sourceExperience = experienceById.get(caseStudy.experienceId);
+                                const isSelected = selectedId === caseStudy.id;
+                                return (
+                                    <button
+                                        key={caseStudy.id}
+                                        type="button"
+                                        onClick={() => {
+                                            setSelectedId(caseStudy.id);
+                                            setDetailView('EDITOR');
+                                        }}
+                                        className={`w-full rounded-xl border p-3.5 text-left transition ${
+                                            isSelected
+                                                ? 'border-slate-900 bg-slate-900 text-white shadow-sm'
+                                                : 'border-slate-200 bg-white hover:border-slate-400 hover:bg-slate-50'
+                                        }`}
+                                    >
+                                        <div className="flex items-start justify-between gap-3">
+                                            <span className="line-clamp-2 text-sm font-black leading-5">
+                                                {caseStudy.title}
+                                            </span>
+                                            {caseStudy.status === 'PUBLISHED' && (
+                                                <CheckCircle2
+                                                    className={`mt-0.5 h-4 w-4 shrink-0 ${isSelected ? 'text-emerald-300' : 'text-emerald-600'}`}
+                                                />
+                                            )}
+                                        </div>
+                                        {sourceExperience && (
+                                            <span
+                                                className={`mt-2 flex items-center gap-1 truncate text-[11px] font-bold ${isSelected ? 'text-slate-300' : 'text-slate-500'}`}
+                                            >
+                                                <BriefcaseBusiness className="h-3 w-3 shrink-0" />
+                                                {experienceOrgName(sourceExperience)} ·{' '}
+                                                {sourceExperience.title}
+                                            </span>
+                                        )}
+                                        <div
+                                            className={`mt-3 flex items-center justify-between gap-2 text-[10px] ${isSelected ? 'text-slate-400' : 'text-slate-400'}`}
+                                        >
+                                            <span className="truncate font-mono">
+                                                /{caseStudy.slug}
+                                            </span>
+                                            <span className="shrink-0 font-bold">
+                                                {STATUS_LABELS[caseStudy.status]}
+                                            </span>
+                                        </div>
+                                    </button>
+                                );
+                            })}
+                            {filteredCaseStudies.length === 0 && (
+                                <div className="rounded-xl border border-dashed border-slate-300 px-4 py-10 text-center">
+                                    <FileText className="mx-auto h-5 w-5 text-slate-300" />
+                                    <p className="mt-2 text-xs font-bold text-slate-500">
+                                        조건에 맞는 사례가 없습니다.
+                                    </p>
+                                    {caseStudies.length === 0 && (
+                                        <button
+                                            type="button"
+                                            onClick={openCreateWorkspace}
+                                            className="mt-4 text-xs font-black text-slate-900 underline underline-offset-4"
+                                        >
+                                            첫 사례 설계하기
+                                        </button>
+                                    )}
+                                </div>
+                            )}
+                        </div>
+                    </aside>
 
-                    {detailView === 'EDITOR' && (
-                        <>
-                            {selectedRevision && (
-                                <div className="flex flex-wrap items-center justify-between gap-2 rounded-lg border border-slate-200 bg-slate-50 px-3 py-2">
-                                    <span className="text-[11px] font-bold text-slate-600">
-                                        v{selectedRevision.version}을(를) 기준으로 편집 중
-                                    </span>
+                    {/* 상세 편집 */}
+                    {selectedCaseStudy ? (
+                        <main className="min-w-0 space-y-5 overflow-y-auto rounded-2xl border border-slate-200 bg-white p-4 shadow-sm sm:p-5">
+                            <div className="border-b border-slate-200 pb-5">
+                                <div className="flex items-start justify-between gap-4">
+                                    <div className="min-w-0">
+                                        <span className="text-[10px] font-black uppercase tracking-[0.16em] text-slate-500">
+                                            Case study workspace
+                                        </span>
+                                        <div className="mt-1 flex flex-wrap items-center gap-2">
+                                            <h2 className="truncate text-xl font-black tracking-tight text-slate-950">
+                                                {selectedCaseStudy.title}
+                                            </h2>
+                                            <span
+                                                className={`rounded-full px-2 py-1 text-[9px] font-black ${
+                                                    selectedCaseStudy.status === 'PUBLISHED'
+                                                        ? 'bg-emerald-100 text-emerald-700'
+                                                        : 'bg-slate-100 text-slate-500'
+                                                }`}
+                                            >
+                                                {STATUS_LABELS[selectedCaseStudy.status]}
+                                            </span>
+                                            {hasUnsavedChanges && detailView === 'EDITOR' && (
+                                                <span className="rounded-full bg-amber-100 px-2 py-1 text-[9px] font-black text-amber-700">
+                                                    저장하지 않은 변경
+                                                </span>
+                                            )}
+                                        </div>
+                                        <p className="mt-1 truncate text-[11px] text-slate-400">
+                                            /{selectedCaseStudy.slug}
+                                            {selectedSourceExperience && (
+                                                <>
+                                                    {' · '}
+                                                    {experienceOrgName(
+                                                        selectedSourceExperience
+                                                    )} · {selectedSourceExperience.title}
+                                                </>
+                                            )}
+                                        </p>
+                                    </div>
                                     <button
                                         type="button"
-                                        onClick={() => setDetailView('REVISIONS')}
-                                        className="text-[10px] font-black text-blue-600"
+                                        onClick={() => {
+                                            if (window.confirm('이 케이스스터디를 삭제할까요?')) {
+                                                deleteMutation.mutate(selectedCaseStudy.id);
+                                            }
+                                        }}
+                                        className="inline-flex shrink-0 items-center gap-1.5 rounded-md border border-rose-200 px-2.5 py-1.5 text-[11px] font-bold text-rose-600 hover:bg-rose-50"
                                     >
-                                        다른 revision 보기
+                                        <Trash2 className="h-3.5 w-3.5" /> 삭제
                                     </button>
                                 </div>
-                            )}
 
-                            {/* 서버의 Workspace 권한·출처 검증을 통과하는 편집자에게 AI 입력을 노출한다. */}
-                            {enablePlatformAi && (
-                                <div className="rounded-lg border border-violet-200 bg-violet-50/40 p-3">
-                                    <h3 className="mb-2 flex items-center gap-1.5 text-xs font-black text-violet-900">
-                                        <Sparkles className="h-3.5 w-3.5" /> AI 콘텐츠 스튜디오
-                                    </h3>
-                                    <textarea
-                                        value={instruction}
-                                        onChange={(e) => setInstruction(e.target.value)}
-                                        placeholder="새 초안을 만들 때 강조할 관점 (선택)"
-                                        rows={2}
-                                        className="w-full rounded-md border border-slate-300 px-2 py-1.5 text-xs"
-                                    />
-                                    <div className="mt-2 flex flex-wrap gap-1.5">
-                                        {(studyPage?.content ?? []).slice(0, 30).map((s) => (
-                                            <button
-                                                key={s.id}
-                                                type="button"
-                                                onClick={() =>
-                                                    setStudyIds((cur) =>
-                                                        cur.includes(s.id)
-                                                            ? cur.filter((id) => id !== s.id)
-                                                            : [...cur, s.id]
-                                                    )
-                                                }
-                                                className={`rounded-full border px-2 py-0.5 text-[10px] font-bold transition ${
-                                                    studyIds.includes(s.id)
-                                                        ? 'border-violet-400 bg-violet-600 text-white'
-                                                        : 'border-slate-300 text-slate-500 hover:border-violet-300'
-                                                }`}
-                                            >
-                                                {s.title}
-                                            </button>
-                                        ))}
-                                    </div>
-                                    <div className="mt-2 flex flex-wrap gap-1.5">
-                                        {competencies.map((competency) => (
-                                            <button
-                                                key={competency.id}
-                                                type="button"
-                                                onClick={() =>
-                                                    setCompetencyIds((current) =>
-                                                        current.includes(competency.id)
-                                                            ? current.filter(
-                                                                  (id) => id !== competency.id
-                                                              )
-                                                            : [...current, competency.id]
-                                                    )
-                                                }
-                                                className={`rounded-full border px-2 py-0.5 text-[10px] font-bold transition ${
-                                                    competencyIds.includes(competency.id)
-                                                        ? 'border-emerald-400 bg-emerald-600 text-white'
-                                                        : 'border-slate-300 text-slate-500 hover:border-emerald-300'
-                                                }`}
-                                            >
-                                                역량 · {competency.title}
-                                            </button>
-                                        ))}
-                                    </div>
-                                    <div className="mt-2 flex flex-wrap gap-1.5">
-                                        {skills.map((sk) => (
-                                            <button
-                                                key={sk.id}
-                                                type="button"
-                                                onClick={() =>
-                                                    setSkillIds((cur) =>
-                                                        cur.includes(sk.id)
-                                                            ? cur.filter((id) => id !== sk.id)
-                                                            : [...cur, sk.id]
-                                                    )
-                                                }
-                                                className={`rounded-full border px-2 py-0.5 text-[10px] font-bold transition ${
-                                                    skillIds.includes(sk.id)
-                                                        ? 'border-blue-400 bg-blue-600 text-white'
-                                                        : 'border-slate-300 text-slate-500 hover:border-blue-300'
-                                                }`}
-                                            >
-                                                {sk.name}
-                                            </button>
-                                        ))}
-                                    </div>
-                                    {aiStages.length > 0 && (
-                                        <div
-                                            ref={chatRef}
-                                            className="mt-3 max-h-64 space-y-2 overflow-y-auto"
+                                <div className="mt-4 flex flex-wrap items-end justify-between gap-3">
+                                    <div className="inline-flex rounded-xl border border-slate-200 bg-slate-50 p-1">
+                                        <button
+                                            type="button"
+                                            onClick={() => setDetailView('EDITOR')}
+                                            className={`inline-flex items-center gap-1.5 rounded-md px-3 py-1.5 text-[11px] font-black transition ${
+                                                detailView === 'EDITOR'
+                                                    ? 'bg-slate-900 text-white shadow-sm'
+                                                    : 'text-slate-500'
+                                            }`}
                                         >
-                                            {aiStages.map((stage) => (
-                                                <AiStageBubble
-                                                    key={stage.stage}
-                                                    stage={stage}
-                                                    fieldLabels={AI_FIELD_LABELS}
-                                                />
-                                            ))}
+                                            <FileText className="h-3.5 w-3.5" /> 내용 편집
+                                        </button>
+                                        <button
+                                            type="button"
+                                            onClick={() => setDetailView('REVISIONS')}
+                                            className={`inline-flex items-center gap-1.5 rounded-md px-3 py-1.5 text-[11px] font-black transition ${
+                                                detailView === 'REVISIONS'
+                                                    ? 'bg-slate-900 text-white shadow-sm'
+                                                    : 'text-slate-500'
+                                            }`}
+                                        >
+                                            <History className="h-3.5 w-3.5" /> revision 이력{' '}
+                                            {detail?.revisions.length ?? 0}
+                                        </button>
+                                    </div>
+                                    <p className="max-w-xl text-[10px] font-medium leading-4 text-slate-500">
+                                        기준 revision은 공개 구성에서 선택할 후보입니다. 실제 방문자
+                                        노출과 순서는 <strong>공개 페이지 → 경험 구성</strong>에서만
+                                        결정합니다.
+                                    </p>
+                                </div>
+                            </div>
+
+                            {detailView === 'REVISIONS' && (
+                                <div className="space-y-3">
+                                    <div className="rounded-xl border border-blue-100 bg-blue-50/60 p-4">
+                                        <h3 className="text-xs font-black text-slate-900">
+                                            저장된 revision
+                                        </h3>
+                                        <p className="mt-1 text-[11px] leading-5 text-slate-500">
+                                            원하는 시점의 내용을 편집기로 불러오거나, 검토가 끝난
+                                            revision을 공개 구성용 기준본으로 지정할 수 있습니다.
+                                        </p>
+                                    </div>
+                                    {detail?.revisions.map((revision) => {
+                                        const isPublished =
+                                            selectedCaseStudy.publishedRevisionId === revision.id;
+                                        const isSelected = selectedRevisionId === revision.id;
+                                        return (
+                                            <div
+                                                key={revision.id}
+                                                className={`rounded-xl border p-4 ${
+                                                    isSelected
+                                                        ? 'border-blue-300 bg-blue-50/40'
+                                                        : 'border-slate-200'
+                                                }`}
+                                            >
+                                                <div className="flex flex-wrap items-start justify-between gap-3">
+                                                    <div>
+                                                        <div className="flex items-center gap-2">
+                                                            <span className="text-sm font-black text-slate-900">
+                                                                v{revision.version}
+                                                            </span>
+                                                            <span className="rounded-full bg-slate-100 px-2 py-1 text-[9px] font-black text-slate-600">
+                                                                {revision.source === 'AI'
+                                                                    ? 'AI 초안'
+                                                                    : '직접 편집'}
+                                                            </span>
+                                                            {isPublished && (
+                                                                <span className="inline-flex items-center gap-1 rounded-full bg-emerald-100 px-2 py-1 text-[9px] font-black text-emerald-700">
+                                                                    <CheckCircle2 className="h-2.5 w-2.5" />{' '}
+                                                                    현재 기준 revision
+                                                                </span>
+                                                            )}
+                                                        </div>
+                                                        <p className="mt-1 text-[10px] text-slate-400">
+                                                            {new Date(
+                                                                revision.createdAt
+                                                            ).toLocaleString('ko-KR')}
+                                                        </p>
+                                                        <p className="mt-2 line-clamp-2 text-xs leading-5 text-slate-600">
+                                                            {revision.content.summary ||
+                                                                '한줄 요약이 없는 revision입니다.'}
+                                                        </p>
+                                                    </div>
+                                                    <div className="flex items-center gap-2">
+                                                        <button
+                                                            type="button"
+                                                            onClick={() => {
+                                                                setSelectedRevisionId(revision.id);
+                                                                setContent(revision.content);
+                                                                setStudyIds(
+                                                                    revision.content.sourceStudyIds
+                                                                );
+                                                                setDetailView('EDITOR');
+                                                            }}
+                                                            className="rounded-lg border border-slate-300 px-3 py-2 text-[10px] font-black text-slate-700 hover:bg-slate-50"
+                                                        >
+                                                            편집기로 불러오기
+                                                        </button>
+                                                        {!isPublished && (
+                                                            <button
+                                                                type="button"
+                                                                onClick={() =>
+                                                                    publishMutation.mutate(
+                                                                        revision.id
+                                                                    )
+                                                                }
+                                                                disabled={publishMutation.isPending}
+                                                                className="rounded-lg bg-emerald-600 px-3 py-2 text-[10px] font-black text-white disabled:opacity-50"
+                                                            >
+                                                                기준 revision으로 지정
+                                                            </button>
+                                                        )}
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        );
+                                    })}
+                                    {detail?.revisions.length === 0 && (
+                                        <div className="rounded-xl border border-dashed border-slate-300 py-12 text-center text-xs font-bold text-slate-400">
+                                            아직 저장된 revision이 없습니다.
                                         </div>
                                     )}
-                                    {aiError && (
-                                        <p className="mt-2 text-xs font-bold text-rose-600">
-                                            {aiError}
-                                        </p>
-                                    )}
-                                    <div className="mt-3 h-[34rem] overflow-hidden rounded-xl border border-violet-200 bg-white">
-                                        <AiRevisionChat
-                                            revisions={aiRevisionMessages}
-                                            isGenerating={isGenerating}
-                                            onGenerate={(feedback) =>
-                                                void requestAiGenerate(feedback)
-                                            }
-                                            onCancelGenerate={() => abortRef.current?.abort()}
-                                            onApplyMessage={(message) => {
-                                                const revision = detail?.revisions.find(
-                                                    (candidate) => candidate.id === message.id
-                                                );
-                                                if (!revision) return;
-                                                setSelectedRevisionId(revision.id);
-                                                setContent(revision.content);
-                                                setStudyIds(revision.content.sourceStudyIds);
-                                            }}
-                                            title="포트폴리오 초안 & 개선 대화"
-                                            subtitle="피드백과 결과가 content revision에 함께 기록됩니다."
-                                            generateButtonLabel="새 초안 생성"
-                                            emptyTitle="저장된 AI 초안이 없습니다."
-                                            emptyDescription="근거로 사용할 학습·기술을 고른 뒤 새 초안을 생성하세요. 생성 결과는 자동으로 revision에 저장됩니다."
-                                            inputPlaceholder="현재 revision에서 개선할 점을 입력하세요"
-                                            showModelSelector={false}
-                                        />
-                                    </div>
                                 </div>
                             )}
 
-                            {/* 구조화 편집 폼 */}
-                            <div className="space-y-3">
-                                <label className="block text-xs font-bold text-slate-600">
-                                    한줄 요약
-                                    <input
-                                        value={content.summary}
-                                        onChange={(e) =>
-                                            setContent((c) => ({ ...c, summary: e.target.value }))
-                                        }
-                                        className="mt-1 w-full rounded-md border border-slate-300 px-2 py-1.5 text-sm"
-                                    />
-                                </label>
-                                <label className="block text-xs font-bold text-slate-600">
-                                    문제 인식
-                                    <textarea
-                                        value={content.problem}
-                                        onChange={(e) =>
-                                            setContent((c) => ({ ...c, problem: e.target.value }))
-                                        }
-                                        rows={3}
-                                        className="mt-1 w-full rounded-md border border-slate-300 px-2 py-1.5 text-sm"
-                                    />
-                                </label>
-                                <label className="block text-xs font-bold text-slate-600">
-                                    고민한 것
-                                    <textarea
-                                        value={content.thoughtProcess}
-                                        onChange={(e) =>
-                                            setContent((c) => ({
-                                                ...c,
-                                                thoughtProcess: e.target.value,
-                                            }))
-                                        }
-                                        rows={3}
-                                        className="mt-1 w-full rounded-md border border-slate-300 px-2 py-1.5 text-sm"
-                                    />
-                                </label>
-
-                                <div>
-                                    <div className="mb-1 flex items-center justify-between">
-                                        <span className="text-xs font-bold text-slate-600">
-                                            트레이드오프
-                                        </span>
-                                        <button
-                                            type="button"
-                                            onClick={() =>
-                                                setContent((c) => ({
-                                                    ...c,
-                                                    tradeoffs: [
-                                                        ...c.tradeoffs,
-                                                        {
-                                                            option: '',
-                                                            pros: '',
-                                                            cons: '',
-                                                            chosenBecause: '',
-                                                        },
-                                                    ],
-                                                }))
-                                            }
-                                            className="text-[11px] font-bold text-blue-600 hover:text-blue-800"
-                                        >
-                                            + 추가
-                                        </button>
-                                    </div>
-                                    <div className="space-y-2">
-                                        {content.tradeoffs.map((t, i) => (
-                                            <div
-                                                key={i}
-                                                className="rounded-md border border-slate-200 p-2"
+                            {detailView === 'EDITOR' && (
+                                <>
+                                    {selectedRevision && (
+                                        <div className="flex flex-wrap items-center justify-between gap-2 rounded-lg border border-slate-200 bg-slate-50 px-3 py-2">
+                                            <span className="text-[11px] font-bold text-slate-600">
+                                                v{selectedRevision.version}을(를) 기준으로 편집 중
+                                            </span>
+                                            <button
+                                                type="button"
+                                                onClick={() => setDetailView('REVISIONS')}
+                                                className="text-[10px] font-black text-blue-600"
                                             >
-                                                <div className="flex items-center gap-1.5">
-                                                    <input
-                                                        value={t.option}
-                                                        onChange={(e) =>
-                                                            updateTradeoff(
-                                                                i,
-                                                                'option',
-                                                                e.target.value
-                                                            )
-                                                        }
-                                                        placeholder="후보안"
-                                                        className="flex-1 rounded border border-slate-300 px-1.5 py-1 text-xs font-bold"
-                                                    />
-                                                    <button
-                                                        type="button"
-                                                        onClick={() =>
-                                                            setContent((c) => ({
-                                                                ...c,
-                                                                tradeoffs: c.tradeoffs.filter(
-                                                                    (_, idx) => idx !== i
-                                                                ),
-                                                            }))
-                                                        }
-                                                    >
-                                                        <X className="h-3.5 w-3.5 text-slate-400" />
-                                                    </button>
+                                                다른 revision 보기
+                                            </button>
+                                        </div>
+                                    )}
+
+                                    {/* 서버의 Workspace 권한·출처 검증을 통과하는 편집자에게 AI 입력을 노출한다. */}
+                                    {enablePlatformAi && (
+                                        <section className="overflow-hidden rounded-2xl border border-slate-200 bg-white">
+                                            <div className="border-b border-slate-200 px-5 py-4">
+                                                <div className="flex items-start gap-3">
+                                                    <span className="grid h-9 w-9 shrink-0 place-items-center rounded-xl bg-slate-900 text-white">
+                                                        <Sparkles className="h-4 w-4" />
+                                                    </span>
+                                                    <div>
+                                                        <h3 className="text-sm font-black text-slate-950">
+                                                            근거 기반 AI 초안
+                                                        </h3>
+                                                        <p className="mt-1 text-xs leading-5 text-slate-500">
+                                                            사용할 근거를 먼저 고른 뒤 초안을
+                                                            만들고, 오른쪽 대화에서 현재 revision을
+                                                            계속 개선합니다.
+                                                        </p>
+                                                    </div>
                                                 </div>
-                                                <input
-                                                    value={t.pros}
-                                                    onChange={(e) =>
-                                                        updateTradeoff(i, 'pros', e.target.value)
-                                                    }
-                                                    placeholder="장점"
-                                                    className="mt-1 w-full rounded border border-slate-200 px-1.5 py-1 text-xs"
-                                                />
-                                                <input
-                                                    value={t.cons}
-                                                    onChange={(e) =>
-                                                        updateTradeoff(i, 'cons', e.target.value)
-                                                    }
-                                                    placeholder="단점"
-                                                    className="mt-1 w-full rounded border border-slate-200 px-1.5 py-1 text-xs"
-                                                />
-                                                <input
-                                                    value={t.chosenBecause}
-                                                    onChange={(e) =>
-                                                        updateTradeoff(
-                                                            i,
-                                                            'chosenBecause',
-                                                            e.target.value
-                                                        )
-                                                    }
-                                                    placeholder="선택 이유"
-                                                    className="mt-1 w-full rounded border border-slate-200 px-1.5 py-1 text-xs"
-                                                />
                                             </div>
-                                        ))}
-                                    </div>
-                                </div>
 
-                                <label className="block text-xs font-bold text-slate-600">
-                                    해결
-                                    <textarea
-                                        value={content.solution}
-                                        onChange={(e) =>
-                                            setContent((c) => ({ ...c, solution: e.target.value }))
-                                        }
-                                        rows={3}
-                                        className="mt-1 w-full rounded-md border border-slate-300 px-2 py-1.5 text-sm"
-                                    />
-                                </label>
+                                            <div className="grid xl:grid-cols-[minmax(18rem,0.8fr)_minmax(28rem,1.2fr)]">
+                                                <div className="space-y-5 border-b border-slate-200 bg-slate-50/60 p-5 xl:border-b-0 xl:border-r">
+                                                    <label className="block text-xs font-black text-slate-700">
+                                                        작성 방향
+                                                        <textarea
+                                                            value={instruction}
+                                                            onChange={(event) =>
+                                                                setInstruction(event.target.value)
+                                                            }
+                                                            placeholder="예: 운영 안정성을 높이기 위해 내린 판단과 트레이드오프 중심"
+                                                            rows={3}
+                                                            className="mt-2 w-full resize-none rounded-xl border border-slate-300 bg-white px-3 py-2.5 text-sm leading-5 outline-none transition focus:border-slate-700 focus:ring-2 focus:ring-slate-200"
+                                                        />
+                                                    </label>
 
-                                <label className="block text-xs font-bold text-slate-600">
-                                    성과 요약
-                                    <textarea
-                                        value={content.outcome.summary}
-                                        onChange={(e) =>
-                                            setContent((c) => ({
-                                                ...c,
-                                                outcome: { ...c.outcome, summary: e.target.value },
-                                            }))
-                                        }
-                                        rows={2}
-                                        className="mt-1 w-full rounded-md border border-slate-300 px-2 py-1.5 text-sm"
-                                    />
-                                </label>
+                                                    <div>
+                                                        <div className="flex items-center justify-between">
+                                                            <p className="text-xs font-black text-slate-700">
+                                                                학습 기록
+                                                            </p>
+                                                            <span className="text-[10px] font-bold text-slate-400">
+                                                                {studyIds.length}개 선택
+                                                            </span>
+                                                        </div>
+                                                        <div className="mt-2 flex max-h-28 flex-wrap gap-1.5 overflow-y-auto">
+                                                            {(studyPage?.content ?? [])
+                                                                .slice(0, 30)
+                                                                .map((study) => (
+                                                                    <button
+                                                                        key={study.id}
+                                                                        type="button"
+                                                                        onClick={() =>
+                                                                            setStudyIds(
+                                                                                (current) =>
+                                                                                    current.includes(
+                                                                                        study.id
+                                                                                    )
+                                                                                        ? current.filter(
+                                                                                              (
+                                                                                                  id
+                                                                                              ) =>
+                                                                                                  id !==
+                                                                                                  study.id
+                                                                                          )
+                                                                                        : [
+                                                                                              ...current,
+                                                                                              study.id,
+                                                                                          ]
+                                                                            )
+                                                                        }
+                                                                        className={`rounded-lg border px-2.5 py-1.5 text-[11px] font-bold transition ${
+                                                                            studyIds.includes(
+                                                                                study.id
+                                                                            )
+                                                                                ? 'border-slate-900 bg-slate-900 text-white'
+                                                                                : 'border-slate-200 bg-white text-slate-600 hover:border-slate-400'
+                                                                        }`}
+                                                                    >
+                                                                        {study.title}
+                                                                    </button>
+                                                                ))}
+                                                        </div>
+                                                    </div>
 
-                                <div>
-                                    <div className="mb-1 flex items-center justify-between">
-                                        <span className="text-xs font-bold text-slate-600">
-                                            성과 지표
-                                        </span>
-                                        <button
-                                            type="button"
-                                            onClick={() =>
-                                                setContent((c) => ({
-                                                    ...c,
-                                                    outcome: {
-                                                        ...c.outcome,
-                                                        metrics: [
-                                                            ...c.outcome.metrics,
-                                                            { label: '', before: '', after: '' },
-                                                        ],
-                                                    },
-                                                }))
-                                            }
-                                            className="text-[11px] font-bold text-blue-600 hover:text-blue-800"
-                                        >
-                                            + 추가
-                                        </button>
-                                    </div>
-                                    <div className="space-y-1.5">
-                                        {content.outcome.metrics.map((m, i) => (
-                                            <div key={i} className="flex items-center gap-1.5">
-                                                <input
-                                                    value={m.label}
-                                                    onChange={(e) =>
-                                                        updateMetric(i, 'label', e.target.value)
+                                                    <div>
+                                                        <div className="flex items-center justify-between">
+                                                            <p className="text-xs font-black text-slate-700">
+                                                                핵심 역량
+                                                            </p>
+                                                            <span className="text-[10px] font-bold text-slate-400">
+                                                                {competencyIds.length}개 선택
+                                                            </span>
+                                                        </div>
+                                                        <div className="mt-2 flex max-h-28 flex-wrap gap-1.5 overflow-y-auto">
+                                                            {competencies.map((competency) => (
+                                                                <button
+                                                                    key={competency.id}
+                                                                    type="button"
+                                                                    onClick={() =>
+                                                                        setCompetencyIds(
+                                                                            (current) =>
+                                                                                current.includes(
+                                                                                    competency.id
+                                                                                )
+                                                                                    ? current.filter(
+                                                                                          (id) =>
+                                                                                              id !==
+                                                                                              competency.id
+                                                                                      )
+                                                                                    : [
+                                                                                          ...current,
+                                                                                          competency.id,
+                                                                                      ]
+                                                                        )
+                                                                    }
+                                                                    className={`rounded-lg border px-2.5 py-1.5 text-[11px] font-bold transition ${
+                                                                        competencyIds.includes(
+                                                                            competency.id
+                                                                        )
+                                                                            ? 'border-slate-900 bg-slate-900 text-white'
+                                                                            : 'border-slate-200 bg-white text-slate-600 hover:border-slate-400'
+                                                                    }`}
+                                                                >
+                                                                    {competency.title}
+                                                                </button>
+                                                            ))}
+                                                        </div>
+                                                    </div>
+
+                                                    <div>
+                                                        <div className="flex items-center justify-between">
+                                                            <p className="text-xs font-black text-slate-700">
+                                                                기술
+                                                            </p>
+                                                            <span className="text-[10px] font-bold text-slate-400">
+                                                                {skillIds.length}개 선택
+                                                            </span>
+                                                        </div>
+                                                        <div className="mt-2 flex max-h-28 flex-wrap gap-1.5 overflow-y-auto">
+                                                            {skills.map((skill) => (
+                                                                <button
+                                                                    key={skill.id}
+                                                                    type="button"
+                                                                    onClick={() =>
+                                                                        setSkillIds((current) =>
+                                                                            current.includes(
+                                                                                skill.id
+                                                                            )
+                                                                                ? current.filter(
+                                                                                      (id) =>
+                                                                                          id !==
+                                                                                          skill.id
+                                                                                  )
+                                                                                : [
+                                                                                      ...current,
+                                                                                      skill.id,
+                                                                                  ]
+                                                                        )
+                                                                    }
+                                                                    className={`rounded-lg border px-2.5 py-1.5 text-[11px] font-bold transition ${
+                                                                        skillIds.includes(skill.id)
+                                                                            ? 'border-slate-900 bg-slate-900 text-white'
+                                                                            : 'border-slate-200 bg-white text-slate-600 hover:border-slate-400'
+                                                                    }`}
+                                                                >
+                                                                    {skill.name}
+                                                                </button>
+                                                            ))}
+                                                        </div>
+                                                    </div>
+
+                                                    {aiStages.length > 0 && (
+                                                        <div
+                                                            ref={chatRef}
+                                                            className="max-h-64 space-y-2 overflow-y-auto border-t border-slate-200 pt-4"
+                                                        >
+                                                            {aiStages.map((stage) => (
+                                                                <AiStageBubble
+                                                                    key={stage.stage}
+                                                                    stage={stage}
+                                                                    fieldLabels={AI_FIELD_LABELS}
+                                                                />
+                                                            ))}
+                                                        </div>
+                                                    )}
+                                                    {aiError && (
+                                                        <p className="rounded-xl border border-rose-200 bg-rose-50 px-3 py-2 text-xs font-bold text-rose-700">
+                                                            {aiError}
+                                                        </p>
+                                                    )}
+                                                </div>
+
+                                                <div className="h-[38rem] min-h-0 overflow-hidden bg-white">
+                                                    <AiRevisionChat
+                                                        revisions={aiRevisionMessages}
+                                                        isGenerating={isGenerating}
+                                                        onGenerate={(feedback) =>
+                                                            void requestAiGenerate(feedback)
+                                                        }
+                                                        onCancelGenerate={() =>
+                                                            abortRef.current?.abort()
+                                                        }
+                                                        onApplyMessage={(message) => {
+                                                            const revision = detail?.revisions.find(
+                                                                (candidate) =>
+                                                                    candidate.id === message.id
+                                                            );
+                                                            if (!revision) return;
+                                                            setSelectedRevisionId(revision.id);
+                                                            setContent(revision.content);
+                                                            setStudyIds(
+                                                                revision.content.sourceStudyIds
+                                                            );
+                                                        }}
+                                                        title="포트폴리오 초안 & 개선 대화"
+                                                        subtitle="피드백과 결과가 content revision에 함께 기록됩니다."
+                                                        generateButtonLabel="새 초안 생성"
+                                                        emptyTitle="저장된 AI 초안이 없습니다."
+                                                        emptyDescription="근거로 사용할 학습·기술을 고른 뒤 새 초안을 생성하세요. 생성 결과는 자동으로 revision에 저장됩니다."
+                                                        inputPlaceholder="현재 revision에서 개선할 점을 입력하세요"
+                                                        showModelSelector={false}
+                                                    />
+                                                </div>
+                                            </div>
+                                        </section>
+                                    )}
+
+                                    {/* 구조화 편집 폼 */}
+                                    <div className="space-y-3">
+                                        <label className="block text-xs font-bold text-slate-600">
+                                            한줄 요약
+                                            <input
+                                                value={content.summary}
+                                                onChange={(e) =>
+                                                    setContent((c) => ({
+                                                        ...c,
+                                                        summary: e.target.value,
+                                                    }))
+                                                }
+                                                className="mt-1 w-full rounded-md border border-slate-300 px-2 py-1.5 text-sm"
+                                            />
+                                        </label>
+                                        <label className="block text-xs font-bold text-slate-600">
+                                            문제 인식
+                                            <textarea
+                                                value={content.problem}
+                                                onChange={(e) =>
+                                                    setContent((c) => ({
+                                                        ...c,
+                                                        problem: e.target.value,
+                                                    }))
+                                                }
+                                                rows={3}
+                                                className="mt-1 w-full rounded-md border border-slate-300 px-2 py-1.5 text-sm"
+                                            />
+                                        </label>
+                                        <label className="block text-xs font-bold text-slate-600">
+                                            고민한 것
+                                            <textarea
+                                                value={content.thoughtProcess}
+                                                onChange={(e) =>
+                                                    setContent((c) => ({
+                                                        ...c,
+                                                        thoughtProcess: e.target.value,
+                                                    }))
+                                                }
+                                                rows={3}
+                                                className="mt-1 w-full rounded-md border border-slate-300 px-2 py-1.5 text-sm"
+                                            />
+                                        </label>
+
+                                        <div>
+                                            <div className="mb-1 flex items-center justify-between">
+                                                <span className="text-xs font-bold text-slate-600">
+                                                    트레이드오프
+                                                </span>
+                                                <button
+                                                    type="button"
+                                                    onClick={() =>
+                                                        setContent((c) => ({
+                                                            ...c,
+                                                            tradeoffs: [
+                                                                ...c.tradeoffs,
+                                                                {
+                                                                    option: '',
+                                                                    pros: '',
+                                                                    cons: '',
+                                                                    chosenBecause: '',
+                                                                },
+                                                            ],
+                                                        }))
                                                     }
-                                                    placeholder="지표명"
-                                                    className="w-24 rounded border border-slate-300 px-1.5 py-1 text-xs"
-                                                />
-                                                <input
-                                                    value={m.before}
-                                                    onChange={(e) =>
-                                                        updateMetric(i, 'before', e.target.value)
-                                                    }
-                                                    placeholder="이전"
-                                                    className="w-20 rounded border border-slate-300 px-1.5 py-1 text-xs"
-                                                />
-                                                <input
-                                                    value={m.after}
-                                                    onChange={(e) =>
-                                                        updateMetric(i, 'after', e.target.value)
-                                                    }
-                                                    placeholder="이후"
-                                                    className="w-20 rounded border border-slate-300 px-1.5 py-1 text-xs"
-                                                />
+                                                    className="text-[11px] font-bold text-blue-600 hover:text-blue-800"
+                                                >
+                                                    + 추가
+                                                </button>
+                                            </div>
+                                            <div className="space-y-2">
+                                                {content.tradeoffs.map((t, i) => (
+                                                    <div
+                                                        key={i}
+                                                        className="rounded-md border border-slate-200 p-2"
+                                                    >
+                                                        <div className="flex items-center gap-1.5">
+                                                            <input
+                                                                value={t.option}
+                                                                onChange={(e) =>
+                                                                    updateTradeoff(
+                                                                        i,
+                                                                        'option',
+                                                                        e.target.value
+                                                                    )
+                                                                }
+                                                                placeholder="후보안"
+                                                                className="flex-1 rounded border border-slate-300 px-1.5 py-1 text-xs font-bold"
+                                                            />
+                                                            <button
+                                                                type="button"
+                                                                onClick={() =>
+                                                                    setContent((c) => ({
+                                                                        ...c,
+                                                                        tradeoffs:
+                                                                            c.tradeoffs.filter(
+                                                                                (_, idx) =>
+                                                                                    idx !== i
+                                                                            ),
+                                                                    }))
+                                                                }
+                                                            >
+                                                                <X className="h-3.5 w-3.5 text-slate-400" />
+                                                            </button>
+                                                        </div>
+                                                        <input
+                                                            value={t.pros}
+                                                            onChange={(e) =>
+                                                                updateTradeoff(
+                                                                    i,
+                                                                    'pros',
+                                                                    e.target.value
+                                                                )
+                                                            }
+                                                            placeholder="장점"
+                                                            className="mt-1 w-full rounded border border-slate-200 px-1.5 py-1 text-xs"
+                                                        />
+                                                        <input
+                                                            value={t.cons}
+                                                            onChange={(e) =>
+                                                                updateTradeoff(
+                                                                    i,
+                                                                    'cons',
+                                                                    e.target.value
+                                                                )
+                                                            }
+                                                            placeholder="단점"
+                                                            className="mt-1 w-full rounded border border-slate-200 px-1.5 py-1 text-xs"
+                                                        />
+                                                        <input
+                                                            value={t.chosenBecause}
+                                                            onChange={(e) =>
+                                                                updateTradeoff(
+                                                                    i,
+                                                                    'chosenBecause',
+                                                                    e.target.value
+                                                                )
+                                                            }
+                                                            placeholder="선택 이유"
+                                                            className="mt-1 w-full rounded border border-slate-200 px-1.5 py-1 text-xs"
+                                                        />
+                                                    </div>
+                                                ))}
+                                            </div>
+                                        </div>
+
+                                        <label className="block text-xs font-bold text-slate-600">
+                                            해결
+                                            <textarea
+                                                value={content.solution}
+                                                onChange={(e) =>
+                                                    setContent((c) => ({
+                                                        ...c,
+                                                        solution: e.target.value,
+                                                    }))
+                                                }
+                                                rows={3}
+                                                className="mt-1 w-full rounded-md border border-slate-300 px-2 py-1.5 text-sm"
+                                            />
+                                        </label>
+
+                                        <label className="block text-xs font-bold text-slate-600">
+                                            성과 요약
+                                            <textarea
+                                                value={content.outcome.summary}
+                                                onChange={(e) =>
+                                                    setContent((c) => ({
+                                                        ...c,
+                                                        outcome: {
+                                                            ...c.outcome,
+                                                            summary: e.target.value,
+                                                        },
+                                                    }))
+                                                }
+                                                rows={2}
+                                                className="mt-1 w-full rounded-md border border-slate-300 px-2 py-1.5 text-sm"
+                                            />
+                                        </label>
+
+                                        <div>
+                                            <div className="mb-1 flex items-center justify-between">
+                                                <span className="text-xs font-bold text-slate-600">
+                                                    성과 지표
+                                                </span>
                                                 <button
                                                     type="button"
                                                     onClick={() =>
@@ -1122,166 +1370,257 @@ export function PortfolioManagement({
                                                             ...c,
                                                             outcome: {
                                                                 ...c.outcome,
-                                                                metrics: c.outcome.metrics.filter(
-                                                                    (_, idx) => idx !== i
-                                                                ),
+                                                                metrics: [
+                                                                    ...c.outcome.metrics,
+                                                                    {
+                                                                        label: '',
+                                                                        before: '',
+                                                                        after: '',
+                                                                    },
+                                                                ],
                                                             },
                                                         }))
                                                     }
+                                                    className="text-[11px] font-bold text-blue-600 hover:text-blue-800"
                                                 >
-                                                    <X className="h-3.5 w-3.5 text-slate-400" />
+                                                    + 추가
                                                 </button>
                                             </div>
-                                        ))}
+                                            <div className="space-y-1.5">
+                                                {content.outcome.metrics.map((m, i) => (
+                                                    <div
+                                                        key={i}
+                                                        className="flex items-center gap-1.5"
+                                                    >
+                                                        <input
+                                                            value={m.label}
+                                                            onChange={(e) =>
+                                                                updateMetric(
+                                                                    i,
+                                                                    'label',
+                                                                    e.target.value
+                                                                )
+                                                            }
+                                                            placeholder="지표명"
+                                                            className="w-24 rounded border border-slate-300 px-1.5 py-1 text-xs"
+                                                        />
+                                                        <input
+                                                            value={m.before}
+                                                            onChange={(e) =>
+                                                                updateMetric(
+                                                                    i,
+                                                                    'before',
+                                                                    e.target.value
+                                                                )
+                                                            }
+                                                            placeholder="이전"
+                                                            className="w-20 rounded border border-slate-300 px-1.5 py-1 text-xs"
+                                                        />
+                                                        <input
+                                                            value={m.after}
+                                                            onChange={(e) =>
+                                                                updateMetric(
+                                                                    i,
+                                                                    'after',
+                                                                    e.target.value
+                                                                )
+                                                            }
+                                                            placeholder="이후"
+                                                            className="w-20 rounded border border-slate-300 px-1.5 py-1 text-xs"
+                                                        />
+                                                        <button
+                                                            type="button"
+                                                            onClick={() =>
+                                                                setContent((c) => ({
+                                                                    ...c,
+                                                                    outcome: {
+                                                                        ...c.outcome,
+                                                                        metrics:
+                                                                            c.outcome.metrics.filter(
+                                                                                (_, idx) =>
+                                                                                    idx !== i
+                                                                            ),
+                                                                    },
+                                                                }))
+                                                            }
+                                                        >
+                                                            <X className="h-3.5 w-3.5 text-slate-400" />
+                                                        </button>
+                                                    </div>
+                                                ))}
+                                            </div>
+                                        </div>
+
+                                        <label className="block text-xs font-bold text-slate-600">
+                                            아키텍처 Mermaid
+                                            <textarea
+                                                value={content.architecture.mermaidSource ?? ''}
+                                                onChange={(e) =>
+                                                    setContent((c) => ({
+                                                        ...c,
+                                                        architecture: {
+                                                            ...c.architecture,
+                                                            mermaidSource: e.target.value || null,
+                                                        },
+                                                    }))
+                                                }
+                                                rows={4}
+                                                placeholder={'graph TD\n  A[시작] --> B[완료]'}
+                                                className="mt-1 w-full rounded-md border border-slate-300 px-2 py-1.5 font-mono text-xs"
+                                            />
+                                        </label>
+
+                                        <div>
+                                            <div className="mb-1 flex items-center justify-between">
+                                                <span className="text-xs font-bold text-slate-600">
+                                                    아키텍처 이미지
+                                                </span>
+                                                <button
+                                                    type="button"
+                                                    onClick={() => fileInputRef.current?.click()}
+                                                    disabled={uploadingImage}
+                                                    className="inline-flex items-center gap-1 text-[11px] font-bold text-blue-600 hover:text-blue-800 disabled:opacity-50"
+                                                >
+                                                    {uploadingImage ? (
+                                                        <Loader2 className="h-3 w-3 animate-spin" />
+                                                    ) : (
+                                                        <Upload className="h-3 w-3" />
+                                                    )}
+                                                    업로드
+                                                </button>
+                                                <input
+                                                    ref={fileInputRef}
+                                                    type="file"
+                                                    accept="image/*"
+                                                    className="hidden"
+                                                    onChange={(e) => {
+                                                        const file = e.target.files?.[0];
+                                                        if (file) void handleUploadImage(file);
+                                                        e.target.value = '';
+                                                    }}
+                                                />
+                                            </div>
+                                            <div className="flex flex-wrap gap-2">
+                                                {content.architecture.imageUrls.map((url, i) => (
+                                                    <div key={i} className="relative">
+                                                        {/* eslint-disable-next-line @next/next/no-img-element */}
+                                                        <img
+                                                            src={url}
+                                                            alt=""
+                                                            className="h-16 w-16 rounded-md border border-slate-200 object-cover"
+                                                        />
+                                                        <button
+                                                            type="button"
+                                                            onClick={() =>
+                                                                setContent((c) => ({
+                                                                    ...c,
+                                                                    architecture: {
+                                                                        ...c.architecture,
+                                                                        imageObjectKeys:
+                                                                            c.architecture.imageObjectKeys.filter(
+                                                                                (_, idx) =>
+                                                                                    idx !== i
+                                                                            ),
+                                                                        imageUrls:
+                                                                            c.architecture.imageUrls.filter(
+                                                                                (_, idx) =>
+                                                                                    idx !== i
+                                                                            ),
+                                                                    },
+                                                                }))
+                                                            }
+                                                            className="absolute -right-1 -top-1 grid h-4 w-4 place-items-center rounded-full bg-rose-600 text-white"
+                                                        >
+                                                            <X className="h-2.5 w-2.5" />
+                                                        </button>
+                                                    </div>
+                                                ))}
+                                            </div>
+                                        </div>
                                     </div>
-                                </div>
 
-                                <label className="block text-xs font-bold text-slate-600">
-                                    아키텍처 Mermaid
-                                    <textarea
-                                        value={content.architecture.mermaidSource ?? ''}
-                                        onChange={(e) =>
-                                            setContent((c) => ({
-                                                ...c,
-                                                architecture: {
-                                                    ...c.architecture,
-                                                    mermaidSource: e.target.value || null,
-                                                },
-                                            }))
-                                        }
-                                        rows={4}
-                                        placeholder={'graph TD\n  A[시작] --> B[완료]'}
-                                        className="mt-1 w-full rounded-md border border-slate-300 px-2 py-1.5 font-mono text-xs"
-                                    />
-                                </label>
-
-                                <div>
-                                    <div className="mb-1 flex items-center justify-between">
-                                        <span className="text-xs font-bold text-slate-600">
-                                            아키텍처 이미지
-                                        </span>
+                                    <div className="flex flex-wrap items-center gap-2 border-t border-slate-100 pt-3">
                                         <button
                                             type="button"
-                                            onClick={() => fileInputRef.current?.click()}
-                                            disabled={uploadingImage}
-                                            className="inline-flex items-center gap-1 text-[11px] font-bold text-blue-600 hover:text-blue-800 disabled:opacity-50"
+                                            onClick={() => saveRevisionMutation.mutate('MANUAL')}
+                                            disabled={
+                                                saveRevisionMutation.isPending || !hasUnsavedChanges
+                                            }
+                                            className="rounded-md bg-slate-800 px-3 py-1.5 text-xs font-black text-white disabled:opacity-40"
                                         >
-                                            {uploadingImage ? (
-                                                <Loader2 className="h-3 w-3 animate-spin" />
-                                            ) : (
-                                                <Upload className="h-3 w-3" />
-                                            )}
-                                            업로드
+                                            {saveRevisionMutation.isPending
+                                                ? '저장 중...'
+                                                : hasUnsavedChanges
+                                                  ? '새 revision 저장'
+                                                  : '저장됨'}
                                         </button>
-                                        <input
-                                            ref={fileInputRef}
-                                            type="file"
-                                            accept="image/*"
-                                            className="hidden"
-                                            onChange={(e) => {
-                                                const file = e.target.files?.[0];
-                                                if (file) void handleUploadImage(file);
-                                                e.target.value = '';
-                                            }}
-                                        />
-                                    </div>
-                                    <div className="flex flex-wrap gap-2">
-                                        {content.architecture.imageUrls.map((url, i) => (
-                                            <div key={i} className="relative">
-                                                {/* eslint-disable-next-line @next/next/no-img-element */}
-                                                <img
-                                                    src={url}
-                                                    alt=""
-                                                    className="h-16 w-16 rounded-md border border-slate-200 object-cover"
-                                                />
+                                        {selectedRevision &&
+                                            selectedCaseStudy.publishedRevisionId !==
+                                                selectedRevision.id && (
                                                 <button
                                                     type="button"
                                                     onClick={() =>
-                                                        setContent((c) => ({
-                                                            ...c,
-                                                            architecture: {
-                                                                ...c.architecture,
-                                                                imageObjectKeys:
-                                                                    c.architecture.imageObjectKeys.filter(
-                                                                        (_, idx) => idx !== i
-                                                                    ),
-                                                                imageUrls:
-                                                                    c.architecture.imageUrls.filter(
-                                                                        (_, idx) => idx !== i
-                                                                    ),
-                                                            },
-                                                        }))
+                                                        publishMutation.mutate(selectedRevision.id)
                                                     }
-                                                    className="absolute -right-1 -top-1 grid h-4 w-4 place-items-center rounded-full bg-rose-600 text-white"
+                                                    disabled={
+                                                        publishMutation.isPending ||
+                                                        hasUnsavedChanges
+                                                    }
+                                                    title={
+                                                        hasUnsavedChanges
+                                                            ? '변경 내용을 새 revision으로 저장한 뒤 기준본으로 지정하세요.'
+                                                            : undefined
+                                                    }
+                                                    className="rounded-md bg-emerald-600 px-3 py-1.5 text-xs font-black text-white disabled:opacity-50"
                                                 >
-                                                    <X className="h-2.5 w-2.5" />
+                                                    v{selectedRevision.version} 기준본 지정
                                                 </button>
-                                            </div>
-                                        ))}
+                                            )}
+                                        {selectedCaseStudy.status === 'PUBLISHED' && (
+                                            <button
+                                                type="button"
+                                                onClick={() => unpublishMutation.mutate()}
+                                                className="rounded-md border border-slate-300 px-3 py-1.5 text-xs font-bold text-slate-600"
+                                            >
+                                                기준본 지정 해제
+                                            </button>
+                                        )}
+                                        <span className="ml-auto text-right text-[10px] leading-4 text-slate-400">
+                                            {selectedRevision
+                                                ? `선택 v${selectedRevision.version}`
+                                                : '첫 revision을 저장해 주세요'}
+                                            {hasUnsavedChanges && (
+                                                <>
+                                                    <br />새 revision 저장 후 기준본으로 지정할 수
+                                                    있습니다.
+                                                </>
+                                            )}
+                                        </span>
                                     </div>
-                                </div>
-                            </div>
-
-                            <div className="flex flex-wrap items-center gap-2 border-t border-slate-100 pt-3">
+                                </>
+                            )}
+                        </main>
+                    ) : (
+                        <main className="flex min-h-[34rem] min-w-0 items-center justify-center rounded-2xl border border-dashed border-slate-300 bg-white px-6 text-center">
+                            <div className="max-w-sm">
+                                <FolderGit2 className="mx-auto h-8 w-8 text-slate-300" />
+                                <h3 className="mt-4 text-base font-black text-slate-800">
+                                    편집할 사례를 선택하세요
+                                </h3>
+                                <p className="mt-2 text-sm leading-6 text-slate-500">
+                                    왼쪽 목록에서 기존 사례를 선택하거나 새 사례를 설계해 근거 기반
+                                    AI 초안과 revision을 관리할 수 있습니다.
+                                </p>
                                 <button
                                     type="button"
-                                    onClick={() => saveRevisionMutation.mutate('MANUAL')}
-                                    disabled={saveRevisionMutation.isPending || !hasUnsavedChanges}
-                                    className="rounded-md bg-slate-800 px-3 py-1.5 text-xs font-black text-white disabled:opacity-40"
+                                    onClick={openCreateWorkspace}
+                                    className="mt-5 inline-flex items-center gap-1.5 rounded-xl bg-slate-900 px-4 py-2.5 text-sm font-bold text-white hover:bg-slate-800"
                                 >
-                                    {saveRevisionMutation.isPending
-                                        ? '저장 중...'
-                                        : hasUnsavedChanges
-                                          ? '새 revision 저장'
-                                          : '저장됨'}
+                                    <Plus className="h-4 w-4" /> 새 사례 설계
                                 </button>
-                                {selectedRevision &&
-                                    selectedCaseStudy.publishedRevisionId !==
-                                        selectedRevision.id && (
-                                        <button
-                                            type="button"
-                                            onClick={() =>
-                                                publishMutation.mutate(selectedRevision.id)
-                                            }
-                                            disabled={
-                                                publishMutation.isPending || hasUnsavedChanges
-                                            }
-                                            title={
-                                                hasUnsavedChanges
-                                                    ? '변경 내용을 새 revision으로 저장한 뒤 기준본으로 지정하세요.'
-                                                    : undefined
-                                            }
-                                            className="rounded-md bg-emerald-600 px-3 py-1.5 text-xs font-black text-white disabled:opacity-50"
-                                        >
-                                            v{selectedRevision.version} 기준본 지정
-                                        </button>
-                                    )}
-                                {selectedCaseStudy.status === 'PUBLISHED' && (
-                                    <button
-                                        type="button"
-                                        onClick={() => unpublishMutation.mutate()}
-                                        className="rounded-md border border-slate-300 px-3 py-1.5 text-xs font-bold text-slate-600"
-                                    >
-                                        기준본 지정 해제
-                                    </button>
-                                )}
-                                <span className="ml-auto text-right text-[10px] leading-4 text-slate-400">
-                                    {selectedRevision
-                                        ? `선택 v${selectedRevision.version}`
-                                        : '첫 revision을 저장해 주세요'}
-                                    {hasUnsavedChanges && (
-                                        <>
-                                            <br />새 revision 저장 후 기준본으로 지정할 수 있습니다.
-                                        </>
-                                    )}
-                                </span>
                             </div>
-                        </>
+                        </main>
                     )}
-                </div>
-            ) : (
-                <div className="flex flex-1 items-center justify-center rounded-xl border border-dashed border-slate-300 text-sm text-slate-400">
-                    왼쪽에서 케이스스터디를 선택하거나 새로 만드세요
                 </div>
             )}
         </div>
