@@ -58,8 +58,21 @@ public class WorkspacePublicationProjectionBuilder {
     private final PublicPageCompositionService compositionService;
 
     public IntroductionResponse introduction(Long workspaceId, IntroductionChannel channel) {
-        PublicProfileSnapshot profile = profileSnapshot(workspaceId);
-        PublicExperienceSnapshot experience = experienceSnapshot(workspaceId);
+        return introduction(
+                workspaceId,
+                channel,
+                compositionService.profile(workspaceId),
+                compositionService.experience(workspaceId));
+    }
+
+    /** 저장 여부와 무관하게, 주어진 초안(draft)을 그대로 적용했을 때의 결과를 계산한다. */
+    public IntroductionResponse introduction(
+            Long workspaceId,
+            IntroductionChannel channel,
+            PublicProfileDraft profileDraft,
+            PublicExperienceDraft experienceDraft) {
+        PublicProfileSnapshot profile = profileSnapshot(workspaceId, profileDraft);
+        PublicExperienceSnapshot experience = experienceSnapshot(workspaceId, experienceDraft);
         return new IntroductionResponse(
                 profile.profile(),
                 experience.experiences(),
@@ -73,7 +86,13 @@ public class WorkspacePublicationProjectionBuilder {
         if (!compositionService.available()) {
             return legacyProfileSnapshot(workspaceId);
         }
-        PublicProfileDraft draft = compositionService.profile(workspaceId);
+        return profileSnapshot(workspaceId, compositionService.profile(workspaceId));
+    }
+
+    public PublicProfileSnapshot profileSnapshot(Long workspaceId, PublicProfileDraft draft) {
+        if (!compositionService.available()) {
+            return legacyProfileSnapshot(workspaceId);
+        }
         ProfileResponse profile =
                 profileService
                         .getProfile(workspaceId)
@@ -122,7 +141,13 @@ public class WorkspacePublicationProjectionBuilder {
         if (!compositionService.available()) {
             return legacyExperienceSnapshot(workspaceId);
         }
-        PublicExperienceDraft draft = compositionService.experience(workspaceId);
+        return experienceSnapshot(workspaceId, compositionService.experience(workspaceId));
+    }
+
+    public PublicExperienceSnapshot experienceSnapshot(Long workspaceId, PublicExperienceDraft draft) {
+        if (!compositionService.available()) {
+            return legacyExperienceSnapshot(workspaceId);
+        }
         Map<Long, ExperienceResponse> source =
                 experienceService.getAllExperiences(workspaceId).stream()
                         .map(experienceService::toResponse)
@@ -199,7 +224,13 @@ public class WorkspacePublicationProjectionBuilder {
         if (!compositionService.available()) {
             return studyService.getPublishedForPublication(workspaceId);
         }
-        PublicStudyDraft draft = compositionService.study(workspaceId);
+        return studies(workspaceId, compositionService.study(workspaceId));
+    }
+
+    public List<StudyResponse> studies(Long workspaceId, PublicStudyDraft draft) {
+        if (!compositionService.available()) {
+            return studyService.getPublishedForPublication(workspaceId);
+        }
         List<Long> studyIds =
                 draft.studies().stream()
                         .filter(PublicStudyDraft.StudySelection::enabled)
@@ -234,9 +265,15 @@ public class WorkspacePublicationProjectionBuilder {
         if (!compositionService.available()) {
             return studyService.findPublicTaxonomy(workspaceId);
         }
-        PublicStudyDraft draft = compositionService.study(workspaceId);
+        return studyTaxonomy(workspaceId, compositionService.study(workspaceId));
+    }
+
+    public List<StudyTaxonomyResponse> studyTaxonomy(Long workspaceId, PublicStudyDraft draft) {
+        if (!compositionService.available()) {
+            return studyService.findPublicTaxonomy(workspaceId);
+        }
         Map<Long, Long> counts =
-                studies(workspaceId).stream()
+                studies(workspaceId, draft).stream()
                         .flatMap(study -> study.taxonomyNodes().stream())
                         .collect(Collectors.groupingBy(node -> node.id(), Collectors.counting()));
         Map<Long, TaxonomyNode> nodes =

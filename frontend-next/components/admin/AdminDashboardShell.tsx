@@ -46,11 +46,12 @@ import {
     ShieldCheck,
     Database,
     Settings,
+    SlidersHorizontal,
 } from 'lucide-react';
 import { systemStatusApi } from '@/lib/api';
 import { useAuthStore } from '@/store/useAuthStore';
 import { AiModelFloatingWidget } from './AiModelFloatingWidget';
-import { WorkspacePublicationPanel } from './publication/WorkspacePublicationPanel';
+import type { PublicCompositionSection } from './publication/PublicPageCompositionManagement';
 import { WorkspaceSettingsPanel } from './workspace/WorkspaceSettingsPanel';
 import { WorkspaceMemberManagement } from './workspace/WorkspaceMemberManagement';
 import { ReauthenticationControl } from './security/ReauthenticationControl';
@@ -163,10 +164,7 @@ const ADMIN_CONTENT_RESERVE_WIDTH = 460;
 type TabId =
     | 'WORKSPACE_HOME'
     | 'WORKSPACE_SETTINGS'
-    | 'PUBLICATION'
-    | 'PUBLIC_PROFILE'
-    | 'PUBLIC_EXPERIENCE'
-    | 'PUBLIC_STUDY'
+    | 'PUBLIC_COMPOSITION'
     | 'MEMBERS'
     | 'PLATFORM_OVERVIEW'
     | 'INVITATIONS'
@@ -196,7 +194,7 @@ type TabId =
 type AdminMenuGroup = {
     label: string;
     description: string;
-    scope: 'WORKSPACE' | 'SOURCE' | 'PUBLICATION' | 'OUTPUT' | 'PLATFORM';
+    scope: 'WORKSPACE' | 'SOURCE' | 'PUBLICATION' | 'PLATFORM';
     requiresPlatformOperator?: boolean;
     items: Array<{
         id: TabId;
@@ -227,6 +225,12 @@ const ADMIN_MENU_GROUPS: AdminMenuGroup[] = [
                 description: '현재 Workspace 공개 페이지의 방문 현황을 확인합니다.',
                 icon: BarChart3,
                 workspaceAdminOnly: true,
+            },
+            {
+                id: 'JOB_APPLICATIONS',
+                label: '지원 현황',
+                description: '채용 공고별 지원 상태와 맞춤 자료를 관리합니다.',
+                icon: ClipboardList,
             },
         ],
     },
@@ -314,47 +318,17 @@ const ADMIN_MENU_GROUPS: AdminMenuGroup[] = [
         ],
     },
     {
-        label: '공개 페이지',
-        description: '원본을 선별·연결하며 발행 전까지 방문자에게 반영되지 않습니다.',
+        label: '공개·출력',
+        description:
+            '원본을 선별·연결해 웹 공개 페이지 또는 PDF로 내보냅니다. 발행 전까지 방문자에게 반영되지 않습니다.',
         scope: 'PUBLICATION',
         items: [
             {
-                id: 'PUBLICATION',
-                label: '공개본·버전',
+                id: 'PUBLIC_COMPOSITION',
+                label: '공개 페이지 구성·발행',
                 description:
-                    '현재 Workspace의 공개 페이지 snapshot을 발행하고 버전 이력을 관리합니다.',
-                icon: Radio,
-            },
-            {
-                id: 'PUBLIC_PROFILE',
-                label: '프로필 구성',
-                description: '공개할 프로필 필드, 기술과 대표 역량을 선택합니다.',
-                icon: User,
-            },
-            {
-                id: 'PUBLIC_EXPERIENCE',
-                label: '경험 구성',
-                description: '공개 경험, 세부 성과, 타임라인과 대표 프로젝트를 선택합니다.',
-                icon: Briefcase,
-            },
-            {
-                id: 'PUBLIC_STUDY',
-                label: '학습 구성',
-                description: '공개 학습 기록과 방문자용 카테고리를 선택합니다.',
-                icon: BookOpen,
-            },
-        ],
-    },
-    {
-        label: '지원·출력',
-        description: '채용 지원과 문서 출력에 사용되며 공개 메인페이지와는 별개입니다.',
-        scope: 'OUTPUT',
-        items: [
-            {
-                id: 'JOB_APPLICATIONS',
-                label: '지원 현황',
-                description: '채용 공고별 지원 상태와 맞춤 자료를 관리합니다.',
-                icon: ClipboardList,
+                    '공개할 프로필·경험·학습 항목을 선택하고, 전체 공개본을 발행·버전 관리합니다.',
+                icon: SlidersHorizontal,
             },
             {
                 id: 'PRINT_TEMPLATES',
@@ -501,6 +475,8 @@ export function AdminDashboardShell({ workspaceSlug }: { workspaceSlug: string }
         [visibleMenuGroups]
     );
     const [activeTab, setActiveTab] = useState<TabId>('WORKSPACE_HOME');
+    const [publicCompositionSection, setPublicCompositionSection] =
+        useState<PublicCompositionSection>('profile');
     const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
     const sidebarCollapsedBeforeMapRef = useRef(false);
     const isJobMapViewRef = useRef(false);
@@ -533,10 +509,7 @@ export function AdminDashboardShell({ workspaceSlug }: { workspaceSlug: string }
             const validTabs: TabId[] = [
                 'WORKSPACE_HOME',
                 'WORKSPACE_SETTINGS',
-                'PUBLICATION',
-                'PUBLIC_PROFILE',
-                'PUBLIC_EXPERIENCE',
-                'PUBLIC_STUDY',
+                'PUBLIC_COMPOSITION',
                 'MEMBERS',
                 'PLATFORM_OVERVIEW',
                 'INVITATIONS',
@@ -703,19 +676,10 @@ export function AdminDashboardShell({ workspaceSlug }: { workspaceSlug: string }
             ? viewportWidth
             : Math.min(previewWidth, previewMaxAllowedWidth);
 
-    const previewSupported = [
-        'PUBLICATION',
-        'PUBLIC_PROFILE',
-        'PUBLIC_EXPERIENCE',
-        'PUBLIC_STUDY',
-    ].includes(activeTab);
-    const publicDraftPreviewHref = currentWorkspace
-        ? activeTab === 'PUBLIC_EXPERIENCE'
-            ? `${publicWorkspaceHref}/preview/experience`
-            : activeTab === 'PUBLIC_STUDY'
-              ? `${publicWorkspaceHref}/preview/study`
-              : `${publicWorkspaceHref}/preview`
-        : '/';
+    // 공개 페이지 구성 탭은 이제 자체 실시간 미리보기 패널을 쓰므로, 이 전역 도킹 iframe
+    // 미리보기는 현재 어떤 탭에서도 쓰이지 않는다(추후 다른 탭에서 필요해지면 재사용 가능).
+    const previewSupported = false;
+    const publicDraftPreviewHref = currentWorkspace ? `${publicWorkspaceHref}/preview` : '/';
 
     const refreshPreview = () => setPreviewNonce((n) => n + 1);
 
@@ -1223,7 +1187,11 @@ export function AdminDashboardShell({ workspaceSlug }: { workspaceSlug: string }
 
                         <section
                             data-admin-scroll-region
-                            className="min-h-0 min-w-0 space-y-6 overflow-y-auto overflow-x-hidden pr-1"
+                            className={`min-h-0 min-w-0 overflow-x-hidden pr-1 ${
+                                activeTab === 'PUBLIC_COMPOSITION'
+                                    ? 'overflow-y-auto xl:overflow-hidden'
+                                    : 'space-y-6 overflow-y-auto'
+                            }`}
                         >
                             {activeTab === 'WORKSPACE_HOME' && currentWorkspace && (
                                 <WorkspaceHomeDashboard
@@ -1242,32 +1210,12 @@ export function AdminDashboardShell({ workspaceSlug }: { workspaceSlug: string }
                                     role={currentWorkspace.role}
                                 />
                             )}
-                            {activeTab === 'PUBLICATION' && currentWorkspace && (
-                                <WorkspacePublicationPanel
+                            {activeTab === 'PUBLIC_COMPOSITION' && currentWorkspace && (
+                                <PublicPageCompositionManagement
                                     workspaceSlug={currentWorkspace.slug}
                                     role={currentWorkspace.role}
-                                    onPreview={openPreview}
-                                />
-                            )}
-                            {activeTab === 'PUBLIC_PROFILE' && currentWorkspace && (
-                                <PublicPageCompositionManagement
-                                    workspaceSlug={currentWorkspace.slug}
-                                    section="profile"
-                                    onPreview={openPreview}
-                                />
-                            )}
-                            {activeTab === 'PUBLIC_EXPERIENCE' && currentWorkspace && (
-                                <PublicPageCompositionManagement
-                                    workspaceSlug={currentWorkspace.slug}
-                                    section="experience"
-                                    onPreview={openPreview}
-                                />
-                            )}
-                            {activeTab === 'PUBLIC_STUDY' && currentWorkspace && (
-                                <PublicPageCompositionManagement
-                                    workspaceSlug={currentWorkspace.slug}
-                                    section="study"
-                                    onPreview={openPreview}
+                                    section={publicCompositionSection}
+                                    onSectionChange={setPublicCompositionSection}
                                 />
                             )}
                             {activeTab === 'STUDY' && (
