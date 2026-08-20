@@ -1188,7 +1188,7 @@ export function AdminDashboardShell({ workspaceSlug }: { workspaceSlug: string }
                                                 </button>
                                                 <span
                                                     role="tooltip"
-                                                    className={`pointer-events-none absolute right-3 top-9 z-50 w-52 translate-y-1 rounded-xl px-3 py-2.5 text-left text-[11px] font-semibold leading-5 opacity-0 shadow-2xl transition group-hover/help:translate-y-0 group-hover/help:opacity-100 group-focus-within/help:translate-y-0 group-focus-within/help:opacity-100 ${
+                                                    className={`pointer-events-none absolute left-2 top-9 z-50 w-52 translate-y-1 rounded-xl px-3 py-2.5 text-left text-[11px] font-semibold leading-5 opacity-0 shadow-2xl transition group-hover/help:translate-y-0 group-hover/help:opacity-100 group-focus-within/help:translate-y-0 group-focus-within/help:opacity-100 ${
                                                         group.requiresPlatformOperator
                                                             ? 'border border-slate-200 bg-white text-slate-800 shadow-slate-950/45 ring-1 ring-black/5'
                                                             : 'border border-slate-600 bg-slate-800 text-slate-100 shadow-slate-950/40 ring-1 ring-white/10'
