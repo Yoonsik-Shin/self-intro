@@ -195,19 +195,23 @@ function EvidencePicker({
                                 {categoryOptions.length}개 표시
                             </span>
                         </div>
-                        {categoryOptions.map((option) => (
-                            <button
-                                key={option.id}
-                                type="button"
-                                onClick={() => onToggle(option.id)}
-                                className="group flex w-full items-center gap-3 border-b border-slate-200 px-3 py-3 text-left transition-colors hover:bg-slate-50"
-                            >
-                                <span className="min-w-0 flex-1 text-xs font-semibold leading-5 text-slate-700">
-                                    {option.label}
-                                </span>
-                                <Plus className="h-4 w-4 shrink-0 text-slate-300 group-hover:text-slate-700" />
-                            </button>
-                        ))}
+                        <div className="grid grid-cols-1 lg:grid-cols-2">
+                            {categoryOptions.map((option, index) => (
+                                <button
+                                    key={option.id}
+                                    type="button"
+                                    onClick={() => onToggle(option.id)}
+                                    className={`group flex min-h-12 w-full items-center gap-3 border-b border-slate-200 px-3 py-2.5 text-left transition-colors hover:bg-slate-50 ${
+                                        index % 2 === 0 ? 'lg:border-r' : ''
+                                    }`}
+                                >
+                                    <span className="min-w-0 flex-1 text-xs font-semibold leading-5 text-slate-700">
+                                        {option.label}
+                                    </span>
+                                    <Plus className="h-4 w-4 shrink-0 text-slate-300 group-hover:text-slate-700" />
+                                </button>
+                            ))}
+                        </div>
                     </section>
                 ))}
                 {matchingOptions.length === 0 && (
