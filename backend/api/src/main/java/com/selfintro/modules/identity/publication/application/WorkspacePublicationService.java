@@ -61,8 +61,9 @@ public class WorkspacePublicationService {
     }
 
     @Transactional
-    public WorkspacePublicationStatusResponse publish(Long workspaceId, Long publishedByUserId) {
-        publishLocked(workspaceId, publishedByUserId);
+    public WorkspacePublicationStatusResponse publish(
+            Long workspaceId, Long publishedByUserId, String note) {
+        publishLocked(workspaceId, publishedByUserId, note);
         return status(workspaceId);
     }
 
@@ -128,6 +129,7 @@ public class WorkspacePublicationService {
                         source.getExperienceRevisionId(),
                         source.getDraftConfigVersion(),
                         publishedByUserId,
+                        null,
                         now);
         resourceRepository.saveAll(
                 sourceResources.stream()
@@ -146,7 +148,7 @@ public class WorkspacePublicationService {
 
     @Transactional
     public void publishSystem(Long workspaceId) {
-        publishLocked(workspaceId, null);
+        publishLocked(workspaceId, null, null);
     }
 
     @Transactional
@@ -160,7 +162,7 @@ public class WorkspacePublicationService {
                         .orElse(null));
     }
 
-    private void publishLocked(Long workspaceId, Long publishedByUserId) {
+    private void publishLocked(Long workspaceId, Long publishedByUserId, String note) {
         Workspace workspace = workspaceRepository.findByIdForUpdate(workspaceId).orElseThrow();
         LocalDateTime now = LocalDateTime.now();
         int draftConfigVersion = compositionService.configVersion(workspaceId);
@@ -194,6 +196,7 @@ public class WorkspacePublicationService {
                         experienceRevision.getId(),
                         draftConfigVersion,
                         publishedByUserId,
+                        note,
                         now);
         List<WorkspacePublicationResource> resources = new ArrayList<>();
         var webIntroduction = projectionBuilder.introduction(workspaceId, IntroductionChannel.WEB);
@@ -285,6 +288,7 @@ public class WorkspacePublicationService {
             Long experienceRevisionId,
             Integer draftConfigVersion,
             Long publishedByUserId,
+            String note,
             LocalDateTime now) {
         int nextRevision = revisionRepository.maxRevisionNumber(workspaceId) + 1;
         return revisionRepository.saveAndFlush(
@@ -298,7 +302,27 @@ public class WorkspacePublicationService {
                         experienceRevisionId,
                         draftConfigVersion,
                         publishedByUserId,
+                        note,
                         now));
+    }
+
+    @Transactional
+    public WorkspacePublicationRevisionResponse togglePin(
+            Long workspaceId, int revisionNumber, boolean pinned) {
+        WorkspacePublicationRevision revision =
+                revisionRepository
+                        .findByWorkspaceIdAndRevisionNumber(workspaceId, revisionNumber)
+                        .orElseThrow(
+                                () ->
+                                        new ResponseStatusException(
+                                                HttpStatus.NOT_FOUND, "발행 revision을 찾을 수 없습니다."));
+        revision.setPinned(pinned);
+        WorkspacePublicationRevision current =
+                revisionRepository
+                        .findTopByWorkspaceIdOrderByRevisionNumberDesc(workspaceId)
+                        .orElseThrow();
+        return WorkspacePublicationRevisionResponse.from(
+                revision, current.getRevisionNumber(), CURRENT_SCHEMA_VERSION);
     }
 
     private void enforceRetention(Long workspaceId, LocalDateTime now) {
@@ -330,7 +354,9 @@ public class WorkspacePublicationService {
             List<WorkspacePublicationRevision> revisions,
             int maximumRetainedRevisions,
             LocalDateTime cutoff) {
-        return revisions.stream()
+        List<WorkspacePublicationRevision> unpinned =
+                revisions.stream().filter(revision -> !revision.isPinned()).toList();
+        return unpinned.stream()
                 .skip(Math.max(1, maximumRetainedRevisions))
                 .filter(revision -> revision.getCreatedAt().isBefore(cutoff))
                 .toList();

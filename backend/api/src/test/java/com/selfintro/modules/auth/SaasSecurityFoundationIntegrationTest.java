@@ -438,7 +438,7 @@ class SaasSecurityFoundationIntegrationTest {
         workspaceMemberRepository.save(WorkspaceMember.owner(workspace, owner));
         profileService.upsert(workspace.getId(), profileRequest("첫 발행 소개"));
 
-        workspacePublicationService.publish(workspace.getId(), owner.getId());
+        workspacePublicationService.publish(workspace.getId(), owner.getId(), null);
 
         mockMvc.perform(
                         get(
@@ -458,7 +458,7 @@ class SaasSecurityFoundationIntegrationTest {
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.profile.bio").value("첫 발행 소개"));
 
-        workspacePublicationService.publish(workspace.getId(), owner.getId());
+        workspacePublicationService.publish(workspace.getId(), owner.getId(), null);
 
         mockMvc.perform(
                         get(
@@ -533,7 +533,7 @@ class SaasSecurityFoundationIntegrationTest {
         workspaceSlugService.registerCanonical(workspace);
         workspaceMemberRepository.save(WorkspaceMember.owner(workspace, owner));
         profileService.upsert(workspace.getId(), profileRequest("slug alias 공개 소개"));
-        workspacePublicationService.publish(workspace.getId(), owner.getId());
+        workspacePublicationService.publish(workspace.getId(), owner.getId(), null);
         AppUserPrincipal principal = AppUserPrincipal.of(owner, Set.of());
         MockHttpSession session = new MockHttpSession();
 

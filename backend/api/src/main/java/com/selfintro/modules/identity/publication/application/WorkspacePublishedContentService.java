@@ -13,6 +13,7 @@ import com.selfintro.modules.identity.publication.domain.WorkspacePublicationRes
 import com.selfintro.modules.identity.publication.domain.WorkspacePublicationResourceRepository;
 import com.selfintro.modules.identity.publication.domain.WorkspacePublicationRevision;
 import com.selfintro.modules.identity.publication.domain.WorkspacePublicationRevisionRepository;
+import com.selfintro.modules.identity.publication.presentation.dto.PublicStudyPreview;
 import com.selfintro.modules.study.domain.enums.StudySection;
 import com.selfintro.modules.study.presentation.dto.StudyPageResponse;
 import com.selfintro.modules.study.presentation.dto.StudyResponse;
@@ -40,11 +41,22 @@ public class WorkspacePublishedContentService {
     private final ObjectMapper objectMapper;
 
     public IntroductionResponse introduction(Long workspaceId, IntroductionChannel channel) {
+        return introduction(latest(workspaceId), channel);
+    }
+
+    /** 발행 이력의 특정 revision이 방문자에게 어떻게 보였는지 읽기 전용으로 다시 렌더링할 때 쓴다. */
+    public IntroductionResponse introductionAtRevision(
+            Long workspaceId, int revisionNumber, IntroductionChannel channel) {
+        return introduction(requireRevision(workspaceId, revisionNumber), channel);
+    }
+
+    private IntroductionResponse introduction(
+            WorkspacePublicationRevision revision, IntroductionChannel channel) {
         PublicationResourceType type =
                 channel == IntroductionChannel.WEB
                         ? PublicationResourceType.INTRODUCTION_WEB
                         : PublicationResourceType.INTRODUCTION_RESUME;
-        return read(workspaceId, type, ROOT, IntroductionResponse.class);
+        return read(revision, type, ROOT, IntroductionResponse.class);
     }
 
     public StudyPageResponse studies(
@@ -119,6 +131,16 @@ public class WorkspacePublishedContentService {
 
     public StudyResponse study(Long workspaceId, String slug) {
         return read(workspaceId, PublicationResourceType.STUDY, slug, StudyResponse.class);
+    }
+
+    /** 발행 이력의 특정 revision에 담긴 학습 기록·카테고리를 읽기 전용으로 다시 볼 때 쓴다. */
+    public PublicStudyPreview studyPreviewAtRevision(Long workspaceId, int revisionNumber) {
+        WorkspacePublicationRevision revision = requireRevision(workspaceId, revisionNumber);
+        List<StudyResponse> studies =
+                readAll(revision, PublicationResourceType.STUDY, StudyResponse.class);
+        List<StudyTaxonomyResponse> taxonomy =
+                readList(revision, PublicationResourceType.STUDY_TAXONOMY, ROOT, new TypeReference<>() {});
+        return new PublicStudyPreview(studies, taxonomy);
     }
 
     public List<RelatedExperienceResponse> relatedExperiences(Long workspaceId, Long experienceId) {
@@ -235,12 +257,28 @@ public class WorkspacePublishedContentService {
                 .orElseThrow(() -> new EntityNotFoundException("발행된 Workspace revision이 없습니다."));
     }
 
+    private WorkspacePublicationRevision requireRevision(Long workspaceId, int revisionNumber) {
+        return revisionRepository
+                .findByWorkspaceIdAndRevisionNumber(workspaceId, revisionNumber)
+                .orElseThrow(
+                        () ->
+                                new EntityNotFoundException(
+                                        "해당 revision을 찾을 수 없습니다: v" + revisionNumber));
+    }
+
     private <T> T read(
             Long workspaceId, PublicationResourceType type, String key, Class<T> responseType) {
+        return read(latest(workspaceId), type, key, responseType);
+    }
+
+    private <T> T read(
+            WorkspacePublicationRevision revision,
+            PublicationResourceType type,
+            String key,
+            Class<T> responseType) {
         WorkspacePublicationResource resource =
                 resourceRepository
-                        .findByRevisionIdAndResourceTypeAndResourceKey(
-                                latest(workspaceId).getId(), type, key)
+                        .findByRevisionIdAndResourceTypeAndResourceKey(revision.getId(), type, key)
                         .orElseThrow(() -> new EntityNotFoundException("공개 resource를 찾을 수 없습니다."));
         try {
             return objectMapper.readValue(resource.getContentJson(), responseType);
@@ -251,8 +289,15 @@ public class WorkspacePublishedContentService {
 
     private <T> List<T> readAll(
             Long workspaceId, PublicationResourceType type, Class<T> responseType) {
+        return readAll(latest(workspaceId), type, responseType);
+    }
+
+    private <T> List<T> readAll(
+            WorkspacePublicationRevision revision,
+            PublicationResourceType type,
+            Class<T> responseType) {
         return resourceRepository
-                .findAllByRevisionIdAndResourceTypeOrderByIdAsc(latest(workspaceId).getId(), type)
+                .findAllByRevisionIdAndResourceTypeOrderByIdAsc(revision.getId(), type)
                 .stream()
                 .map(resource -> deserialize(resource, responseType))
                 .toList();
@@ -263,10 +308,17 @@ public class WorkspacePublishedContentService {
             PublicationResourceType type,
             String key,
             TypeReference<List<T>> responseType) {
+        return readList(latest(workspaceId), type, key, responseType);
+    }
+
+    private <T> List<T> readList(
+            WorkspacePublicationRevision revision,
+            PublicationResourceType type,
+            String key,
+            TypeReference<List<T>> responseType) {
         WorkspacePublicationResource resource =
                 resourceRepository
-                        .findByRevisionIdAndResourceTypeAndResourceKey(
-                                latest(workspaceId).getId(), type, key)
+                        .findByRevisionIdAndResourceTypeAndResourceKey(revision.getId(), type, key)
                         .orElseThrow(() -> new EntityNotFoundException("공개 resource를 찾을 수 없습니다."));
         try {
             return objectMapper.readValue(resource.getContentJson(), responseType);
