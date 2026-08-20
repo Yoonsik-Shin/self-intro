@@ -528,40 +528,32 @@ export function PortfolioManagement({
             />
 
             {createOpen ? (
-                <section className="flex min-h-[38rem] flex-col py-1 lg:min-h-0 lg:flex-1 lg:overflow-hidden">
-                    <div className="mx-auto w-full max-w-4xl shrink-0">
-                        <h3 className="text-xl font-semibold tracking-tight text-slate-950">
-                            어떤 경험을 하나의 사례로 보여줄까요?
-                        </h3>
-                        <p className="mt-1.5 max-w-3xl text-sm leading-6 text-slate-500">
-                            먼저 경력·프로젝트 원본을 고릅니다. 사례 작업공간을 만든 뒤 학습 기록,
-                            기술, 핵심 역량을 근거로 연결해 AI 초안을 만들 수 있습니다.
-                        </p>
-                        <ol className="mt-5 grid max-w-md grid-cols-2 gap-2 border-y border-slate-200 py-3">
+                <section className="flex min-h-[38rem] flex-col overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm lg:min-h-0 lg:flex-1">
+                    <div className="flex shrink-0 flex-col gap-4 border-b border-slate-200 px-5 py-4 md:flex-row md:items-center md:justify-between">
+                        <div className="min-w-0">
+                            <h3 className="text-lg font-black tracking-tight text-slate-950">
+                                새 사례 설계
+                            </h3>
+                            <p className="mt-1 text-sm text-slate-500">
+                                경력·프로젝트 원본을 고르고 공개할 기본 정보를 확인합니다.
+                            </p>
+                        </div>
+                        <ol className="inline-flex w-fit shrink-0 rounded-xl border border-slate-200 bg-slate-50 p-1">
                             {(['원본 선택', '기본 정보'] as const).map((label, index) => (
                                 <li key={label}>
                                     <button
                                         type="button"
                                         disabled={index === 1 && !selectedCreateExperience}
                                         onClick={() => setCreateStep(index as 0 | 1)}
-                                        className={`flex items-center gap-2 text-xs font-black transition ${
+                                        className={`rounded-lg px-3 py-2 text-xs font-black transition ${
                                             createStep === index
-                                                ? 'text-slate-950'
+                                                ? 'bg-slate-950 text-white shadow-sm'
                                                 : index < createStep
-                                                  ? 'text-slate-500 hover:text-slate-800'
-                                                  : 'cursor-default text-slate-300'
+                                                  ? 'text-slate-600 hover:bg-white hover:text-slate-900'
+                                                  : 'cursor-default text-slate-400'
                                         }`}
                                     >
-                                        <span
-                                            className={`grid h-5 w-5 place-items-center rounded-full text-[9px] ${
-                                                index <= createStep
-                                                    ? 'bg-slate-900 text-white'
-                                                    : 'bg-slate-200 text-slate-400'
-                                            }`}
-                                        >
-                                            {index + 1}
-                                        </span>
-                                        {label}
+                                        {index + 1}. {label}
                                     </button>
                                 </li>
                             ))}
@@ -569,33 +561,33 @@ export function PortfolioManagement({
                     </div>
 
                     {createStep === 0 ? (
-                        <div className="mx-auto mt-6 flex min-h-0 w-full max-w-4xl flex-1 flex-col">
-                            <div className="flex shrink-0 items-end justify-between gap-4">
+                        <div className="flex min-h-0 flex-1 flex-col p-4 md:p-5">
+                            <div className="flex shrink-0 items-center justify-between gap-4">
                                 <div>
                                     <h4 className="text-sm font-black text-slate-900">
-                                        출발점 선택
+                                        연결할 원본
                                     </h4>
                                     <p className="mt-1 text-xs text-slate-500">
-                                        등록된 회사 경력과 프로젝트만 표시합니다.
+                                        사례 하나의 출발점이 될 경력 또는 프로젝트를 선택하세요.
                                     </p>
                                 </div>
-                                <span className="shrink-0 text-[11px] font-bold text-slate-400">
+                                <span className="shrink-0 text-xs font-bold text-slate-400">
                                     {projectOptions.length}개 원본
                                 </span>
                             </div>
 
-                            <label className="mt-4 flex shrink-0 items-center gap-2 border-b border-slate-300 py-2.5 focus-within:border-slate-900">
-                                <Search className="h-4 w-4 shrink-0 text-slate-400" />
+                            <label className="relative mt-4 block shrink-0">
+                                <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
                                 <span className="sr-only">경력·프로젝트 원본 검색</span>
                                 <input
                                     value={createSourceQuery}
                                     onChange={(event) => setCreateSourceQuery(event.target.value)}
                                     placeholder="이름이나 소속으로 검색"
-                                    className="min-w-0 flex-1 bg-transparent text-sm text-slate-900 outline-none placeholder:text-slate-400"
+                                    className="w-full rounded-xl border border-slate-200 bg-slate-50 py-2.5 pl-9 pr-3 text-sm text-slate-900 outline-none transition focus:border-slate-400 focus:bg-white placeholder:text-slate-400"
                                 />
                             </label>
 
-                            <div className="mt-2 min-h-0 flex-1 overflow-y-auto border-y border-slate-200">
+                            <div className="mt-3 min-h-0 flex-1 overflow-y-auto rounded-xl border border-slate-200 bg-white">
                                 {filteredProjectOptions.map((experience) => {
                                     const isSelected =
                                         createForm.experienceId === String(experience.id);
@@ -607,14 +599,14 @@ export function PortfolioManagement({
                                             key={experience.id}
                                             type="button"
                                             onClick={() => selectCreateExperience(experience.id)}
-                                            className={`group flex w-full items-center gap-3 border-b border-l-2 border-b-slate-200 px-3 py-3 text-left transition-colors duration-150 ${
+                                            className={`group flex w-full items-center gap-3 border-b border-slate-200 px-4 py-3 text-left transition-colors duration-150 last:border-b-0 ${
                                                 isSelected
-                                                    ? 'border-l-slate-900 bg-slate-50'
-                                                    : 'border-l-transparent bg-white hover:bg-slate-50'
+                                                    ? 'bg-slate-100'
+                                                    : 'bg-white hover:bg-slate-50'
                                             }`}
                                         >
                                             <div className="min-w-0 flex-1">
-                                                <div className="flex items-center gap-2 text-xs text-slate-500">
+                                                <div className="flex items-center gap-2 text-[11px] font-bold text-slate-500">
                                                     <span>
                                                         {experienceTypeLabel(experience.type)}
                                                     </span>
@@ -625,10 +617,10 @@ export function PortfolioManagement({
                                                         </>
                                                     )}
                                                 </div>
-                                                <p className="mt-1 truncate text-[13px] font-semibold text-slate-900">
+                                                <p className="mt-1 truncate text-sm font-bold text-slate-900">
                                                     {experience.title}
                                                 </p>
-                                                <p className="mt-0.5 truncate text-[11px] text-slate-500">
+                                                <p className="mt-0.5 truncate text-xs text-slate-500">
                                                     {experienceOrgName(experience)}
                                                 </p>
                                             </div>
@@ -656,9 +648,9 @@ export function PortfolioManagement({
                             </div>
                         </div>
                     ) : (
-                        <div className="mx-auto mt-6 min-h-0 w-full max-w-2xl flex-1 overflow-y-auto pr-1">
+                        <div className="min-h-0 flex-1 overflow-y-auto p-4 md:p-5">
                             {selectedCreateExperience && (
-                                <>
+                                <div className="mx-auto max-w-3xl">
                                     <div className="flex items-end justify-between gap-4">
                                         <div>
                                             <h4 className="text-sm font-black text-slate-900">
@@ -677,8 +669,10 @@ export function PortfolioManagement({
                                         </button>
                                     </div>
 
-                                    <div className="mt-5 border-y border-slate-200 py-4">
-                                        <p className="text-xs text-slate-400">연결 원본</p>
+                                    <div className="mt-5 rounded-xl border border-slate-200 bg-slate-50 px-4 py-3">
+                                        <p className="text-[11px] font-bold text-slate-500">
+                                            연결 원본
+                                        </p>
                                         <p className="mt-1.5 text-sm font-semibold text-slate-900">
                                             {selectedCreateExperience.title}
                                         </p>
@@ -762,7 +756,7 @@ export function PortfolioManagement({
                                             )}
                                         </button>
                                     </div>
-                                </>
+                                </div>
                             )}
                         </div>
                     )}
