@@ -171,7 +171,7 @@ function EvidencePicker({
                 )}
             </div>
 
-            <div className="flex min-h-0 flex-col">
+            <div className="flex min-h-0 flex-col border-t border-slate-200">
                 <label className="flex shrink-0 items-center gap-2 border-b border-slate-300 py-2.5 focus-within:border-slate-900">
                     <Search className="h-4 w-4 shrink-0 text-slate-400" />
                     <span className="sr-only">{searchPlaceholder}</span>
