@@ -20,7 +20,7 @@ export function AdminPageHeader({
     headingAs = 'h2',
     compact = true,
     descriptionMode = 'tooltip',
-    contentInset = 'none',
+    contentInset = 'card',
 }: AdminPageHeaderProps) {
     const Heading = headingAs;
     const tooltipLabel = typeof title === 'string' ? `${title} 설명` : '페이지 설명';
