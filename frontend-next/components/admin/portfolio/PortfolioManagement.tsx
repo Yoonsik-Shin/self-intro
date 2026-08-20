@@ -251,7 +251,7 @@ function CaseFlowStepper({
                                 type="button"
                                 onClick={() => canSelect && onSelect(index)}
                                 disabled={!canSelect}
-                                className={`flex w-full min-w-0 items-center gap-1.5 text-left text-[10px] font-black transition sm:text-[11px] ${
+                                className={`flex w-full min-w-0 items-center gap-1.5 text-left text-[10px] font-semibold tracking-tight transition sm:text-[11px] ${
                                     index === currentStep
                                         ? 'text-slate-950'
                                         : canSelect
@@ -831,7 +831,7 @@ export function PortfolioManagement({
                             <div className="mx-auto mt-6 flex min-h-0 w-full max-w-4xl flex-1 flex-col">
                                 <div className="flex shrink-0 items-end justify-between gap-4">
                                     <div>
-                                        <h4 className="text-sm font-black text-slate-900">
+                                        <h4 className="text-lg font-semibold tracking-tight text-slate-950">
                                             출발점 선택
                                         </h4>
                                         <p className="mt-1 text-xs text-slate-500">
@@ -940,7 +940,7 @@ export function PortfolioManagement({
                                 {createMode && (
                                     <>
                                         <div>
-                                            <h4 className="text-sm font-black text-slate-900">
+                                            <h4 className="text-lg font-semibold tracking-tight text-slate-950">
                                                 사례 기본 정보
                                             </h4>
                                             <p className="mt-1 text-xs leading-5 text-slate-500">
@@ -995,14 +995,20 @@ export function PortfolioManagement({
                                         <div className="sticky bottom-0 z-10 mt-auto flex shrink-0 items-center justify-between border-t border-slate-200 bg-[#f8fafc] py-4">
                                             <button
                                                 type="button"
-                                                onClick={() =>
-                                                    editingCreatedCaseId
-                                                        ? setCreateOpen(false)
-                                                        : setCreateStep(0)
-                                                }
+                                                onClick={() => {
+                                                    if (editingCreatedCaseId) {
+                                                        setAiSetupStep(0);
+                                                        setCreateOpen(false);
+                                                        return;
+                                                    }
+                                                    setCreateStep(0);
+                                                }}
                                                 className={FLOW_BACK_BUTTON_CLASS}
                                             >
-                                                <ArrowLeft className="h-3.5 w-3.5" /> 이전
+                                                <ArrowLeft className="h-3.5 w-3.5" />{' '}
+                                                {editingCreatedCaseId
+                                                    ? '편집으로 돌아가기'
+                                                    : '이전'}
                                             </button>
                                             <button
                                                 type="button"
@@ -1208,7 +1214,7 @@ export function PortfolioManagement({
                                 <div className="flex items-start justify-between gap-4">
                                     <div className="min-w-0">
                                         <div className="flex flex-wrap items-center gap-2">
-                                            <h2 className="truncate text-lg font-black tracking-tight text-slate-950">
+                                            <h2 className="truncate text-xl font-semibold tracking-tight text-slate-950">
                                                 {selectedCaseStudy.title}
                                             </h2>
                                             <span
@@ -1246,7 +1252,7 @@ export function PortfolioManagement({
                                     <button
                                         type="button"
                                         onClick={() => setDetailView('EDITOR')}
-                                        className={`border-b-2 px-1 pb-2 text-xs font-black transition ${
+                                        className={`border-b-2 px-1 pb-2 text-xs font-semibold tracking-tight transition ${
                                             detailView === 'EDITOR'
                                                 ? 'border-slate-900 text-slate-950'
                                                 : 'border-transparent text-slate-400 hover:text-slate-700'
@@ -1257,7 +1263,7 @@ export function PortfolioManagement({
                                     <button
                                         type="button"
                                         onClick={() => setDetailView('REVISIONS')}
-                                        className={`border-b-2 px-1 pb-2 text-xs font-black transition ${
+                                        className={`border-b-2 px-1 pb-2 text-xs font-semibold tracking-tight transition ${
                                             detailView === 'REVISIONS'
                                                 ? 'border-slate-900 text-slate-950'
                                                 : 'border-transparent text-slate-400 hover:text-slate-700'
@@ -1398,7 +1404,7 @@ export function PortfolioManagement({
                                             {aiSetupStep < AI_SETUP_STEPS.length - 1 ? (
                                                 <div className="flex min-h-0 flex-1 flex-col">
                                                     <div className="shrink-0 px-2 pt-5 sm:px-3">
-                                                        <h4 className="text-base font-black text-slate-950">
+                                                        <h4 className="text-xl font-semibold tracking-tight text-slate-950">
                                                             {AI_SETUP_STEPS[aiSetupStep]}
                                                         </h4>
                                                         <p className="mt-1 text-xs leading-5 text-slate-500">
