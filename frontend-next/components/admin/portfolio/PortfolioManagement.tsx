@@ -1497,7 +1497,7 @@ export function PortfolioManagement({
                                                         )}
                                                     </div>
 
-                                                    <div className="mt-4 flex shrink-0 items-center justify-between border-t border-slate-200 bg-white px-2 py-4 sm:px-3">
+                                                    <div className="mt-4 flex shrink-0 items-center justify-between border-t border-slate-200 px-2 py-4 sm:px-3">
                                                         <button
                                                             type="button"
                                                             onClick={() => {
