@@ -1246,7 +1246,7 @@ export function PortfolioManagement({
                                 <div className="flex items-start justify-between gap-4">
                                     <div className="min-w-0">
                                         <div className="flex flex-wrap items-center gap-2">
-                                            <h2 className="truncate text-xl font-semibold tracking-tight text-slate-950">
+                                            <h2 className="truncate text-lg font-semibold tracking-tight text-slate-950">
                                                 {selectedCaseStudy.title}
                                             </h2>
                                             <span
@@ -1437,7 +1437,7 @@ export function PortfolioManagement({
                                                 <div className="flex min-h-0 flex-1 flex-col">
                                                     <div className="shrink-0 pt-5">
                                                         <div className="flex items-center gap-1.5">
-                                                            <h4 className="text-xl font-semibold tracking-tight text-slate-950">
+                                                            <h4 className="text-lg font-semibold tracking-tight text-slate-950">
                                                                 {AI_SETUP_STEPS[aiSetupStep]}
                                                             </h4>
                                                             <span className="group/help relative inline-flex shrink-0">
