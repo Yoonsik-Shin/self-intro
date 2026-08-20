@@ -82,6 +82,7 @@ export function PortfolioManagement({
     const [selectedRevisionId, setSelectedRevisionId] = useState<number | null>(null);
     const [createOpen, setCreateOpen] = useState(false);
     const [createForm, setCreateForm] = useState({ experienceId: '', slug: '', title: '' });
+    const [createSourceQuery, setCreateSourceQuery] = useState('');
     const [content, setContent] = useState<PortfolioCaseStudyContent>(EMPTY_CONTENT);
     const [instruction, setInstruction] = useState('');
     const [studyIds, setStudyIds] = useState<number[]>([]);
@@ -138,6 +139,19 @@ export function PortfolioManagement({
     const projectOptions = useMemo(
         () => experiences.filter((e) => e.type === 'PROJECT' || e.type === 'CAREER'),
         [experiences]
+    );
+    const normalizedCreateSourceQuery = createSourceQuery.trim().toLocaleLowerCase();
+    const filteredProjectOptions = useMemo(
+        () =>
+            projectOptions.filter((experience) => {
+                if (!normalizedCreateSourceQuery) return true;
+                return [
+                    experience.title,
+                    experienceOrgName(experience),
+                    experienceTypeLabel(experience.type),
+                ].some((value) => value.toLocaleLowerCase().includes(normalizedCreateSourceQuery));
+            }),
+        [normalizedCreateSourceQuery, projectOptions]
     );
     const selectedCreateExperience = createForm.experienceId
         ? experienceById.get(Number(createForm.experienceId))
@@ -405,6 +419,7 @@ export function PortfolioManagement({
     const openCreateWorkspace = () => {
         setSelectedId(null);
         setCreateForm({ experienceId: '', slug: '', title: '' });
+        setCreateSourceQuery('');
         setCreateOpen(true);
     };
 
@@ -451,38 +466,46 @@ export function PortfolioManagement({
             />
 
             {createOpen ? (
-                <section className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
-                    <div className="border-b border-slate-200 px-5 py-5 sm:px-7">
-                        <p className="text-xs font-black uppercase tracking-[0.14em] text-slate-500">
-                            New case study
-                        </p>
-                        <h3 className="mt-1 text-xl font-black tracking-tight text-slate-950">
+                <section className="min-h-[40rem] bg-white py-2">
+                    <div className="max-w-3xl">
+                        <h3 className="text-2xl font-semibold tracking-tight text-slate-950">
                             어떤 경험을 하나의 사례로 보여줄까요?
                         </h3>
-                        <p className="mt-2 max-w-3xl text-sm leading-6 text-slate-500">
+                        <p className="mt-2 text-sm leading-6 text-slate-500">
                             먼저 경력·프로젝트 원본을 고릅니다. 사례 작업공간을 만든 뒤 학습 기록,
                             기술, 핵심 역량을 근거로 연결해 AI 초안을 만들 수 있습니다.
                         </p>
                     </div>
 
-                    <div className="grid lg:grid-cols-[minmax(0,1.45fr)_minmax(20rem,0.75fr)]">
-                        <div className="border-b border-slate-200 p-5 sm:p-7 lg:border-b-0 lg:border-r">
-                            <div className="mb-4 flex items-center justify-between gap-4">
+                    <div className="mt-9 grid gap-10 lg:grid-cols-[minmax(15rem,0.72fr)_minmax(23rem,1.28fr)] xl:gap-14 xl:grid-cols-[minmax(17rem,0.68fr)_minmax(25rem,1.32fr)]">
+                        <div>
+                            <div className="flex items-end justify-between gap-4">
                                 <div>
-                                    <p className="text-sm font-black text-slate-900">
-                                        1. 출발점 선택
-                                    </p>
-                                    <p className="mt-1 text-xs text-slate-500">
+                                    <h4 className="text-base font-semibold text-slate-900">
+                                        출발점 선택
+                                    </h4>
+                                    <p className="mt-1.5 text-sm text-slate-500">
                                         등록된 회사 경력과 프로젝트만 표시합니다.
                                     </p>
                                 </div>
-                                <span className="text-xs font-bold text-slate-400">
+                                <span className="shrink-0 text-xs text-slate-400">
                                     {projectOptions.length}개 원본
                                 </span>
                             </div>
 
-                            <div className="grid max-h-[32rem] gap-2.5 overflow-y-auto pr-1 sm:grid-cols-2">
-                                {projectOptions.map((experience) => {
+                            <label className="mt-5 flex items-center gap-2 border-b border-slate-300 py-2.5 focus-within:border-slate-900">
+                                <Search className="h-4 w-4 shrink-0 text-slate-400" />
+                                <span className="sr-only">경력·프로젝트 원본 검색</span>
+                                <input
+                                    value={createSourceQuery}
+                                    onChange={(event) => setCreateSourceQuery(event.target.value)}
+                                    placeholder="이름이나 소속으로 검색"
+                                    className="min-w-0 flex-1 bg-transparent text-sm text-slate-900 outline-none placeholder:text-slate-400"
+                                />
+                            </label>
+
+                            <div className="mt-3 max-h-[28rem] overflow-y-auto border-t border-slate-200">
+                                {filteredProjectOptions.map((experience) => {
                                     const isSelected =
                                         createForm.experienceId === String(experience.id);
                                     const existingCaseStudy = caseStudies.find(
@@ -493,72 +516,76 @@ export function PortfolioManagement({
                                             key={experience.id}
                                             type="button"
                                             onClick={() => selectCreateExperience(experience.id)}
-                                            className={`group rounded-xl border p-4 text-left transition ${
+                                            className={`group flex w-full items-center gap-3 border-b border-l-2 border-b-slate-200 px-3 py-3.5 text-left transition-colors duration-150 ${
                                                 isSelected
-                                                    ? 'border-slate-900 bg-slate-900 text-white shadow-sm'
-                                                    : 'border-slate-200 bg-white hover:border-slate-400 hover:bg-slate-50'
+                                                    ? 'border-l-slate-900 bg-slate-50'
+                                                    : 'border-l-transparent bg-white hover:bg-slate-50'
                                             }`}
                                         >
-                                            <div className="flex items-start justify-between gap-3">
-                                                <span
-                                                    className={`text-[11px] font-black ${isSelected ? 'text-slate-300' : 'text-slate-500'}`}
-                                                >
-                                                    {experienceTypeLabel(experience.type)}
-                                                </span>
-                                                {existingCaseStudy && (
-                                                    <span
-                                                        className={`text-[10px] font-bold ${isSelected ? 'text-slate-300' : 'text-amber-700'}`}
-                                                    >
-                                                        기존 사례 있음
+                                            <div className="min-w-0 flex-1">
+                                                <div className="flex items-center gap-2 text-xs text-slate-500">
+                                                    <span>
+                                                        {experienceTypeLabel(experience.type)}
                                                     </span>
-                                                )}
+                                                    {existingCaseStudy && (
+                                                        <>
+                                                            <span aria-hidden="true">·</span>
+                                                            <span>기존 사례 있음</span>
+                                                        </>
+                                                    )}
+                                                </div>
+                                                <p className="mt-1 truncate text-sm font-medium text-slate-900">
+                                                    {experience.title}
+                                                </p>
+                                                <p className="mt-0.5 truncate text-xs text-slate-500">
+                                                    {experienceOrgName(experience)}
+                                                </p>
                                             </div>
-                                            <p className="mt-3 line-clamp-2 text-sm font-black leading-5">
-                                                {experience.title}
-                                            </p>
-                                            <p
-                                                className={`mt-2 truncate text-xs ${isSelected ? 'text-slate-300' : 'text-slate-500'}`}
-                                            >
-                                                {experienceOrgName(experience)}
-                                            </p>
+                                            <ArrowRight
+                                                className={`h-4 w-4 shrink-0 ${isSelected ? 'text-slate-900' : 'text-slate-300'}`}
+                                            />
                                         </button>
                                     );
                                 })}
-                                {projectOptions.length === 0 && (
-                                    <div className="col-span-full rounded-xl border border-dashed border-slate-300 px-5 py-12 text-center">
+                                {filteredProjectOptions.length === 0 && (
+                                    <div className="border-b border-slate-200 px-4 py-12 text-center">
                                         <BriefcaseBusiness className="mx-auto h-6 w-6 text-slate-300" />
-                                        <p className="mt-3 text-sm font-bold text-slate-600">
-                                            연결할 경력·프로젝트 원본이 없습니다.
+                                        <p className="mt-3 text-sm font-medium text-slate-600">
+                                            {projectOptions.length === 0
+                                                ? '연결할 경력·프로젝트 원본이 없습니다.'
+                                                : '검색 결과가 없습니다.'}
                                         </p>
-                                        <p className="mt-1 text-xs text-slate-400">
-                                            먼저 이력 및 경력 관리에서 원본을 등록해 주세요.
-                                        </p>
+                                        {projectOptions.length === 0 && (
+                                            <p className="mt-1 text-xs text-slate-400">
+                                                먼저 이력 및 경력 관리에서 원본을 등록해 주세요.
+                                            </p>
+                                        )}
                                     </div>
                                 )}
                             </div>
                         </div>
 
-                        <div className="bg-slate-50/70 p-5 sm:p-7">
-                            <p className="text-sm font-black text-slate-900">2. 사례 기본 정보</p>
-                            <p className="mt-1 text-xs leading-5 text-slate-500">
+                        <div className="border-t border-slate-200 pt-8 lg:border-l lg:border-t-0 lg:pl-10 lg:pt-0 xl:pl-14">
+                            <h4 className="text-base font-semibold text-slate-900">
+                                사례 기본 정보
+                            </h4>
+                            <p className="mt-1.5 text-sm leading-6 text-slate-500">
                                 방문자에게 보일 제목과 관리 URL을 확인합니다.
                             </p>
 
                             {selectedCreateExperience ? (
-                                <div className="mt-5 space-y-5">
-                                    <div className="rounded-xl border border-slate-200 bg-white p-4">
-                                        <p className="text-[11px] font-bold text-slate-400">
-                                            연결 원본
-                                        </p>
-                                        <p className="mt-1 text-sm font-black text-slate-900">
+                                <div className="mt-7">
+                                    <div className="border-b border-slate-200 pb-5">
+                                        <p className="text-xs text-slate-400">연결 원본</p>
+                                        <p className="mt-1.5 text-sm font-semibold text-slate-900">
                                             {selectedCreateExperience.title}
                                         </p>
-                                        <p className="mt-1 text-xs text-slate-500">
+                                        <p className="mt-1 text-sm text-slate-500">
                                             {experienceOrgName(selectedCreateExperience)}
                                         </p>
                                     </div>
 
-                                    <label className="block text-xs font-black text-slate-700">
+                                    <label className="mt-7 block text-sm font-medium text-slate-700">
                                         사례 제목
                                         <input
                                             value={createForm.title}
@@ -569,14 +596,14 @@ export function PortfolioManagement({
                                                 }))
                                             }
                                             placeholder="예: 장애 대응 체계를 다시 설계한 과정"
-                                            className="mt-2 w-full rounded-xl border border-slate-300 bg-white px-3.5 py-3 text-sm font-medium outline-none transition focus:border-slate-700 focus:ring-2 focus:ring-slate-200"
+                                            className="mt-2 w-full rounded-lg border border-slate-300 bg-white px-3.5 py-3 text-sm outline-none transition-colors focus:border-slate-700 focus:ring-2 focus:ring-slate-200"
                                         />
                                     </label>
 
-                                    <label className="block text-xs font-black text-slate-700">
+                                    <label className="mt-6 block text-sm font-medium text-slate-700">
                                         URL 식별자
-                                        <div className="mt-2 flex items-center rounded-xl border border-slate-300 bg-white focus-within:border-slate-700 focus-within:ring-2 focus-within:ring-slate-200">
-                                            <span className="shrink-0 border-r border-slate-200 px-3 text-xs font-bold text-slate-400">
+                                        <div className="mt-2 flex items-center rounded-lg border border-slate-300 bg-white focus-within:border-slate-700 focus-within:ring-2 focus-within:ring-slate-200">
+                                            <span className="shrink-0 border-r border-slate-200 px-3 text-xs text-slate-400">
                                                 /portfolio/
                                             </span>
                                             <input
@@ -590,48 +617,50 @@ export function PortfolioManagement({
                                                     }))
                                                 }
                                                 placeholder="case-study"
-                                                className="min-w-0 flex-1 rounded-r-xl px-3 py-3 font-mono text-sm outline-none"
+                                                className="min-w-0 flex-1 rounded-r-lg px-3 py-3 font-mono text-sm outline-none"
                                             />
                                         </div>
-                                        <span className="mt-1.5 block text-[11px] font-medium text-slate-400">
+                                        <span className="mt-1.5 block text-xs text-slate-400">
                                             영문 소문자, 숫자, 하이픈만 사용할 수 있습니다.
                                         </span>
                                     </label>
 
                                     {createMutation.error && (
-                                        <p className="rounded-xl border border-rose-200 bg-rose-50 px-3 py-2 text-xs font-bold text-rose-700">
+                                        <p className="mt-5 border-y border-rose-200 py-2.5 text-xs font-medium text-rose-700">
                                             {createMutation.error instanceof Error
                                                 ? createMutation.error.message
                                                 : '사례 작업공간을 만들지 못했습니다.'}
                                         </p>
                                     )}
 
-                                    <button
-                                        type="button"
-                                        disabled={
-                                            !createForm.experienceId ||
-                                            !createForm.slug.trim() ||
-                                            !createForm.title.trim() ||
-                                            createMutation.isPending
-                                        }
-                                        onClick={() => createMutation.mutate()}
-                                        className="inline-flex w-full items-center justify-center gap-2 rounded-xl bg-slate-900 px-4 py-3 text-sm font-black text-white transition hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-40"
-                                    >
-                                        {createMutation.isPending
-                                            ? '작업공간 만드는 중...'
-                                            : '사례 작업공간 만들기'}
-                                        {!createMutation.isPending && (
-                                            <ArrowRight className="h-4 w-4" />
-                                        )}
-                                    </button>
+                                    <div className="mt-8 flex justify-end">
+                                        <button
+                                            type="button"
+                                            disabled={
+                                                !createForm.experienceId ||
+                                                !createForm.slug.trim() ||
+                                                !createForm.title.trim() ||
+                                                createMutation.isPending
+                                            }
+                                            onClick={() => createMutation.mutate()}
+                                            className="inline-flex items-center justify-center gap-2 rounded-lg bg-slate-900 px-5 py-3 text-sm font-semibold text-white transition-colors hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-40"
+                                        >
+                                            {createMutation.isPending
+                                                ? '작업공간 만드는 중...'
+                                                : '사례 작업공간 만들기'}
+                                            {!createMutation.isPending && (
+                                                <ArrowRight className="h-4 w-4" />
+                                            )}
+                                        </button>
+                                    </div>
                                 </div>
                             ) : (
-                                <div className="mt-5 rounded-xl border border-dashed border-slate-300 bg-white px-5 py-12 text-center">
-                                    <FolderGit2 className="mx-auto h-6 w-6 text-slate-300" />
-                                    <p className="mt-3 text-sm font-bold text-slate-600">
+                                <div className="mt-12 max-w-sm">
+                                    <FolderGit2 className="h-6 w-6 text-slate-300" />
+                                    <p className="mt-4 text-sm font-medium text-slate-600">
                                         왼쪽에서 원본을 선택하세요.
                                     </p>
-                                    <p className="mt-1 text-xs leading-5 text-slate-400">
+                                    <p className="mt-1.5 text-sm leading-6 text-slate-400">
                                         선택한 원본을 기준으로 제목과 URL을 먼저 채워드립니다.
                                     </p>
                                 </div>
