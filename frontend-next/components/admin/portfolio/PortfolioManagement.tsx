@@ -58,6 +58,56 @@ const SOURCE_PANEL_MIN_WIDTH = 220;
 const SOURCE_PANEL_MAX_WIDTH = 420;
 const SOURCE_PANEL_DEFAULT_WIDTH = 256;
 const AI_SETUP_STEPS = ['작성 방향', '학습 기록', '핵심 역량', '기술', 'AI 대화'] as const;
+const CASE_FLOW_STEPS = ['원본 선택', '기본 정보', ...AI_SETUP_STEPS] as const;
+
+function CaseFlowStepper({
+    currentStep,
+    maxReachableStep,
+    minimumSelectableStep,
+    onSelect,
+}: {
+    currentStep: number;
+    maxReachableStep: number;
+    minimumSelectableStep: number;
+    onSelect: (step: number) => void;
+}) {
+    return (
+        <div className="overflow-x-auto">
+            <ol className="grid min-w-[42rem] grid-cols-7 gap-2 px-2 py-3">
+                {CASE_FLOW_STEPS.map((step, index) => {
+                    const canSelect = index >= minimumSelectableStep && index <= maxReachableStep;
+                    return (
+                        <li key={step} className="min-w-0">
+                            <button
+                                type="button"
+                                onClick={() => canSelect && onSelect(index)}
+                                disabled={!canSelect}
+                                className={`flex w-full min-w-0 items-center gap-1.5 text-left text-[10px] font-black transition sm:text-[11px] ${
+                                    index === currentStep
+                                        ? 'text-slate-950'
+                                        : index < currentStep
+                                          ? 'text-slate-500 hover:text-slate-800'
+                                          : 'cursor-default text-slate-300'
+                                }`}
+                            >
+                                <span
+                                    className={`grid h-5 w-5 shrink-0 place-items-center rounded-full text-[9px] ${
+                                        index <= currentStep
+                                            ? 'bg-slate-900 text-white'
+                                            : 'bg-slate-200 text-slate-400'
+                                    }`}
+                                >
+                                    {index + 1}
+                                </span>
+                                <span className="truncate">{step}</span>
+                            </button>
+                        </li>
+                    );
+                })}
+            </ol>
+        </div>
+    );
+}
 
 function revisionChatContent(content: PortfolioCaseStudyContent): string {
     return [
@@ -292,6 +342,8 @@ export function PortfolioManagement({
             setCreateMode(null);
             setCreateForm({ experienceId: '', slug: '', title: '' });
             setSelectedId(created.id);
+            setDetailView('EDITOR');
+            setAiSetupStep(0);
         },
     });
 
@@ -554,38 +606,17 @@ export function PortfolioManagement({
                                 어떤 이야기를 하나의 사례로 보여줄까요?
                             </h3>
                             <p className="mt-1.5 max-w-3xl text-sm leading-6 text-slate-500">
-                                경력·프로젝트에서 시작하거나 원본 없이 직접 작성할 수 있습니다. 사례
-                                작업공간을 만든 뒤 학습 기록, 기술, 핵심 역량을 근거로 연결합니다.
+                                경력·프로젝트에서 시작하거나 원본 없이 직접 작성할 수 있습니다. 기본
+                                정보부터 근거 선택과 AI 대화까지 순서대로 이어집니다.
                             </p>
-                            <ol className="mt-5 grid max-w-md grid-cols-2 gap-2 border-y border-slate-200 py-3">
-                                {(['원본 선택', '기본 정보'] as const).map((label, index) => (
-                                    <li key={label}>
-                                        <button
-                                            type="button"
-                                            disabled={index === 1 && createMode === null}
-                                            onClick={() => setCreateStep(index as 0 | 1)}
-                                            className={`flex items-center gap-2 text-xs font-black transition ${
-                                                createStep === index
-                                                    ? 'text-slate-950'
-                                                    : index < createStep
-                                                      ? 'text-slate-500 hover:text-slate-800'
-                                                      : 'cursor-default text-slate-300'
-                                            }`}
-                                        >
-                                            <span
-                                                className={`grid h-5 w-5 place-items-center rounded-full text-[9px] ${
-                                                    index <= createStep
-                                                        ? 'bg-slate-900 text-white'
-                                                        : 'bg-slate-200 text-slate-400'
-                                                }`}
-                                            >
-                                                {index + 1}
-                                            </span>
-                                            {label}
-                                        </button>
-                                    </li>
-                                ))}
-                            </ol>
+                            <div className="mt-5">
+                                <CaseFlowStepper
+                                    currentStep={createStep}
+                                    maxReachableStep={createMode === null ? 0 : 1}
+                                    minimumSelectableStep={0}
+                                    onSelect={(step) => setCreateStep(step as 0 | 1)}
+                                />
+                            </div>
                         </div>
 
                         {createStep === 0 ? (
@@ -780,9 +811,7 @@ export function PortfolioManagement({
                                                 onClick={() => createMutation.mutate()}
                                                 className="inline-flex items-center justify-center gap-2 rounded-lg bg-slate-900 px-5 py-3 text-sm font-semibold text-white transition-colors hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-40"
                                             >
-                                                {createMutation.isPending
-                                                    ? '작업공간 만드는 중...'
-                                                    : '사례 작업공간 만들기'}
+                                                {createMutation.isPending ? '준비 중...' : '다음'}
                                                 {!createMutation.isPending && (
                                                     <ArrowRight className="h-4 w-4" />
                                                 )}
@@ -1140,38 +1169,12 @@ export function PortfolioManagement({
                                     {/* 서버의 Workspace 권한·출처 검증을 통과하는 편집자에게 AI 입력을 노출한다. */}
                                     {enablePlatformAi && (
                                         <section className="overflow-hidden">
-                                            <ol className="grid grid-cols-5 px-2 py-3">
-                                                {AI_SETUP_STEPS.map((step, index) => (
-                                                    <li key={step} className="min-w-0">
-                                                        <button
-                                                            type="button"
-                                                            onClick={() =>
-                                                                index <= aiSetupStep &&
-                                                                setAiSetupStep(index)
-                                                            }
-                                                            disabled={index > aiSetupStep}
-                                                            className={`flex w-full min-w-0 items-center gap-1.5 text-left text-[10px] font-black transition sm:text-[11px] ${
-                                                                index === aiSetupStep
-                                                                    ? 'text-slate-950'
-                                                                    : index < aiSetupStep
-                                                                      ? 'text-slate-500 hover:text-slate-800'
-                                                                      : 'cursor-default text-slate-300'
-                                                            }`}
-                                                        >
-                                                            <span
-                                                                className={`grid h-5 w-5 shrink-0 place-items-center rounded-full text-[9px] ${
-                                                                    index <= aiSetupStep
-                                                                        ? 'bg-slate-900 text-white'
-                                                                        : 'bg-slate-200 text-slate-400'
-                                                                }`}
-                                                            >
-                                                                {index + 1}
-                                                            </span>
-                                                            <span className="truncate">{step}</span>
-                                                        </button>
-                                                    </li>
-                                                ))}
-                                            </ol>
+                                            <CaseFlowStepper
+                                                currentStep={aiSetupStep + 2}
+                                                maxReachableStep={aiSetupStep + 2}
+                                                minimumSelectableStep={2}
+                                                onSelect={(step) => setAiSetupStep(step - 2)}
+                                            />
 
                                             {aiSetupStep < AI_SETUP_STEPS.length - 1 ? (
                                                 <div className="flex min-h-[22rem] flex-col px-2 py-5 sm:px-3">
@@ -1181,7 +1184,7 @@ export function PortfolioManagement({
                                                         </h4>
                                                         <p className="mt-1 text-xs leading-5 text-slate-500">
                                                             {aiSetupStep === 0
-                                                                ? '이번 사례에서 강조할 판단과 문제 해결 관점을 적어주세요.'
+                                                                ? '선택 사항입니다. 비워두면 연결한 원본과 근거를 중심으로 초안을 구성합니다.'
                                                                 : aiSetupStep === 1
                                                                   ? '초안의 근거로 사용할 학습 기록을 선택하세요.'
                                                                   : aiSetupStep === 2
@@ -1360,10 +1363,6 @@ export function PortfolioManagement({
                                                                             current + 1
                                                                         )
                                                                     )
-                                                                }
-                                                                disabled={
-                                                                    aiSetupStep === 0 &&
-                                                                    !instruction.trim()
                                                                 }
                                                                 className="inline-flex items-center gap-1.5 rounded-lg bg-slate-900 px-4 py-2.5 text-xs font-black text-white disabled:cursor-not-allowed disabled:opacity-40"
                                                             >
