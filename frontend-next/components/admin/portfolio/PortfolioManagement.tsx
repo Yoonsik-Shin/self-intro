@@ -76,7 +76,7 @@ function CaseFlowStepper({
     onSelect: (step: number) => void;
 }) {
     return (
-        <div className="overflow-x-auto">
+        <div className="shrink-0 overflow-x-auto">
             <ol className="grid min-w-[36rem] grid-cols-6 gap-2 px-2 py-3">
                 {CASE_FLOW_STEPS.map((step, index) => {
                     const canSelect = index >= minimumSelectableStep && index <= maxReachableStep;
@@ -771,7 +771,7 @@ export function PortfolioManagement({
                                 </div>
                             </div>
                         ) : (
-                            <div className="mx-auto mt-6 min-h-0 w-full max-w-4xl flex-1 overflow-y-auto pr-1">
+                            <div className="mx-auto mt-6 flex min-h-0 w-full max-w-4xl flex-1 flex-col overflow-y-auto overscroll-contain pr-1">
                                 {createMode && (
                                     <>
                                         <div>
@@ -827,7 +827,7 @@ export function PortfolioManagement({
                                             </p>
                                         )}
 
-                                        <div className="mt-8 flex items-center justify-between border-t border-slate-200 pt-4">
+                                        <div className="sticky bottom-0 z-10 mt-auto flex shrink-0 items-center justify-between border-t border-slate-200 bg-[#f8fafc] py-4">
                                             <button
                                                 type="button"
                                                 onClick={() =>
@@ -1038,8 +1038,8 @@ export function PortfolioManagement({
                 {/* 상세 편집 */}
                 {!createOpen &&
                     (selectedCaseStudy ? (
-                        <main className="min-w-0 flex-1 space-y-4 overflow-y-auto overscroll-contain px-1 pb-8 lg:order-3 lg:min-h-0 lg:px-3">
-                            <div className="sticky top-0 z-10 border-b border-slate-200 bg-[#f8fafc]/95 pt-1 backdrop-blur-sm">
+                        <main className="flex min-h-0 min-w-0 flex-1 flex-col gap-4 overflow-hidden px-1 pb-1 lg:order-3 lg:px-3">
+                            <div className="z-10 shrink-0 border-b border-slate-200 bg-[#f8fafc]/95 pt-1 backdrop-blur-sm">
                                 <div className="flex items-start justify-between gap-4">
                                     <div className="min-w-0">
                                         <div className="flex flex-wrap items-center gap-2">
@@ -1104,7 +1104,7 @@ export function PortfolioManagement({
                             </div>
 
                             {detailView === 'REVISIONS' && (
-                                <div className="space-y-3">
+                                <div className="min-h-0 flex-1 space-y-3 overflow-y-auto overscroll-contain pb-8">
                                     <div className="border-b border-slate-200 pb-4">
                                         <h3 className="text-xs font-black text-slate-900">
                                             저장된 revision
@@ -1198,9 +1198,9 @@ export function PortfolioManagement({
                             )}
 
                             {detailView === 'EDITOR' && (
-                                <>
+                                <div className="flex min-h-0 flex-1 flex-col gap-4 overflow-hidden">
                                     {selectedRevision && (
-                                        <div className="flex flex-wrap items-center justify-between gap-2 border-y border-slate-200 py-2.5">
+                                        <div className="flex shrink-0 flex-wrap items-center justify-between gap-2 border-y border-slate-200 py-2.5">
                                             <span className="text-[11px] font-bold text-slate-600">
                                                 v{selectedRevision.version}을(를) 기준으로 편집 중
                                             </span>
@@ -1216,7 +1216,7 @@ export function PortfolioManagement({
 
                                     {/* 서버의 Workspace 권한·출처 검증을 통과하는 편집자에게 AI 입력을 노출한다. */}
                                     {enablePlatformAi && (
-                                        <section className="overflow-hidden">
+                                        <section className="flex min-h-0 flex-1 flex-col overflow-hidden">
                                             <CaseFlowStepper
                                                 currentStep={aiSetupStep + 2}
                                                 maxReachableStep={CASE_FLOW_STEPS.length - 1}
@@ -1231,7 +1231,7 @@ export function PortfolioManagement({
                                             />
 
                                             {aiSetupStep < AI_SETUP_STEPS.length - 1 ? (
-                                                <div className="flex min-h-[22rem] flex-col px-2 py-5 sm:px-3">
+                                                <div className="flex min-h-0 flex-1 flex-col px-2 py-5 sm:px-3">
                                                     <div className="shrink-0">
                                                         <h4 className="text-base font-black text-slate-950">
                                                             {AI_SETUP_STEPS[aiSetupStep]}
@@ -1413,7 +1413,7 @@ export function PortfolioManagement({
                                                     </div>
                                                 </div>
                                             ) : (
-                                                <div className="bg-white">
+                                                <div className="flex min-h-0 flex-1 flex-col bg-white">
                                                     <div className="flex flex-wrap items-center justify-between gap-3 border-b border-slate-200 px-4 py-3">
                                                         <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-[10px] font-bold text-slate-500">
                                                             <span>학습 {studyIds.length}</span>
@@ -1449,7 +1449,7 @@ export function PortfolioManagement({
                                                         </div>
                                                     )}
 
-                                                    <div className="h-[38rem] min-h-0 overflow-hidden">
+                                                    <div className="min-h-0 flex-1 overflow-hidden">
                                                         <AiRevisionChat
                                                             revisions={aiRevisionMessages}
                                                             isGenerating={isGenerating}
@@ -1495,7 +1495,13 @@ export function PortfolioManagement({
                                     )}
 
                                     {/* AI를 사용할 수 없는 환경의 구조화 수동 편집 폼 */}
-                                    <div className={enablePlatformAi ? 'hidden' : 'space-y-3'}>
+                                    <div
+                                        className={
+                                            enablePlatformAi
+                                                ? 'hidden'
+                                                : 'min-h-0 flex-1 space-y-3 overflow-y-auto overscroll-contain'
+                                        }
+                                    >
                                         <label className="block text-xs font-bold text-slate-600">
                                             한줄 요약
                                             <input
@@ -1918,7 +1924,7 @@ export function PortfolioManagement({
                                             )}
                                         </span>
                                     </div>
-                                </>
+                                </div>
                             )}
                         </main>
                     ) : (
