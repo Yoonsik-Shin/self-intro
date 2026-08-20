@@ -545,423 +545,430 @@ export function PortfolioManagement({
                 }
             />
 
-            {createOpen ? (
-                <section className="flex min-h-[38rem] flex-col py-1 lg:min-h-0 lg:flex-1 lg:overflow-hidden">
-                    <div className="mx-auto w-full max-w-4xl shrink-0">
-                        <h3 className="text-xl font-semibold tracking-tight text-slate-950">
-                            어떤 이야기를 하나의 사례로 보여줄까요?
-                        </h3>
-                        <p className="mt-1.5 max-w-3xl text-sm leading-6 text-slate-500">
-                            경력·프로젝트에서 시작하거나 원본 없이 직접 작성할 수 있습니다. 사례
-                            작업공간을 만든 뒤 학습 기록, 기술, 핵심 역량을 근거로 연결합니다.
-                        </p>
-                        <ol className="mt-5 grid max-w-md grid-cols-2 gap-2 border-y border-slate-200 py-3">
-                            {(['원본 선택', '기본 정보'] as const).map((label, index) => (
-                                <li key={label}>
-                                    <button
-                                        type="button"
-                                        disabled={index === 1 && createMode === null}
-                                        onClick={() => setCreateStep(index as 0 | 1)}
-                                        className={`flex items-center gap-2 text-xs font-black transition ${
-                                            createStep === index
-                                                ? 'text-slate-950'
-                                                : index < createStep
-                                                  ? 'text-slate-500 hover:text-slate-800'
-                                                  : 'cursor-default text-slate-300'
-                                        }`}
-                                    >
-                                        <span
-                                            className={`grid h-5 w-5 place-items-center rounded-full text-[9px] ${
-                                                index <= createStep
-                                                    ? 'bg-slate-900 text-white'
-                                                    : 'bg-slate-200 text-slate-400'
-                                            }`}
-                                        >
-                                            {index + 1}
-                                        </span>
-                                        {label}
-                                    </button>
-                                </li>
-                            ))}
-                        </ol>
-                    </div>
-
-                    {createStep === 0 ? (
-                        <div className="mx-auto mt-6 flex min-h-0 w-full max-w-4xl flex-1 flex-col">
-                            <div className="flex shrink-0 items-end justify-between gap-4">
-                                <div>
-                                    <h4 className="text-sm font-black text-slate-900">
-                                        출발점 선택
-                                    </h4>
-                                    <p className="mt-1 text-xs text-slate-500">
-                                        연결할 원본을 고르거나 독립 사례로 바로 시작합니다.
-                                    </p>
-                                </div>
-                                <span className="shrink-0 text-[11px] font-bold text-slate-400">
-                                    {projectOptions.length}개 원본
-                                </span>
-                            </div>
-
-                            <button
-                                type="button"
-                                onClick={selectStandaloneCase}
-                                className="group mt-4 flex shrink-0 items-center gap-3 border-y border-slate-200 bg-white px-3 py-3 text-left transition-colors hover:bg-slate-50"
-                            >
-                                <FileText className="h-5 w-5 shrink-0 text-slate-500" />
-                                <span className="min-w-0 flex-1">
-                                    <span className="block text-[13px] font-semibold text-slate-900">
-                                        원본 없이 직접 작성
-                                    </span>
-                                    <span className="mt-0.5 block text-[11px] text-slate-500">
-                                        아이디어, 활동, 개인 작업 등 자유로운 사례로 시작합니다.
-                                    </span>
-                                </span>
-                                <ArrowRight className="h-4 w-4 shrink-0 text-slate-300 group-hover:text-slate-700" />
-                            </button>
-
-                            <label className="mt-3 flex shrink-0 items-center gap-2 border-b border-slate-300 py-2.5 focus-within:border-slate-900">
-                                <Search className="h-4 w-4 shrink-0 text-slate-400" />
-                                <span className="sr-only">경력·프로젝트 원본 검색</span>
-                                <input
-                                    value={createSourceQuery}
-                                    onChange={(event) => setCreateSourceQuery(event.target.value)}
-                                    placeholder="이름이나 소속으로 검색"
-                                    className="min-w-0 flex-1 bg-transparent text-sm text-slate-900 outline-none placeholder:text-slate-400"
-                                />
-                            </label>
-
-                            <div className="mt-2 min-h-0 flex-1 overflow-y-auto border-y border-slate-200">
-                                {filteredProjectOptions.map((experience) => {
-                                    const isSelected =
-                                        createForm.experienceId === String(experience.id);
-                                    const existingCaseStudy = caseStudies.find(
-                                        (caseStudy) => caseStudy.experienceId === experience.id
-                                    );
-                                    return (
+            <div
+                ref={workspaceLayoutRef}
+                style={
+                    {
+                        '--source-panel-width': `${sourcePanelWidth}px`,
+                    } as CSSProperties
+                }
+                className="flex min-h-[44rem] flex-col gap-4 lg:min-h-0 lg:flex-1 lg:flex-row lg:gap-0"
+            >
+                {createOpen && (
+                    <section className="flex min-h-[38rem] min-w-0 flex-1 flex-col px-1 py-1 lg:order-3 lg:min-h-0 lg:overflow-hidden lg:px-3">
+                        <div className="mx-auto w-full max-w-4xl shrink-0">
+                            <h3 className="text-xl font-semibold tracking-tight text-slate-950">
+                                어떤 이야기를 하나의 사례로 보여줄까요?
+                            </h3>
+                            <p className="mt-1.5 max-w-3xl text-sm leading-6 text-slate-500">
+                                경력·프로젝트에서 시작하거나 원본 없이 직접 작성할 수 있습니다. 사례
+                                작업공간을 만든 뒤 학습 기록, 기술, 핵심 역량을 근거로 연결합니다.
+                            </p>
+                            <ol className="mt-5 grid max-w-md grid-cols-2 gap-2 border-y border-slate-200 py-3">
+                                {(['원본 선택', '기본 정보'] as const).map((label, index) => (
+                                    <li key={label}>
                                         <button
-                                            key={experience.id}
                                             type="button"
-                                            onClick={() => selectCreateExperience(experience.id)}
-                                            className={`group flex w-full items-center gap-3 border-b border-l-2 border-b-slate-200 px-3 py-3 text-left transition-colors duration-150 ${
-                                                isSelected
-                                                    ? 'border-l-slate-900 bg-slate-50'
-                                                    : 'border-l-transparent bg-white hover:bg-slate-50'
+                                            disabled={index === 1 && createMode === null}
+                                            onClick={() => setCreateStep(index as 0 | 1)}
+                                            className={`flex items-center gap-2 text-xs font-black transition ${
+                                                createStep === index
+                                                    ? 'text-slate-950'
+                                                    : index < createStep
+                                                      ? 'text-slate-500 hover:text-slate-800'
+                                                      : 'cursor-default text-slate-300'
                                             }`}
                                         >
-                                            <div className="min-w-0 flex-1">
-                                                <div className="flex items-center gap-2 text-xs text-slate-500">
-                                                    <span>
-                                                        {experienceTypeLabel(experience.type)}
-                                                    </span>
-                                                    {existingCaseStudy && (
-                                                        <>
-                                                            <span aria-hidden="true">·</span>
-                                                            <span>기존 사례 있음</span>
-                                                        </>
-                                                    )}
+                                            <span
+                                                className={`grid h-5 w-5 place-items-center rounded-full text-[9px] ${
+                                                    index <= createStep
+                                                        ? 'bg-slate-900 text-white'
+                                                        : 'bg-slate-200 text-slate-400'
+                                                }`}
+                                            >
+                                                {index + 1}
+                                            </span>
+                                            {label}
+                                        </button>
+                                    </li>
+                                ))}
+                            </ol>
+                        </div>
+
+                        {createStep === 0 ? (
+                            <div className="mx-auto mt-6 flex min-h-0 w-full max-w-4xl flex-1 flex-col">
+                                <div className="flex shrink-0 items-end justify-between gap-4">
+                                    <div>
+                                        <h4 className="text-sm font-black text-slate-900">
+                                            출발점 선택
+                                        </h4>
+                                        <p className="mt-1 text-xs text-slate-500">
+                                            연결할 원본을 고르거나 독립 사례로 바로 시작합니다.
+                                        </p>
+                                    </div>
+                                    <span className="shrink-0 text-[11px] font-bold text-slate-400">
+                                        {projectOptions.length}개 원본
+                                    </span>
+                                </div>
+
+                                <button
+                                    type="button"
+                                    onClick={selectStandaloneCase}
+                                    className="group mt-4 flex shrink-0 items-center gap-3 border-y border-slate-200 bg-white px-3 py-3 text-left transition-colors hover:bg-slate-50"
+                                >
+                                    <FileText className="h-5 w-5 shrink-0 text-slate-500" />
+                                    <span className="min-w-0 flex-1">
+                                        <span className="block text-[13px] font-semibold text-slate-900">
+                                            원본 없이 직접 작성
+                                        </span>
+                                        <span className="mt-0.5 block text-[11px] text-slate-500">
+                                            아이디어, 활동, 개인 작업 등 자유로운 사례로 시작합니다.
+                                        </span>
+                                    </span>
+                                    <ArrowRight className="h-4 w-4 shrink-0 text-slate-300 group-hover:text-slate-700" />
+                                </button>
+
+                                <label className="mt-3 flex shrink-0 items-center gap-2 border-b border-slate-300 py-2.5 focus-within:border-slate-900">
+                                    <Search className="h-4 w-4 shrink-0 text-slate-400" />
+                                    <span className="sr-only">경력·프로젝트 원본 검색</span>
+                                    <input
+                                        value={createSourceQuery}
+                                        onChange={(event) =>
+                                            setCreateSourceQuery(event.target.value)
+                                        }
+                                        placeholder="이름이나 소속으로 검색"
+                                        className="min-w-0 flex-1 bg-transparent text-sm text-slate-900 outline-none placeholder:text-slate-400"
+                                    />
+                                </label>
+
+                                <div className="mt-2 min-h-0 flex-1 overflow-y-auto border-y border-slate-200">
+                                    {filteredProjectOptions.map((experience) => {
+                                        const isSelected =
+                                            createForm.experienceId === String(experience.id);
+                                        const existingCaseStudy = caseStudies.find(
+                                            (caseStudy) => caseStudy.experienceId === experience.id
+                                        );
+                                        return (
+                                            <button
+                                                key={experience.id}
+                                                type="button"
+                                                onClick={() =>
+                                                    selectCreateExperience(experience.id)
+                                                }
+                                                className={`group flex w-full items-center gap-3 border-b border-l-2 border-b-slate-200 px-3 py-3 text-left transition-colors duration-150 ${
+                                                    isSelected
+                                                        ? 'border-l-slate-900 bg-slate-50'
+                                                        : 'border-l-transparent bg-white hover:bg-slate-50'
+                                                }`}
+                                            >
+                                                <div className="min-w-0 flex-1">
+                                                    <div className="flex items-center gap-2 text-xs text-slate-500">
+                                                        <span>
+                                                            {experienceTypeLabel(experience.type)}
+                                                        </span>
+                                                        {existingCaseStudy && (
+                                                            <>
+                                                                <span aria-hidden="true">·</span>
+                                                                <span>기존 사례 있음</span>
+                                                            </>
+                                                        )}
+                                                    </div>
+                                                    <p className="mt-1 truncate text-[13px] font-semibold text-slate-900">
+                                                        {experience.title}
+                                                    </p>
+                                                    <p className="mt-0.5 truncate text-[11px] text-slate-500">
+                                                        {experienceOrgName(experience)}
+                                                    </p>
                                                 </div>
-                                                <p className="mt-1 truncate text-[13px] font-semibold text-slate-900">
-                                                    {experience.title}
+                                                <ArrowRight
+                                                    className={`h-4 w-4 shrink-0 ${isSelected ? 'text-slate-900' : 'text-slate-300'}`}
+                                                />
+                                            </button>
+                                        );
+                                    })}
+                                    {filteredProjectOptions.length === 0 && (
+                                        <div className="border-b border-slate-200 px-4 py-12 text-center">
+                                            <BriefcaseBusiness className="mx-auto h-6 w-6 text-slate-300" />
+                                            <p className="mt-3 text-sm font-medium text-slate-600">
+                                                {projectOptions.length === 0
+                                                    ? '연결할 경력·프로젝트 원본이 없습니다.'
+                                                    : '검색 결과가 없습니다.'}
+                                            </p>
+                                            {projectOptions.length === 0 && (
+                                                <p className="mt-1 text-xs text-slate-400">
+                                                    먼저 이력 및 경력 관리에서 원본을 등록해 주세요.
                                                 </p>
-                                                <p className="mt-0.5 truncate text-[11px] text-slate-500">
-                                                    {experienceOrgName(experience)}
+                                            )}
+                                        </div>
+                                    )}
+                                </div>
+                            </div>
+                        ) : (
+                            <div className="mx-auto mt-6 min-h-0 w-full max-w-2xl flex-1 overflow-y-auto pr-1">
+                                {createMode && (
+                                    <>
+                                        <div className="flex items-end justify-between gap-4">
+                                            <div>
+                                                <h4 className="text-sm font-black text-slate-900">
+                                                    사례 기본 정보
+                                                </h4>
+                                                <p className="mt-1 text-xs leading-5 text-slate-500">
+                                                    방문자에게 보일 사례 제목을 입력합니다.
                                                 </p>
                                             </div>
-                                            <ArrowRight
-                                                className={`h-4 w-4 shrink-0 ${isSelected ? 'text-slate-900' : 'text-slate-300'}`}
+                                            <button
+                                                type="button"
+                                                onClick={() => setCreateStep(0)}
+                                                className="inline-flex items-center gap-1 text-[11px] font-black text-slate-500 hover:text-slate-900"
+                                            >
+                                                <ArrowLeft className="h-3.5 w-3.5" /> 출발점 다시
+                                                선택
+                                            </button>
+                                        </div>
+
+                                        {selectedCreateExperience ? (
+                                            <div className="mt-5 border-y border-slate-200 py-4">
+                                                <p className="text-xs text-slate-400">연결 원본</p>
+                                                <p className="mt-1.5 text-sm font-semibold text-slate-900">
+                                                    {selectedCreateExperience.title}
+                                                </p>
+                                                <p className="mt-1 text-sm text-slate-500">
+                                                    {experienceOrgName(selectedCreateExperience)}
+                                                </p>
+                                            </div>
+                                        ) : (
+                                            <div className="mt-5 border-y border-slate-200 py-4">
+                                                <p className="text-xs text-slate-400">작성 방식</p>
+                                                <p className="mt-1.5 text-sm font-semibold text-slate-900">
+                                                    원본 없이 독립 사례로 작성
+                                                </p>
+                                            </div>
+                                        )}
+
+                                        <label className="mt-6 block text-sm font-medium text-slate-700">
+                                            사례 제목
+                                            <input
+                                                value={createForm.title}
+                                                onChange={(event) =>
+                                                    setCreateForm((form) => ({
+                                                        ...form,
+                                                        title: event.target.value,
+                                                    }))
+                                                }
+                                                placeholder="예: 장애 대응 체계를 다시 설계한 과정"
+                                                className="mt-2 w-full rounded-lg border border-slate-300 bg-white px-3.5 py-3 text-sm outline-none transition-colors focus:border-slate-700 focus:ring-2 focus:ring-slate-200"
                                             />
-                                        </button>
-                                    );
-                                })}
-                                {filteredProjectOptions.length === 0 && (
-                                    <div className="border-b border-slate-200 px-4 py-12 text-center">
-                                        <BriefcaseBusiness className="mx-auto h-6 w-6 text-slate-300" />
-                                        <p className="mt-3 text-sm font-medium text-slate-600">
-                                            {projectOptions.length === 0
-                                                ? '연결할 경력·프로젝트 원본이 없습니다.'
-                                                : '검색 결과가 없습니다.'}
-                                        </p>
-                                        {projectOptions.length === 0 && (
-                                            <p className="mt-1 text-xs text-slate-400">
-                                                먼저 이력 및 경력 관리에서 원본을 등록해 주세요.
+                                        </label>
+
+                                        {createMutation.error && (
+                                            <p className="mt-5 border-y border-rose-200 py-2.5 text-xs font-medium text-rose-700">
+                                                {createMutation.error instanceof Error
+                                                    ? createMutation.error.message
+                                                    : '사례 작업공간을 만들지 못했습니다.'}
                                             </p>
                                         )}
-                                    </div>
+
+                                        <div className="mt-8 flex items-center justify-between border-t border-slate-200 pt-4">
+                                            <button
+                                                type="button"
+                                                onClick={() => setCreateStep(0)}
+                                                className="inline-flex items-center gap-1.5 px-2 py-2 text-xs font-black text-slate-500"
+                                            >
+                                                <ArrowLeft className="h-3.5 w-3.5" /> 이전
+                                            </button>
+                                            <button
+                                                type="button"
+                                                disabled={
+                                                    createMode === null ||
+                                                    !createForm.slug.trim() ||
+                                                    !createForm.title.trim() ||
+                                                    createMutation.isPending
+                                                }
+                                                onClick={() => createMutation.mutate()}
+                                                className="inline-flex items-center justify-center gap-2 rounded-lg bg-slate-900 px-5 py-3 text-sm font-semibold text-white transition-colors hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-40"
+                                            >
+                                                {createMutation.isPending
+                                                    ? '작업공간 만드는 중...'
+                                                    : '사례 작업공간 만들기'}
+                                                {!createMutation.isPending && (
+                                                    <ArrowRight className="h-4 w-4" />
+                                                )}
+                                            </button>
+                                        </div>
+                                    </>
                                 )}
                             </div>
+                        )}
+                    </section>
+                )}
+                {/* 원본 목록: 공개 페이지 포함 여부가 아니라 Workspace에 저장된 사례 원본을 탐색한다. */}
+                <aside className="flex min-h-[34rem] w-full shrink-0 flex-col overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm lg:order-1 lg:min-h-0 lg:w-[var(--source-panel-width)]">
+                    <div className="border-b border-slate-200 p-3.5">
+                        <div className="flex items-center justify-between gap-3">
+                            <p className="text-sm font-black text-slate-900">사례 원본</p>
+                            <span className="text-xs font-bold text-slate-400">
+                                {caseStudies.length}개
+                            </span>
                         </div>
-                    ) : (
-                        <div className="mx-auto mt-6 min-h-0 w-full max-w-2xl flex-1 overflow-y-auto pr-1">
-                            {createMode && (
-                                <>
-                                    <div className="flex items-end justify-between gap-4">
-                                        <div>
-                                            <h4 className="text-sm font-black text-slate-900">
-                                                사례 기본 정보
-                                            </h4>
-                                            <p className="mt-1 text-xs leading-5 text-slate-500">
-                                                방문자에게 보일 사례 제목을 입력합니다.
-                                            </p>
-                                        </div>
-                                        <button
-                                            type="button"
-                                            onClick={() => setCreateStep(0)}
-                                            className="inline-flex items-center gap-1 text-[11px] font-black text-slate-500 hover:text-slate-900"
-                                        >
-                                            <ArrowLeft className="h-3.5 w-3.5" /> 출발점 다시 선택
-                                        </button>
-                                    </div>
-
-                                    {selectedCreateExperience ? (
-                                        <div className="mt-5 border-y border-slate-200 py-4">
-                                            <p className="text-xs text-slate-400">연결 원본</p>
-                                            <p className="mt-1.5 text-sm font-semibold text-slate-900">
-                                                {selectedCreateExperience.title}
-                                            </p>
-                                            <p className="mt-1 text-sm text-slate-500">
-                                                {experienceOrgName(selectedCreateExperience)}
-                                            </p>
-                                        </div>
-                                    ) : (
-                                        <div className="mt-5 border-y border-slate-200 py-4">
-                                            <p className="text-xs text-slate-400">작성 방식</p>
-                                            <p className="mt-1.5 text-sm font-semibold text-slate-900">
-                                                원본 없이 독립 사례로 작성
-                                            </p>
-                                        </div>
-                                    )}
-
-                                    <label className="mt-6 block text-sm font-medium text-slate-700">
-                                        사례 제목
-                                        <input
-                                            value={createForm.title}
-                                            onChange={(event) =>
-                                                setCreateForm((form) => ({
-                                                    ...form,
-                                                    title: event.target.value,
-                                                }))
-                                            }
-                                            placeholder="예: 장애 대응 체계를 다시 설계한 과정"
-                                            className="mt-2 w-full rounded-lg border border-slate-300 bg-white px-3.5 py-3 text-sm outline-none transition-colors focus:border-slate-700 focus:ring-2 focus:ring-slate-200"
-                                        />
-                                    </label>
-
-                                    {createMutation.error && (
-                                        <p className="mt-5 border-y border-rose-200 py-2.5 text-xs font-medium text-rose-700">
-                                            {createMutation.error instanceof Error
-                                                ? createMutation.error.message
-                                                : '사례 작업공간을 만들지 못했습니다.'}
-                                        </p>
-                                    )}
-
-                                    <div className="mt-8 flex items-center justify-between border-t border-slate-200 pt-4">
-                                        <button
-                                            type="button"
-                                            onClick={() => setCreateStep(0)}
-                                            className="inline-flex items-center gap-1.5 px-2 py-2 text-xs font-black text-slate-500"
-                                        >
-                                            <ArrowLeft className="h-3.5 w-3.5" /> 이전
-                                        </button>
-                                        <button
-                                            type="button"
-                                            disabled={
-                                                createMode === null ||
-                                                !createForm.slug.trim() ||
-                                                !createForm.title.trim() ||
-                                                createMutation.isPending
-                                            }
-                                            onClick={() => createMutation.mutate()}
-                                            className="inline-flex items-center justify-center gap-2 rounded-lg bg-slate-900 px-5 py-3 text-sm font-semibold text-white transition-colors hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-40"
-                                        >
-                                            {createMutation.isPending
-                                                ? '작업공간 만드는 중...'
-                                                : '사례 작업공간 만들기'}
-                                            {!createMutation.isPending && (
-                                                <ArrowRight className="h-4 w-4" />
-                                            )}
-                                        </button>
-                                    </div>
-                                </>
-                            )}
+                        <label className="relative mt-3 block">
+                            <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
+                            <input
+                                type="search"
+                                value={searchQuery}
+                                onChange={(event) => setSearchQuery(event.target.value)}
+                                placeholder="제목, URL, 연결 경험 검색"
+                                className="w-full rounded-xl border border-slate-200 bg-slate-50 py-2.5 pl-9 pr-3 text-xs font-medium text-slate-800 outline-none transition focus:border-slate-700 focus:bg-white"
+                            />
+                        </label>
+                        <div className="mt-3 grid grid-cols-3 gap-1 text-[10px] font-black">
+                            {(
+                                [
+                                    ['ALL', `전체 ${caseStudies.length}`],
+                                    ['DRAFT', `작성 중 ${draftCount}`],
+                                    ['PUBLISHED', `기준본 ${publishedCount}`],
+                                ] as const
+                            ).map(([value, label]) => (
+                                <button
+                                    key={value}
+                                    type="button"
+                                    onClick={() => setStatusFilter(value)}
+                                    className={`rounded-lg border px-1.5 py-2 transition ${
+                                        statusFilter === value
+                                            ? 'border-slate-900 bg-slate-900 text-white'
+                                            : 'border-slate-200 text-slate-500 hover:border-slate-400 hover:text-slate-800'
+                                    }`}
+                                >
+                                    {label}
+                                </button>
+                            ))}
                         </div>
-                    )}
-                </section>
-            ) : (
-                <div
-                    ref={workspaceLayoutRef}
-                    style={
-                        {
-                            '--source-panel-width': `${sourcePanelWidth}px`,
-                        } as CSSProperties
-                    }
-                    className="flex min-h-[44rem] flex-col gap-4 lg:min-h-0 lg:flex-1 lg:flex-row lg:gap-0"
-                >
-                    {/* 원본 목록: 공개 페이지 포함 여부가 아니라 Workspace에 저장된 사례 원본을 탐색한다. */}
-                    <aside className="flex min-h-[34rem] w-full shrink-0 flex-col overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm lg:min-h-0 lg:w-[var(--source-panel-width)]">
-                        <div className="border-b border-slate-200 p-3.5">
-                            <div className="flex items-center justify-between gap-3">
-                                <p className="text-sm font-black text-slate-900">사례 원본</p>
-                                <span className="text-xs font-bold text-slate-400">
-                                    {caseStudies.length}개
-                                </span>
-                            </div>
-                            <label className="relative mt-3 block">
-                                <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
-                                <input
-                                    type="search"
-                                    value={searchQuery}
-                                    onChange={(event) => setSearchQuery(event.target.value)}
-                                    placeholder="제목, URL, 연결 경험 검색"
-                                    className="w-full rounded-xl border border-slate-200 bg-slate-50 py-2.5 pl-9 pr-3 text-xs font-medium text-slate-800 outline-none transition focus:border-slate-700 focus:bg-white"
-                                />
-                            </label>
-                            <div className="mt-3 grid grid-cols-3 gap-1 text-[10px] font-black">
-                                {(
-                                    [
-                                        ['ALL', `전체 ${caseStudies.length}`],
-                                        ['DRAFT', `작성 중 ${draftCount}`],
-                                        ['PUBLISHED', `기준본 ${publishedCount}`],
-                                    ] as const
-                                ).map(([value, label]) => (
-                                    <button
-                                        key={value}
-                                        type="button"
-                                        onClick={() => setStatusFilter(value)}
-                                        className={`rounded-lg border px-1.5 py-2 transition ${
-                                            statusFilter === value
-                                                ? 'border-slate-900 bg-slate-900 text-white'
-                                                : 'border-slate-200 text-slate-500 hover:border-slate-400 hover:text-slate-800'
-                                        }`}
-                                    >
-                                        {label}
-                                    </button>
-                                ))}
-                            </div>
-                        </div>
-                        <div className="min-h-0 flex-1 space-y-1.5 overflow-y-auto p-2.5">
-                            {filteredCaseStudies.map((caseStudy: PortfolioCaseStudy) => {
-                                const sourceExperience = caseStudy.experienceId
-                                    ? experienceById.get(caseStudy.experienceId)
-                                    : undefined;
-                                const isSelected = selectedId === caseStudy.id;
-                                return (
-                                    <button
-                                        key={caseStudy.id}
-                                        type="button"
-                                        onClick={() => {
-                                            setSelectedId(caseStudy.id);
-                                            setDetailView('EDITOR');
-                                        }}
-                                        className={`w-full rounded-xl border p-3 text-left transition ${
-                                            isSelected
-                                                ? 'border-slate-900 bg-slate-900 text-white shadow-sm'
-                                                : 'border-slate-200 bg-white hover:border-slate-400 hover:bg-slate-50'
-                                        }`}
-                                    >
-                                        <div className="flex items-start justify-between gap-3">
-                                            <span className="line-clamp-2 text-[13px] font-black leading-[1.15rem]">
-                                                {caseStudy.title}
-                                            </span>
-                                            {caseStudy.status === 'PUBLISHED' && (
-                                                <CheckCircle2
-                                                    className={`mt-0.5 h-4 w-4 shrink-0 ${isSelected ? 'text-emerald-300' : 'text-emerald-600'}`}
-                                                />
-                                            )}
-                                        </div>
-                                        {sourceExperience && (
-                                            <span
-                                                className={`mt-1.5 flex items-center gap-1 truncate text-[10px] font-bold ${isSelected ? 'text-slate-300' : 'text-slate-500'}`}
-                                            >
-                                                <BriefcaseBusiness className="h-3 w-3 shrink-0" />
-                                                {experienceOrgName(sourceExperience)} ·{' '}
-                                                {sourceExperience.title}
-                                            </span>
-                                        )}
-                                        {!sourceExperience && (
-                                            <span
-                                                className={`mt-1.5 flex items-center gap-1 truncate text-[10px] font-bold ${isSelected ? 'text-slate-300' : 'text-slate-500'}`}
-                                            >
-                                                <FileText className="h-3 w-3 shrink-0" /> 독립 사례
-                                            </span>
-                                        )}
-                                        <div
-                                            className={`mt-2.5 flex items-center justify-between gap-2 text-[9px] ${isSelected ? 'text-slate-400' : 'text-slate-400'}`}
-                                        >
-                                            <span className="truncate font-mono">
-                                                /{caseStudy.slug}
-                                            </span>
-                                            <span className="shrink-0 font-bold">
-                                                {STATUS_LABELS[caseStudy.status]}
-                                            </span>
-                                        </div>
-                                    </button>
-                                );
-                            })}
-                            {filteredCaseStudies.length === 0 && (
-                                <div className="rounded-xl border border-dashed border-slate-300 px-4 py-10 text-center">
-                                    <FileText className="mx-auto h-5 w-5 text-slate-300" />
-                                    <p className="mt-2 text-xs font-bold text-slate-500">
-                                        조건에 맞는 사례가 없습니다.
-                                    </p>
-                                    {caseStudies.length === 0 && (
-                                        <button
-                                            type="button"
-                                            onClick={openCreateWorkspace}
-                                            className="mt-4 text-xs font-black text-slate-900 underline underline-offset-4"
-                                        >
-                                            첫 사례 설계하기
-                                        </button>
-                                    )}
-                                </div>
-                            )}
-                        </div>
-                    </aside>
-
-                    <div
-                        role="separator"
-                        aria-label="사례 원본 패널 너비 조절"
-                        aria-orientation="vertical"
-                        aria-valuemin={SOURCE_PANEL_MIN_WIDTH}
-                        aria-valuemax={SOURCE_PANEL_MAX_WIDTH}
-                        aria-valuenow={sourcePanelWidth}
-                        tabIndex={0}
-                        title="드래그하거나 방향키로 사례 원본 패널 너비 조절"
-                        onMouseDown={(event) => {
-                            event.preventDefault();
-                            setIsResizingSourcePanel(true);
-                        }}
-                        onKeyDown={(event) => {
-                            if (event.key === 'ArrowLeft') {
-                                event.preventDefault();
-                                setSourcePanelWidth((width) =>
-                                    Math.max(SOURCE_PANEL_MIN_WIDTH, width - 8)
-                                );
-                            } else if (event.key === 'ArrowRight') {
-                                event.preventDefault();
-                                setSourcePanelWidth((width) =>
-                                    Math.min(SOURCE_PANEL_MAX_WIDTH, width + 8)
-                                );
-                            } else if (event.key === 'Home') {
-                                event.preventDefault();
-                                setSourcePanelWidth(SOURCE_PANEL_MIN_WIDTH);
-                            } else if (event.key === 'End') {
-                                event.preventDefault();
-                                setSourcePanelWidth(SOURCE_PANEL_MAX_WIDTH);
-                            }
-                        }}
-                        className={`group relative z-10 hidden w-3 shrink-0 cursor-col-resize touch-none items-center justify-center self-stretch outline-none lg:flex ${isResizingSourcePanel ? 'select-none' : ''}`}
-                    >
-                        <span
-                            className={`h-full w-px transition-colors ${isResizingSourcePanel ? 'bg-slate-500' : 'bg-slate-200 group-hover:bg-slate-400 group-focus-visible:bg-slate-500'}`}
-                        />
-                        <GripVertical
-                            className={`absolute h-7 w-3 rounded border bg-white transition-colors ${isResizingSourcePanel ? 'border-slate-500 text-slate-700' : 'border-slate-300 text-slate-400 group-hover:border-slate-400 group-hover:text-slate-600'}`}
-                        />
                     </div>
+                    <div className="min-h-0 flex-1 space-y-1.5 overflow-y-auto p-2.5">
+                        {filteredCaseStudies.map((caseStudy: PortfolioCaseStudy) => {
+                            const sourceExperience = caseStudy.experienceId
+                                ? experienceById.get(caseStudy.experienceId)
+                                : undefined;
+                            const isSelected = selectedId === caseStudy.id;
+                            return (
+                                <button
+                                    key={caseStudy.id}
+                                    type="button"
+                                    onClick={() => {
+                                        setSelectedId(caseStudy.id);
+                                        setDetailView('EDITOR');
+                                        setCreateOpen(false);
+                                    }}
+                                    className={`w-full rounded-xl border p-3 text-left transition ${
+                                        isSelected
+                                            ? 'border-slate-900 bg-slate-900 text-white shadow-sm'
+                                            : 'border-slate-200 bg-white hover:border-slate-400 hover:bg-slate-50'
+                                    }`}
+                                >
+                                    <div className="flex items-start justify-between gap-3">
+                                        <span className="line-clamp-2 text-[13px] font-black leading-[1.15rem]">
+                                            {caseStudy.title}
+                                        </span>
+                                        {caseStudy.status === 'PUBLISHED' && (
+                                            <CheckCircle2
+                                                className={`mt-0.5 h-4 w-4 shrink-0 ${isSelected ? 'text-emerald-300' : 'text-emerald-600'}`}
+                                            />
+                                        )}
+                                    </div>
+                                    {sourceExperience && (
+                                        <span
+                                            className={`mt-1.5 flex items-center gap-1 truncate text-[10px] font-bold ${isSelected ? 'text-slate-300' : 'text-slate-500'}`}
+                                        >
+                                            <BriefcaseBusiness className="h-3 w-3 shrink-0" />
+                                            {experienceOrgName(sourceExperience)} ·{' '}
+                                            {sourceExperience.title}
+                                        </span>
+                                    )}
+                                    {!sourceExperience && (
+                                        <span
+                                            className={`mt-1.5 flex items-center gap-1 truncate text-[10px] font-bold ${isSelected ? 'text-slate-300' : 'text-slate-500'}`}
+                                        >
+                                            <FileText className="h-3 w-3 shrink-0" /> 독립 사례
+                                        </span>
+                                    )}
+                                    <div
+                                        className={`mt-2.5 flex items-center justify-between gap-2 text-[9px] ${isSelected ? 'text-slate-400' : 'text-slate-400'}`}
+                                    >
+                                        <span className="truncate font-mono">
+                                            /{caseStudy.slug}
+                                        </span>
+                                        <span className="shrink-0 font-bold">
+                                            {STATUS_LABELS[caseStudy.status]}
+                                        </span>
+                                    </div>
+                                </button>
+                            );
+                        })}
+                        {filteredCaseStudies.length === 0 && (
+                            <div className="rounded-xl border border-dashed border-slate-300 px-4 py-10 text-center">
+                                <FileText className="mx-auto h-5 w-5 text-slate-300" />
+                                <p className="mt-2 text-xs font-bold text-slate-500">
+                                    조건에 맞는 사례가 없습니다.
+                                </p>
+                                {caseStudies.length === 0 && (
+                                    <button
+                                        type="button"
+                                        onClick={openCreateWorkspace}
+                                        className="mt-4 text-xs font-black text-slate-900 underline underline-offset-4"
+                                    >
+                                        첫 사례 설계하기
+                                    </button>
+                                )}
+                            </div>
+                        )}
+                    </div>
+                </aside>
 
-                    {/* 상세 편집 */}
-                    {selectedCaseStudy ? (
-                        <main className="min-w-0 flex-1 space-y-6 overflow-y-auto overscroll-contain px-1 pb-8 lg:min-h-0 lg:px-3">
+                <div
+                    role="separator"
+                    aria-label="사례 원본 패널 너비 조절"
+                    aria-orientation="vertical"
+                    aria-valuemin={SOURCE_PANEL_MIN_WIDTH}
+                    aria-valuemax={SOURCE_PANEL_MAX_WIDTH}
+                    aria-valuenow={sourcePanelWidth}
+                    tabIndex={0}
+                    title="드래그하거나 방향키로 사례 원본 패널 너비 조절"
+                    onMouseDown={(event) => {
+                        event.preventDefault();
+                        setIsResizingSourcePanel(true);
+                    }}
+                    onKeyDown={(event) => {
+                        if (event.key === 'ArrowLeft') {
+                            event.preventDefault();
+                            setSourcePanelWidth((width) =>
+                                Math.max(SOURCE_PANEL_MIN_WIDTH, width - 8)
+                            );
+                        } else if (event.key === 'ArrowRight') {
+                            event.preventDefault();
+                            setSourcePanelWidth((width) =>
+                                Math.min(SOURCE_PANEL_MAX_WIDTH, width + 8)
+                            );
+                        } else if (event.key === 'Home') {
+                            event.preventDefault();
+                            setSourcePanelWidth(SOURCE_PANEL_MIN_WIDTH);
+                        } else if (event.key === 'End') {
+                            event.preventDefault();
+                            setSourcePanelWidth(SOURCE_PANEL_MAX_WIDTH);
+                        }
+                    }}
+                    className={`group relative z-10 hidden w-3 shrink-0 cursor-col-resize touch-none items-center justify-center self-stretch outline-none lg:order-2 lg:flex ${isResizingSourcePanel ? 'select-none' : ''}`}
+                >
+                    <span
+                        className={`h-full w-px transition-colors ${isResizingSourcePanel ? 'bg-slate-500' : 'bg-slate-200 group-hover:bg-slate-400 group-focus-visible:bg-slate-500'}`}
+                    />
+                    <GripVertical
+                        className={`absolute h-7 w-3 rounded border bg-white transition-colors ${isResizingSourcePanel ? 'border-slate-500 text-slate-700' : 'border-slate-300 text-slate-400 group-hover:border-slate-400 group-hover:text-slate-600'}`}
+                    />
+                </div>
+
+                {/* 상세 편집 */}
+                {!createOpen &&
+                    (selectedCaseStudy ? (
+                        <main className="min-w-0 flex-1 space-y-6 overflow-y-auto overscroll-contain px-1 pb-8 lg:order-3 lg:min-h-0 lg:px-3">
                             <div className="sticky top-0 z-10 border-b border-slate-200 bg-[#f8fafc]/95 pb-4 pt-1 backdrop-blur-sm">
                                 <div className="flex items-start justify-between gap-4">
                                     <div className="min-w-0">
@@ -1918,7 +1925,7 @@ export function PortfolioManagement({
                             )}
                         </main>
                     ) : (
-                        <main className="flex min-h-[34rem] min-w-0 flex-1 items-center justify-center px-6 text-center lg:min-h-0">
+                        <main className="flex min-h-[34rem] min-w-0 flex-1 items-center justify-center px-6 text-center lg:order-3 lg:min-h-0">
                             <div className="max-w-sm">
                                 <FolderGit2 className="mx-auto h-8 w-8 text-slate-300" />
                                 <h3 className="mt-4 text-base font-black text-slate-800">
@@ -1937,9 +1944,8 @@ export function PortfolioManagement({
                                 </button>
                             </div>
                         </main>
-                    )}
-                </div>
-            )}
+                    ))}
+            </div>
         </div>
     );
 }
