@@ -1342,8 +1342,8 @@ export function PortfolioManagement({
                                             />
 
                                             {aiSetupStep < AI_SETUP_STEPS.length - 1 ? (
-                                                <div className="flex min-h-0 flex-1 flex-col px-2 py-5 sm:px-3">
-                                                    <div className="shrink-0">
+                                                <div className="flex min-h-0 flex-1 flex-col">
+                                                    <div className="shrink-0 px-2 pt-5 sm:px-3">
                                                         <h4 className="text-base font-black text-slate-950">
                                                             {AI_SETUP_STEPS[aiSetupStep]}
                                                         </h4>
@@ -1356,7 +1356,7 @@ export function PortfolioManagement({
                                                         </p>
                                                     </div>
 
-                                                    <div className="mt-4 min-h-0 flex-1 overflow-hidden">
+                                                    <div className="mt-4 min-h-0 flex-1 overflow-hidden px-2 sm:px-3">
                                                         {aiSetupStep === 0 && (
                                                             <EvidencePicker
                                                                 key="studies"
@@ -1428,7 +1428,7 @@ export function PortfolioManagement({
                                                         )}
                                                     </div>
 
-                                                    <div className="mt-6 flex shrink-0 items-center justify-between pt-4">
+                                                    <div className="mt-4 flex shrink-0 items-center justify-between border-t border-slate-200 bg-white px-2 py-4 sm:px-3">
                                                         <button
                                                             type="button"
                                                             onClick={() => {
