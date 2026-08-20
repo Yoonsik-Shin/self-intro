@@ -137,6 +137,7 @@ export function PortfolioManagement({
     const [createOpen, setCreateOpen] = useState(false);
     const [createStep, setCreateStep] = useState<0 | 1>(0);
     const [createMode, setCreateMode] = useState<'EXPERIENCE' | 'STANDALONE' | null>(null);
+    const [editingCreatedCaseId, setEditingCreatedCaseId] = useState<number | null>(null);
     const [createForm, setCreateForm] = useState({ experienceId: '', slug: '', title: '' });
     const [createSourceQuery, setCreateSourceQuery] = useState('');
     const [content, setContent] = useState<PortfolioCaseStudyContent>(EMPTY_CONTENT);
@@ -347,6 +348,30 @@ export function PortfolioManagement({
         },
     });
 
+    const renameMutation = useMutation({
+        mutationFn: () =>
+            portfolioApi.workspaceRename(
+                workspaceSlug,
+                editingCreatedCaseId as number,
+                createForm.slug.trim(),
+                createForm.title.trim()
+            ),
+        onSuccess: (updated) => {
+            queryClient.invalidateQueries({ queryKey: ['portfolio-case-studies', workspaceSlug] });
+            queryClient.invalidateQueries({
+                queryKey: ['portfolio-case-study', workspaceSlug, updated.id],
+            });
+            setCreateOpen(false);
+            setCreateStep(0);
+            setCreateMode(null);
+            setEditingCreatedCaseId(null);
+            setCreateForm({ experienceId: '', slug: '', title: '' });
+            setSelectedId(updated.id);
+            setDetailView('EDITOR');
+            setAiSetupStep(0);
+        },
+    });
+
     const deleteMutation = useMutation({
         mutationFn: (id: number) => portfolioApi.workspaceRemove(workspaceSlug, id),
         onSuccess: () => {
@@ -531,8 +556,24 @@ export function PortfolioManagement({
         setSelectedId(null);
         setCreateForm({ experienceId: '', slug: '', title: '' });
         setCreateMode(null);
+        setEditingCreatedCaseId(null);
         setCreateSourceQuery('');
         setCreateStep(0);
+        setCreateOpen(true);
+    };
+
+    const returnToBasicInfo = () => {
+        if (!selectedCaseStudy) return;
+        setEditingCreatedCaseId(selectedCaseStudy.id);
+        setCreateMode(selectedCaseStudy.experienceId ? 'EXPERIENCE' : 'STANDALONE');
+        setCreateForm({
+            experienceId: selectedCaseStudy.experienceId
+                ? String(selectedCaseStudy.experienceId)
+                : '',
+            slug: selectedCaseStudy.slug,
+            title: selectedCaseStudy.title,
+        });
+        setCreateStep(1);
         setCreateOpen(true);
     };
 
@@ -613,7 +654,7 @@ export function PortfolioManagement({
                                 <CaseFlowStepper
                                     currentStep={createStep}
                                     maxReachableStep={createMode === null ? 0 : 1}
-                                    minimumSelectableStep={0}
+                                    minimumSelectableStep={editingCreatedCaseId ? 1 : 0}
                                     onSelect={(step) => setCreateStep(step as 0 | 1)}
                                 />
                             </div>
@@ -784,37 +825,52 @@ export function PortfolioManagement({
                                             />
                                         </label>
 
-                                        {createMutation.error && (
+                                        {(createMutation.error || renameMutation.error) && (
                                             <p className="mt-5 border-y border-rose-200 py-2.5 text-xs font-medium text-rose-700">
-                                                {createMutation.error instanceof Error
-                                                    ? createMutation.error.message
-                                                    : '사례 작업공간을 만들지 못했습니다.'}
+                                                {renameMutation.error instanceof Error
+                                                    ? renameMutation.error.message
+                                                    : createMutation.error instanceof Error
+                                                      ? createMutation.error.message
+                                                      : '사례 기본 정보를 저장하지 못했습니다.'}
                                             </p>
                                         )}
 
                                         <div className="mt-8 flex items-center justify-between border-t border-slate-200 pt-4">
-                                            <button
-                                                type="button"
-                                                onClick={() => setCreateStep(0)}
-                                                className="inline-flex items-center gap-1.5 px-2 py-2 text-xs font-black text-slate-500"
-                                            >
-                                                <ArrowLeft className="h-3.5 w-3.5" /> 이전
-                                            </button>
+                                            {editingCreatedCaseId ? (
+                                                <span />
+                                            ) : (
+                                                <button
+                                                    type="button"
+                                                    onClick={() => setCreateStep(0)}
+                                                    className="inline-flex items-center gap-1.5 px-2 py-2 text-xs font-black text-slate-500"
+                                                >
+                                                    <ArrowLeft className="h-3.5 w-3.5" /> 이전
+                                                </button>
+                                            )}
                                             <button
                                                 type="button"
                                                 disabled={
                                                     createMode === null ||
                                                     !createForm.slug.trim() ||
                                                     !createForm.title.trim() ||
-                                                    createMutation.isPending
+                                                    createMutation.isPending ||
+                                                    renameMutation.isPending
                                                 }
-                                                onClick={() => createMutation.mutate()}
+                                                onClick={() =>
+                                                    editingCreatedCaseId
+                                                        ? renameMutation.mutate()
+                                                        : createMutation.mutate()
+                                                }
                                                 className="inline-flex items-center justify-center gap-2 rounded-lg bg-slate-900 px-5 py-3 text-sm font-semibold text-white transition-colors hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-40"
                                             >
-                                                {createMutation.isPending ? '준비 중...' : '다음'}
-                                                {!createMutation.isPending && (
-                                                    <ArrowRight className="h-4 w-4" />
-                                                )}
+                                                {createMutation.isPending ||
+                                                renameMutation.isPending
+                                                    ? '저장 중...'
+                                                    : '다음'}
+                                                {!createMutation.isPending &&
+                                                    !renameMutation.isPending && (
+                                                        <ArrowRight className="h-4 w-4" />
+                                                    )}
                                             </button>
                                         </div>
                                     </>
@@ -1172,8 +1228,14 @@ export function PortfolioManagement({
                                             <CaseFlowStepper
                                                 currentStep={aiSetupStep + 2}
                                                 maxReachableStep={aiSetupStep + 2}
-                                                minimumSelectableStep={2}
-                                                onSelect={(step) => setAiSetupStep(step - 2)}
+                                                minimumSelectableStep={1}
+                                                onSelect={(step) => {
+                                                    if (step === 1) {
+                                                        returnToBasicInfo();
+                                                        return;
+                                                    }
+                                                    setAiSetupStep(step - 2);
+                                                }}
                                             />
 
                                             {aiSetupStep < AI_SETUP_STEPS.length - 1 ? (
@@ -1332,13 +1394,16 @@ export function PortfolioManagement({
                                                     <div className="mt-6 flex shrink-0 items-center justify-between pt-4">
                                                         <button
                                                             type="button"
-                                                            onClick={() =>
+                                                            onClick={() => {
+                                                                if (aiSetupStep === 0) {
+                                                                    returnToBasicInfo();
+                                                                    return;
+                                                                }
                                                                 setAiSetupStep((current) =>
                                                                     Math.max(0, current - 1)
-                                                                )
-                                                            }
-                                                            disabled={aiSetupStep === 0}
-                                                            className="inline-flex items-center gap-1.5 px-2 py-2 text-xs font-black text-slate-500 disabled:invisible"
+                                                                );
+                                                            }}
+                                                            className="inline-flex items-center gap-1.5 px-2 py-2 text-xs font-black text-slate-500 hover:text-slate-900"
                                                         >
                                                             <ArrowLeft className="h-3.5 w-3.5" />
                                                             이전
