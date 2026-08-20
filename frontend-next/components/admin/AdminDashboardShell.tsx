@@ -480,6 +480,7 @@ export function AdminDashboardShell({ workspaceSlug }: { workspaceSlug: string }
     const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
     const sidebarCollapsedBeforeMapRef = useRef(false);
     const isJobMapViewRef = useRef(false);
+    const adminScrollRegionRef = useRef<HTMLElement | null>(null);
 
     const handleJobApplicationViewModeChange = useCallback(
         (viewMode: 'LIST' | 'BOARD' | 'CALENDAR' | 'MAP') => {
@@ -550,6 +551,12 @@ export function AdminDashboardShell({ workspaceSlug }: { workspaceSlug: string }
         window.addEventListener('popstate', handlePopState);
         return () => window.removeEventListener('popstate', handlePopState);
     }, [allowedTabIds]);
+
+    useEffect(() => {
+        if (activeTab === 'PORTFOLIO' && adminScrollRegionRef.current) {
+            adminScrollRegionRef.current.scrollTop = 0;
+        }
+    }, [activeTab]);
 
     const handleTabChange = (newTab: TabId) => {
         if (!allowedTabIds.includes(newTab)) return;
@@ -1186,11 +1193,14 @@ export function AdminDashboardShell({ workspaceSlug }: { workspaceSlug: string }
                         </aside>
 
                         <section
+                            ref={adminScrollRegionRef}
                             data-admin-scroll-region
                             className={`min-h-0 min-w-0 overflow-x-hidden pr-1 ${
                                 activeTab === 'PUBLIC_COMPOSITION'
                                     ? 'overflow-y-auto xl:overflow-hidden'
-                                    : 'space-y-6 overflow-y-auto'
+                                    : activeTab === 'PORTFOLIO'
+                                      ? 'overflow-y-auto lg:overflow-y-hidden'
+                                      : 'space-y-6 overflow-y-auto'
                             }`}
                         >
                             {activeTab === 'WORKSPACE_HOME' && currentWorkspace && (
