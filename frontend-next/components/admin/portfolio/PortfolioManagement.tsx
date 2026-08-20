@@ -66,7 +66,7 @@ const AI_SETUP_STEP_DESCRIPTIONS = [
     '사례에서 실제로 사용한 기술을 선택하세요.',
     '선택한 근거를 바탕으로 AI와 대화하며 초안을 완성하세요.',
 ] as const;
-const CASE_FLOW_STEPS = ['원본 선택', '기본 정보', ...AI_SETUP_STEPS] as const;
+const CASE_FLOW_STEPS = ['기본 정보', ...AI_SETUP_STEPS] as const;
 const FLOW_BACK_BUTTON_CLASS =
     'inline-flex items-center justify-center gap-1.5 rounded-lg border border-slate-300 bg-white px-4 py-2.5 text-xs font-semibold text-slate-600 transition-colors hover:border-slate-400 hover:bg-slate-50 hover:text-slate-900';
 const FLOW_NEXT_BUTTON_CLASS =
@@ -280,7 +280,7 @@ function CaseFlowStepper({
 }) {
     return (
         <div className="shrink-0 overflow-x-auto">
-            <ol className="grid min-w-[36rem] grid-cols-6 gap-2 px-2 py-3">
+            <ol className="grid min-w-[30rem] grid-cols-5 gap-2 px-2 py-3">
                 {CASE_FLOW_STEPS.map((step, index) => {
                     const canSelect = index >= minimumSelectableStep && index <= maxReachableStep;
                     return (
@@ -342,7 +342,6 @@ export function PortfolioManagement({
     const [detailView, setDetailView] = useState<'EDITOR' | 'REVISIONS'>('EDITOR');
     const [selectedRevisionId, setSelectedRevisionId] = useState<number | null>(null);
     const [createOpen, setCreateOpen] = useState(false);
-    const [createStep, setCreateStep] = useState<0 | 1>(0);
     const [createMode, setCreateMode] = useState<'EXPERIENCE' | 'STANDALONE' | null>(null);
     const [editingCreatedCaseId, setEditingCreatedCaseId] = useState<number | null>(null);
     const [createForm, setCreateForm] = useState({ experienceId: '', slug: '', title: '' });
@@ -544,7 +543,6 @@ export function PortfolioManagement({
         onSuccess: (created) => {
             queryClient.invalidateQueries({ queryKey: ['portfolio-case-studies', workspaceSlug] });
             setCreateOpen(false);
-            setCreateStep(0);
             setCreateMode(null);
             setCreateForm({ experienceId: '', slug: '', title: '' });
             setSelectedId(created.id);
@@ -566,7 +564,6 @@ export function PortfolioManagement({
                 queryKey: ['portfolio-case-study', workspaceSlug, updated.id],
             });
             setCreateOpen(false);
-            setCreateStep(0);
             setCreateMode(null);
             setEditingCreatedCaseId(null);
             setCreateForm({ experienceId: '', slug: '', title: '' });
@@ -762,7 +759,6 @@ export function PortfolioManagement({
         setCreateMode(null);
         setEditingCreatedCaseId(null);
         setCreateSourceQuery('');
-        setCreateStep(0);
         setCreateOpen(true);
     };
 
@@ -777,7 +773,6 @@ export function PortfolioManagement({
             slug: selectedCaseStudy.slug,
             title: selectedCaseStudy.title,
         });
-        setCreateStep(1);
         setCreateOpen(true);
     };
 
@@ -799,7 +794,6 @@ export function PortfolioManagement({
                   : `case-study-${experienceId}`,
         }));
         setCreateMode('EXPERIENCE');
-        setCreateStep(1);
     };
 
     const selectStandaloneCase = () => {
@@ -809,7 +803,6 @@ export function PortfolioManagement({
             slug: editingCreatedCaseId ? current.slug : `standalone-${Date.now().toString(36)}`,
         }));
         setCreateMode('STANDALONE');
-        setCreateStep(1);
     };
 
     return (
@@ -850,7 +843,7 @@ export function PortfolioManagement({
             >
                 {createOpen && (
                     <section className="flex min-h-0 min-w-0 flex-1 flex-col overflow-y-auto px-1 py-1 lg:order-3 lg:overflow-hidden lg:px-3">
-                        <div className="mx-auto w-full max-w-4xl shrink-0">
+                        <div className="w-full shrink-0">
                             <h3 className="text-xl font-semibold tracking-tight text-slate-950">
                                 어떤 이야기를 하나의 사례로 보여줄까요?
                             </h3>
@@ -860,218 +853,237 @@ export function PortfolioManagement({
                             </p>
                             <div className="mt-5">
                                 <CaseFlowStepper
-                                    currentStep={createStep}
-                                    maxReachableStep={createMode === null ? 0 : 1}
+                                    currentStep={0}
+                                    maxReachableStep={0}
                                     minimumSelectableStep={0}
-                                    onSelect={(step) => setCreateStep(step as 0 | 1)}
+                                    onSelect={() => undefined}
                                 />
                             </div>
                         </div>
 
-                        {createStep === 0 ? (
-                            <div className="mx-auto mt-6 flex min-h-0 w-full max-w-4xl flex-1 flex-col">
-                                <div className="flex shrink-0 items-end justify-between gap-4">
-                                    <div>
-                                        <h4 className="text-lg font-semibold tracking-tight text-slate-950">
-                                            출발점 선택
-                                        </h4>
-                                        <p className="mt-1 text-xs text-slate-500">
-                                            연결할 원본을 고르거나 독립 사례로 바로 시작합니다.
-                                        </p>
-                                    </div>
-                                    <span className="shrink-0 text-[11px] font-bold text-slate-400">
-                                        {projectOptions.length}개 원본
+                        <div className="mt-5 flex min-h-0 w-full flex-1 flex-col">
+                            <div className="flex shrink-0 items-center gap-1.5">
+                                <h4 className="text-lg font-semibold tracking-tight text-slate-950">
+                                    기본 정보
+                                </h4>
+                                <span className="group/help relative inline-flex shrink-0">
+                                    <button
+                                        type="button"
+                                        aria-label="기본 정보 설명"
+                                        className="grid h-5 w-5 place-items-center rounded-full text-slate-400 transition-colors hover:bg-slate-200 hover:text-slate-800 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-300"
+                                    >
+                                        <CircleHelp className="h-3.5 w-3.5" />
+                                    </button>
+                                    <span
+                                        role="tooltip"
+                                        className="pointer-events-none absolute left-0 top-full z-50 mt-2 w-72 max-w-[70vw] translate-y-1 rounded-lg bg-slate-900 px-3 py-2.5 text-left text-xs font-medium leading-5 text-white opacity-0 shadow-lg transition group-hover/help:translate-y-0 group-hover/help:opacity-100 group-focus-within/help:translate-y-0 group-focus-within/help:opacity-100"
+                                    >
+                                        연결할 원본과 방문자에게 보일 사례 제목을 한 화면에서
+                                        정합니다.
                                     </span>
-                                </div>
-
-                                <button
-                                    type="button"
-                                    onClick={selectStandaloneCase}
-                                    className="group mt-4 flex shrink-0 items-center gap-3 border-y border-slate-200 bg-white px-3 py-3 text-left transition-colors hover:bg-slate-50"
-                                >
-                                    <FileText className="h-5 w-5 shrink-0 text-slate-500" />
-                                    <span className="min-w-0 flex-1">
-                                        <span className="block text-[13px] font-semibold text-slate-900">
-                                            원본 없이 직접 작성
-                                        </span>
-                                        <span className="mt-0.5 block text-[11px] text-slate-500">
-                                            아이디어, 활동, 개인 작업 등 자유로운 사례로 시작합니다.
-                                        </span>
-                                    </span>
-                                    <ArrowRight className="h-4 w-4 shrink-0 text-slate-300 group-hover:text-slate-700" />
-                                </button>
-
-                                <label className="mt-3 flex shrink-0 items-center gap-2 border-b border-slate-300 py-2.5 focus-within:border-slate-900">
-                                    <Search className="h-4 w-4 shrink-0 text-slate-400" />
-                                    <span className="sr-only">경력·프로젝트 원본 검색</span>
-                                    <input
-                                        value={createSourceQuery}
-                                        onChange={(event) =>
-                                            setCreateSourceQuery(event.target.value)
-                                        }
-                                        placeholder="이름이나 소속으로 검색"
-                                        className="min-w-0 flex-1 bg-transparent text-sm text-slate-900 outline-none placeholder:text-slate-400"
-                                    />
-                                </label>
-
-                                <div className="mt-2 min-h-0 flex-1 overflow-y-auto border-y border-slate-200">
-                                    {filteredProjectOptions.map((experience) => {
-                                        const isSelected =
-                                            createForm.experienceId === String(experience.id);
-                                        const existingCaseStudy = caseStudies.find(
-                                            (caseStudy) => caseStudy.experienceId === experience.id
-                                        );
-                                        return (
-                                            <button
-                                                key={experience.id}
-                                                type="button"
-                                                onClick={() =>
-                                                    selectCreateExperience(experience.id)
-                                                }
-                                                className={`group flex w-full items-center gap-3 border-b border-l-2 border-b-slate-200 px-3 py-3 text-left transition-colors duration-150 ${
-                                                    isSelected
-                                                        ? 'border-l-slate-900 bg-slate-50'
-                                                        : 'border-l-transparent bg-white hover:bg-slate-50'
-                                                }`}
-                                            >
-                                                <div className="min-w-0 flex-1">
-                                                    <div className="flex items-center gap-2 text-xs text-slate-500">
-                                                        <span>
-                                                            {experienceTypeLabel(experience.type)}
-                                                        </span>
-                                                        {existingCaseStudy && (
-                                                            <>
-                                                                <span aria-hidden="true">·</span>
-                                                                <span>기존 사례 있음</span>
-                                                            </>
-                                                        )}
-                                                    </div>
-                                                    <p className="mt-1 truncate text-[13px] font-semibold text-slate-900">
-                                                        {experience.title}
-                                                    </p>
-                                                    <p className="mt-0.5 truncate text-[11px] text-slate-500">
-                                                        {experienceOrgName(experience)}
-                                                    </p>
-                                                </div>
-                                                <ArrowRight
-                                                    className={`h-4 w-4 shrink-0 ${isSelected ? 'text-slate-900' : 'text-slate-300'}`}
-                                                />
-                                            </button>
-                                        );
-                                    })}
-                                    {filteredProjectOptions.length === 0 && (
-                                        <div className="border-b border-slate-200 px-4 py-12 text-center">
-                                            <BriefcaseBusiness className="mx-auto h-6 w-6 text-slate-300" />
-                                            <p className="mt-3 text-sm font-medium text-slate-600">
-                                                {projectOptions.length === 0
-                                                    ? '연결할 경력·프로젝트 원본이 없습니다.'
-                                                    : '검색 결과가 없습니다.'}
-                                            </p>
-                                            {projectOptions.length === 0 && (
-                                                <p className="mt-1 text-xs text-slate-400">
-                                                    먼저 이력 및 경력 관리에서 원본을 등록해 주세요.
-                                                </p>
-                                            )}
-                                        </div>
-                                    )}
-                                </div>
+                                </span>
                             </div>
-                        ) : (
-                            <div className="mx-auto mt-6 flex min-h-0 w-full max-w-4xl flex-1 flex-col overflow-y-auto overscroll-contain pr-1">
-                                {createMode && (
-                                    <>
-                                        <div>
-                                            <h4 className="text-lg font-semibold tracking-tight text-slate-950">
-                                                사례 기본 정보
-                                            </h4>
-                                            <p className="mt-1 text-xs leading-5 text-slate-500">
-                                                방문자에게 보일 사례 제목을 입력합니다.
-                                            </p>
-                                        </div>
 
+                            <div className="mt-3 grid min-h-0 flex-1 grid-cols-1 grid-rows-[auto_minmax(0,1fr)] gap-4 lg:grid-cols-[minmax(14rem,0.72fr)_minmax(0,1.28fr)] lg:grid-rows-1">
+                                <div className="flex min-h-0 flex-col border-y border-slate-200 py-3 lg:border-r lg:pr-4">
+                                    <div className="flex items-center justify-between gap-3">
+                                        <span className="text-xs font-semibold text-slate-600">
+                                            선택한 출발점
+                                        </span>
+                                        {createMode && (
+                                            <span className="text-[11px] font-semibold text-slate-400">
+                                                변경 가능
+                                            </span>
+                                        )}
+                                    </div>
+
+                                    <div className="mt-3 min-h-20 border-y border-slate-200 py-3">
                                         {selectedCreateExperience ? (
-                                            <div className="mt-5 border-y border-slate-200 py-4">
-                                                <p className="text-xs text-slate-400">연결 원본</p>
-                                                <p className="mt-1.5 text-sm font-semibold text-slate-900">
+                                            <>
+                                                <p className="text-[11px] font-semibold text-slate-400">
+                                                    {experienceTypeLabel(
+                                                        selectedCreateExperience.type
+                                                    )}
+                                                </p>
+                                                <p className="mt-1.5 text-sm font-semibold leading-5 text-slate-900">
                                                     {selectedCreateExperience.title}
                                                 </p>
-                                                <p className="mt-1 text-sm text-slate-500">
+                                                <p className="mt-1 text-xs text-slate-500">
                                                     {experienceOrgName(selectedCreateExperience)}
                                                 </p>
-                                            </div>
-                                        ) : (
-                                            <div className="mt-5 border-y border-slate-200 py-4">
-                                                <p className="text-xs text-slate-400">작성 방식</p>
+                                            </>
+                                        ) : createMode === 'STANDALONE' ? (
+                                            <>
+                                                <p className="text-[11px] font-semibold text-slate-400">
+                                                    독립 사례
+                                                </p>
                                                 <p className="mt-1.5 text-sm font-semibold text-slate-900">
-                                                    원본 없이 독립 사례로 작성
+                                                    원본 없이 직접 작성
+                                                </p>
+                                            </>
+                                        ) : (
+                                            <p className="text-xs leading-5 text-slate-400">
+                                                오른쪽 목록에서 출발점을 선택하세요.
+                                            </p>
+                                        )}
+                                    </div>
+
+                                    <label className="mt-4 block text-xs font-semibold text-slate-600">
+                                        사례 제목
+                                        <input
+                                            value={createForm.title}
+                                            disabled={createMode === null}
+                                            onChange={(event) =>
+                                                setCreateForm((form) => ({
+                                                    ...form,
+                                                    title: event.target.value,
+                                                }))
+                                            }
+                                            placeholder="예: 장애 대응 체계를 다시 설계한 과정"
+                                            className="mt-2 w-full rounded-lg border border-slate-300 bg-white px-3 py-2.5 text-sm font-medium text-slate-800 outline-none transition-colors placeholder:font-normal placeholder:text-slate-400 focus:border-slate-700 focus:ring-2 focus:ring-slate-200 disabled:cursor-not-allowed disabled:bg-slate-100"
+                                        />
+                                    </label>
+                                </div>
+
+                                <div className="flex min-h-0 flex-col border-y border-slate-200 py-3 lg:pl-1">
+                                    <label className="flex shrink-0 items-center gap-2 border-b border-slate-300 pb-2.5 focus-within:border-slate-900">
+                                        <Search className="h-4 w-4 shrink-0 text-slate-400" />
+                                        <span className="sr-only">경력·프로젝트 원본 검색</span>
+                                        <input
+                                            value={createSourceQuery}
+                                            onChange={(event) =>
+                                                setCreateSourceQuery(event.target.value)
+                                            }
+                                            placeholder="원본 검색"
+                                            className="min-w-0 flex-1 bg-transparent text-sm text-slate-900 outline-none placeholder:text-slate-400"
+                                        />
+                                        <span className="shrink-0 text-[11px] font-semibold text-slate-400">
+                                            {projectOptions.length}개
+                                        </span>
+                                    </label>
+
+                                    <div className="mt-2 min-h-0 flex-1 overflow-y-auto overscroll-contain border-y border-slate-200">
+                                        <button
+                                            type="button"
+                                            onClick={selectStandaloneCase}
+                                            className={`group flex w-full items-center gap-3 border-b border-l-2 border-b-slate-200 px-3 py-3 text-left transition-colors ${
+                                                createMode === 'STANDALONE'
+                                                    ? 'border-l-slate-900 bg-slate-50'
+                                                    : 'border-l-transparent bg-white hover:bg-slate-50'
+                                            }`}
+                                        >
+                                            <FileText className="h-5 w-5 shrink-0 text-slate-500" />
+                                            <span className="min-w-0 flex-1">
+                                                <span className="block text-[13px] font-semibold text-slate-900">
+                                                    원본 없이 직접 작성
+                                                </span>
+                                                <span className="mt-0.5 block text-[11px] text-slate-500">
+                                                    아이디어, 활동, 개인 작업 등 자유로운 사례
+                                                </span>
+                                            </span>
+                                            <ArrowRight className="h-4 w-4 shrink-0 text-slate-300 group-hover:text-slate-700" />
+                                        </button>
+
+                                        {filteredProjectOptions.map((experience) => {
+                                            const isSelected =
+                                                createForm.experienceId === String(experience.id);
+                                            const existingCaseStudy = caseStudies.find(
+                                                (caseStudy) =>
+                                                    caseStudy.experienceId === experience.id
+                                            );
+                                            return (
+                                                <button
+                                                    key={experience.id}
+                                                    type="button"
+                                                    onClick={() =>
+                                                        selectCreateExperience(experience.id)
+                                                    }
+                                                    className={`group flex w-full items-center gap-3 border-b border-l-2 border-b-slate-200 px-3 py-3 text-left transition-colors ${
+                                                        isSelected
+                                                            ? 'border-l-slate-900 bg-slate-50'
+                                                            : 'border-l-transparent bg-white hover:bg-slate-50'
+                                                    }`}
+                                                >
+                                                    <div className="min-w-0 flex-1">
+                                                        <div className="flex items-center gap-2 text-[11px] text-slate-500">
+                                                            <span>
+                                                                {experienceTypeLabel(
+                                                                    experience.type
+                                                                )}
+                                                            </span>
+                                                            {existingCaseStudy && (
+                                                                <>
+                                                                    <span aria-hidden="true">
+                                                                        ·
+                                                                    </span>
+                                                                    <span>기존 사례 있음</span>
+                                                                </>
+                                                            )}
+                                                        </div>
+                                                        <p className="mt-1 truncate text-[13px] font-semibold text-slate-900">
+                                                            {experience.title}
+                                                        </p>
+                                                        <p className="mt-0.5 truncate text-[11px] text-slate-500">
+                                                            {experienceOrgName(experience)}
+                                                        </p>
+                                                    </div>
+                                                    <ArrowRight
+                                                        className={`h-4 w-4 shrink-0 ${isSelected ? 'text-slate-900' : 'text-slate-300'}`}
+                                                    />
+                                                </button>
+                                            );
+                                        })}
+                                        {filteredProjectOptions.length === 0 && (
+                                            <div className="px-4 py-10 text-center">
+                                                <BriefcaseBusiness className="mx-auto h-6 w-6 text-slate-300" />
+                                                <p className="mt-3 text-xs font-medium text-slate-500">
+                                                    {projectOptions.length === 0
+                                                        ? '연결할 경력·프로젝트 원본이 없습니다.'
+                                                        : '검색 결과가 없습니다.'}
                                                 </p>
                                             </div>
                                         )}
-
-                                        <label className="mt-6 block text-sm font-medium text-slate-700">
-                                            사례 제목
-                                            <input
-                                                value={createForm.title}
-                                                onChange={(event) =>
-                                                    setCreateForm((form) => ({
-                                                        ...form,
-                                                        title: event.target.value,
-                                                    }))
-                                                }
-                                                placeholder="예: 장애 대응 체계를 다시 설계한 과정"
-                                                className="mt-2 w-full rounded-lg border border-slate-300 bg-white px-3.5 py-3 text-sm outline-none transition-colors focus:border-slate-700 focus:ring-2 focus:ring-slate-200"
-                                            />
-                                        </label>
-
-                                        {(createMutation.error ||
-                                            updateCaseStudyMutation.error) && (
-                                            <p className="mt-5 border-y border-rose-200 py-2.5 text-xs font-medium text-rose-700">
-                                                {updateCaseStudyMutation.error instanceof Error
-                                                    ? updateCaseStudyMutation.error.message
-                                                    : createMutation.error instanceof Error
-                                                      ? createMutation.error.message
-                                                      : '사례 기본 정보를 저장하지 못했습니다.'}
-                                            </p>
-                                        )}
-
-                                        <div className="sticky bottom-0 z-10 mt-auto flex shrink-0 items-center justify-between border-t border-slate-200 bg-[#f8fafc] py-4">
-                                            <button
-                                                type="button"
-                                                onClick={() => setCreateStep(0)}
-                                                className={FLOW_BACK_BUTTON_CLASS}
-                                            >
-                                                <ArrowLeft className="h-3.5 w-3.5" /> 이전
-                                            </button>
-                                            <button
-                                                type="button"
-                                                disabled={
-                                                    createMode === null ||
-                                                    !createForm.slug.trim() ||
-                                                    !createForm.title.trim() ||
-                                                    createMutation.isPending ||
-                                                    updateCaseStudyMutation.isPending
-                                                }
-                                                onClick={() =>
-                                                    editingCreatedCaseId
-                                                        ? updateCaseStudyMutation.mutate()
-                                                        : createMutation.mutate()
-                                                }
-                                                className={FLOW_NEXT_BUTTON_CLASS}
-                                            >
-                                                {createMutation.isPending ||
-                                                updateCaseStudyMutation.isPending
-                                                    ? '저장 중...'
-                                                    : '다음'}
-                                                {!createMutation.isPending &&
-                                                    !updateCaseStudyMutation.isPending && (
-                                                        <ArrowRight className="h-4 w-4" />
-                                                    )}
-                                            </button>
-                                        </div>
-                                    </>
-                                )}
+                                    </div>
+                                </div>
                             </div>
-                        )}
+
+                            {(createMutation.error || updateCaseStudyMutation.error) && (
+                                <p className="mt-3 border-y border-rose-200 py-2.5 text-xs font-medium text-rose-700">
+                                    {updateCaseStudyMutation.error instanceof Error
+                                        ? updateCaseStudyMutation.error.message
+                                        : createMutation.error instanceof Error
+                                          ? createMutation.error.message
+                                          : '사례 기본 정보를 저장하지 못했습니다.'}
+                                </p>
+                            )}
+
+                            <div className="mt-3 flex shrink-0 items-center justify-end border-t border-slate-200 py-2.5">
+                                <button
+                                    type="button"
+                                    disabled={
+                                        createMode === null ||
+                                        !createForm.slug.trim() ||
+                                        !createForm.title.trim() ||
+                                        createMutation.isPending ||
+                                        updateCaseStudyMutation.isPending
+                                    }
+                                    onClick={() =>
+                                        editingCreatedCaseId
+                                            ? updateCaseStudyMutation.mutate()
+                                            : createMutation.mutate()
+                                    }
+                                    className={FLOW_NEXT_BUTTON_CLASS}
+                                >
+                                    {createMutation.isPending || updateCaseStudyMutation.isPending
+                                        ? '저장 중...'
+                                        : '다음'}
+                                    {!createMutation.isPending &&
+                                        !updateCaseStudyMutation.isPending && (
+                                            <ArrowRight className="h-4 w-4" />
+                                        )}
+                                </button>
+                            </div>
+                        </div>
                     </section>
                 )}
                 {/* 원본 목록: 공개 페이지 포함 여부가 아니라 Workspace에 저장된 사례 원본을 탐색한다. */}
@@ -1421,15 +1433,15 @@ export function PortfolioManagement({
                                     {enablePlatformAi && (
                                         <section className="flex min-h-0 flex-1 flex-col overflow-hidden">
                                             <CaseFlowStepper
-                                                currentStep={aiSetupStep + 2}
+                                                currentStep={aiSetupStep + 1}
                                                 maxReachableStep={CASE_FLOW_STEPS.length - 1}
-                                                minimumSelectableStep={1}
+                                                minimumSelectableStep={0}
                                                 onSelect={(step) => {
-                                                    if (step === 1) {
+                                                    if (step === 0) {
                                                         returnToBasicInfo();
                                                         return;
                                                     }
-                                                    setAiSetupStep(step - 2);
+                                                    setAiSetupStep(step - 1);
                                                 }}
                                             />
 
