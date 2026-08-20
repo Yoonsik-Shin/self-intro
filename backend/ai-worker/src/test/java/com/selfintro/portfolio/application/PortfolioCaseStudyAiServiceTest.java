@@ -102,6 +102,39 @@ class PortfolioCaseStudyAiServiceTest {
     }
 
     @Test
+    void generatesStandaloneCaseFromUserInstructionWithoutExperience() {
+        PortfolioCaseStudy caseStudy = mock(PortfolioCaseStudy.class);
+        when(caseStudy.getExperienceId()).thenReturn(null);
+        when(portfolioCaseStudyRepository.findById(2L)).thenReturn(Optional.of(caseStudy));
+
+        when(nvidiaNimClient.generate(anyString(), anyString()))
+                .thenReturn(
+                        """
+                        {"facts":[{"experienceDetailId":null,"studyId":null,"aspect":"solution","text":"개인 도구의 반복 작업을 자동화했다"}],"reason":"사용자 메모 근거"}
+                        """,
+                        """
+                        {"summary":"반복 작업을 자동화한 개인 도구입니다.",
+                         "problem":"반복 작업에 시간이 들었습니다.",
+                         "thoughtProcess":"자동화 범위를 정리했습니다.",
+                         "tradeoffs":[],
+                         "solution":"개인 도구로 반복 작업을 자동화했습니다.",
+                         "outcome":{"summary":"반복 작업을 줄였습니다.","metrics":[]},
+                         "architecture":{"mermaidSource":null,"imageObjectKeys":[]},
+                         "sourceStudyIds":[],
+                         "sourceExperienceDetailIds":[]}
+                        """);
+
+        PortfolioCaseStudyContent content =
+                service.generate(
+                        2L,
+                        new PortfolioCaseStudyGenerateRequest(
+                                "개인 도구로 반복 작업을 자동화했다", List.of(), List.of(), List.of(), null));
+
+        assertThat(content.summary()).contains("개인 도구");
+        assertThat(content.sourceExperienceDetailIds()).isEmpty();
+    }
+
+    @Test
     void revisesSavedDraftAndPreservesExistingImageObjectKeys() throws Exception {
         PortfolioCaseStudy caseStudy = mock(PortfolioCaseStudy.class);
         when(caseStudy.getExperienceId()).thenReturn(1L);

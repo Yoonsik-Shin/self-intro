@@ -28,7 +28,7 @@ public class PortfolioCaseStudy {
     @Column(name = "workspace_id", nullable = false)
     private Long workspaceId;
 
-    @Column(name = "experience_id", nullable = false)
+    @Column(name = "experience_id")
     private Long experienceId;
 
     @Column(nullable = false, length = 160)

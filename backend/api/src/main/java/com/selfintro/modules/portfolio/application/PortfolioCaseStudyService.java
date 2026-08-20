@@ -57,9 +57,10 @@ public class PortfolioCaseStudyService {
     @Transactional
     public PortfolioCaseStudyResponse create(
             Long workspaceId, PortfolioCaseStudyCreateRequest request) {
-        if (experienceRepository
-                .findByIdAndWorkspaceId(request.experienceId(), workspaceId)
-                .isEmpty()) {
+        if (request.experienceId() != null
+                && experienceRepository
+                        .findByIdAndWorkspaceId(request.experienceId(), workspaceId)
+                        .isEmpty()) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "존재하지 않는 프로젝트입니다.");
         }
         if (caseStudyRepository.existsByWorkspaceIdAndSlug(workspaceId, request.slug())) {
@@ -287,6 +288,10 @@ public class PortfolioCaseStudyService {
                 content.sourceExperienceDetailIds() == null
                         ? List.of()
                         : content.sourceExperienceDetailIds();
+        if (caseStudy.getExperienceId() == null && !detailIds.isEmpty()) {
+            throw new ResponseStatusException(
+                    HttpStatus.BAD_REQUEST, "원본 없이 작성한 사례에는 경력 상세 근거를 연결할 수 없습니다.");
+        }
         if (detailIds.stream()
                 .anyMatch(
                         id ->

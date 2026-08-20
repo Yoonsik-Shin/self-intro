@@ -14,6 +14,8 @@ import com.selfintro.modules.portfolio.domain.entity.PortfolioCaseStudyRevision;
 import com.selfintro.modules.portfolio.domain.repository.PortfolioCaseStudyRepository;
 import com.selfintro.modules.portfolio.domain.repository.PortfolioCaseStudyRevisionRepository;
 import com.selfintro.modules.portfolio.presentation.dto.PortfolioCaseStudyContent;
+import com.selfintro.modules.portfolio.presentation.dto.PortfolioCaseStudyCreateRequest;
+import com.selfintro.modules.portfolio.presentation.dto.PortfolioCaseStudyResponse;
 import com.selfintro.modules.portfolio.presentation.dto.PortfolioCaseStudyRevisionResponse;
 import com.selfintro.modules.storage.application.StorageService;
 import com.selfintro.modules.study.domain.repository.StudyRepository;
@@ -27,22 +29,41 @@ class PortfolioCaseStudyServiceTest {
 
     private PortfolioCaseStudyRepository caseStudyRepository;
     private PortfolioCaseStudyRevisionRepository revisionRepository;
+    private ExperienceRepository experienceRepository;
     private PortfolioCaseStudyService service;
 
     @BeforeEach
     void setUp() {
         caseStudyRepository = mock(PortfolioCaseStudyRepository.class);
         revisionRepository = mock(PortfolioCaseStudyRevisionRepository.class);
+        experienceRepository = mock(ExperienceRepository.class);
         service =
                 new PortfolioCaseStudyService(
                         caseStudyRepository,
                         revisionRepository,
-                        mock(ExperienceRepository.class),
+                        experienceRepository,
                         mock(ExperienceDetailRepository.class),
                         mock(StudyRepository.class),
                         mock(PortfolioCaseStudyMarkdownRenderer.class),
                         mock(StorageService.class),
                         new ObjectMapper());
+    }
+
+    @Test
+    void createsStandaloneCaseWithoutExperience() {
+        when(caseStudyRepository.existsByWorkspaceIdAndSlug(7L, "independent-case"))
+                .thenReturn(false);
+        when(caseStudyRepository.save(any(PortfolioCaseStudy.class)))
+                .thenAnswer(invocation -> invocation.getArgument(0));
+
+        PortfolioCaseStudyResponse created =
+                service.create(
+                        7L,
+                        new PortfolioCaseStudyCreateRequest(
+                                null, "independent-case", "원본 없는 독립 사례"));
+
+        assertThat(created.experienceId()).isNull();
+        assertThat(created.title()).isEqualTo("원본 없는 독립 사례");
     }
 
     @Test

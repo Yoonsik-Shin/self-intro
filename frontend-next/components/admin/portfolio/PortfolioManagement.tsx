@@ -88,6 +88,7 @@ export function PortfolioManagement({
     const [selectedRevisionId, setSelectedRevisionId] = useState<number | null>(null);
     const [createOpen, setCreateOpen] = useState(false);
     const [createStep, setCreateStep] = useState<0 | 1>(0);
+    const [createMode, setCreateMode] = useState<'EXPERIENCE' | 'STANDALONE' | null>(null);
     const [createForm, setCreateForm] = useState({ experienceId: '', slug: '', title: '' });
     const [createSourceQuery, setCreateSourceQuery] = useState('');
     const [content, setContent] = useState<PortfolioCaseStudyContent>(EMPTY_CONTENT);
@@ -214,7 +215,9 @@ export function PortfolioManagement({
             caseStudies.filter((caseStudy) => {
                 if (statusFilter !== 'ALL' && caseStudy.status !== statusFilter) return false;
                 if (!normalizedSearchQuery) return true;
-                const experience = experienceById.get(caseStudy.experienceId);
+                const experience = caseStudy.experienceId
+                    ? experienceById.get(caseStudy.experienceId)
+                    : undefined;
                 return [
                     caseStudy.title,
                     caseStudy.slug,
@@ -227,7 +230,9 @@ export function PortfolioManagement({
     const publishedCount = caseStudies.filter((item) => item.status === 'PUBLISHED').length;
     const draftCount = caseStudies.filter((item) => item.status === 'DRAFT').length;
     const selectedSourceExperience = selectedCaseStudy
-        ? experienceById.get(selectedCaseStudy.experienceId)
+        ? selectedCaseStudy.experienceId
+            ? experienceById.get(selectedCaseStudy.experienceId)
+            : null
         : null;
     const selectedRevision =
         detail?.revisions.find((revision) => revision.id === selectedRevisionId) ??
@@ -283,7 +288,7 @@ export function PortfolioManagement({
     const createMutation = useMutation({
         mutationFn: () =>
             portfolioApi.workspaceCreate(workspaceSlug, {
-                experienceId: Number(createForm.experienceId),
+                experienceId: createMode === 'EXPERIENCE' ? Number(createForm.experienceId) : null,
                 slug: createForm.slug.trim(),
                 title: createForm.title.trim(),
             }),
@@ -291,6 +296,7 @@ export function PortfolioManagement({
             queryClient.invalidateQueries({ queryKey: ['portfolio-case-studies', workspaceSlug] });
             setCreateOpen(false);
             setCreateStep(0);
+            setCreateMode(null);
             setCreateForm({ experienceId: '', slug: '', title: '' });
             setSelectedId(created.id);
         },
@@ -479,6 +485,7 @@ export function PortfolioManagement({
     const openCreateWorkspace = () => {
         setSelectedId(null);
         setCreateForm({ experienceId: '', slug: '', title: '' });
+        setCreateMode(null);
         setCreateSourceQuery('');
         setCreateStep(0);
         setCreateOpen(true);
@@ -497,6 +504,17 @@ export function PortfolioManagement({
             title: experience.title,
             slug: asciiSlug ? `${asciiSlug}-${experienceId}` : `case-study-${experienceId}`,
         });
+        setCreateMode('EXPERIENCE');
+        setCreateStep(1);
+    };
+
+    const selectStandaloneCase = () => {
+        setCreateForm({
+            experienceId: '',
+            title: '',
+            slug: `standalone-${Date.now().toString(36)}`,
+        });
+        setCreateMode('STANDALONE');
         setCreateStep(1);
     };
 
@@ -505,7 +523,7 @@ export function PortfolioManagement({
             <AdminPageHeader
                 eyebrow="Source Record"
                 title="포트폴리오 사례 관리"
-                description="경력과 프로젝트 원본에서 보여줄 사례를 설계하고, 근거 기반 AI 초안과 revision을 관리합니다. 공개 순서는 공개 페이지에서 별도로 구성합니다."
+                description="경력·프로젝트 원본을 연결하거나 독립 사례를 설계하고, 근거 기반 AI 초안과 revision을 관리합니다. 공개 순서는 공개 페이지에서 별도로 구성합니다."
                 actions={
                     createOpen ? (
                         <button
@@ -531,18 +549,18 @@ export function PortfolioManagement({
                 <section className="flex min-h-[38rem] flex-col py-1 lg:min-h-0 lg:flex-1 lg:overflow-hidden">
                     <div className="mx-auto w-full max-w-4xl shrink-0">
                         <h3 className="text-xl font-semibold tracking-tight text-slate-950">
-                            어떤 경험을 하나의 사례로 보여줄까요?
+                            어떤 이야기를 하나의 사례로 보여줄까요?
                         </h3>
                         <p className="mt-1.5 max-w-3xl text-sm leading-6 text-slate-500">
-                            먼저 경력·프로젝트 원본을 고릅니다. 사례 작업공간을 만든 뒤 학습 기록,
-                            기술, 핵심 역량을 근거로 연결해 AI 초안을 만들 수 있습니다.
+                            경력·프로젝트에서 시작하거나 원본 없이 직접 작성할 수 있습니다. 사례
+                            작업공간을 만든 뒤 학습 기록, 기술, 핵심 역량을 근거로 연결합니다.
                         </p>
                         <ol className="mt-5 grid max-w-md grid-cols-2 gap-2 border-y border-slate-200 py-3">
                             {(['원본 선택', '기본 정보'] as const).map((label, index) => (
                                 <li key={label}>
                                     <button
                                         type="button"
-                                        disabled={index === 1 && !selectedCreateExperience}
+                                        disabled={index === 1 && createMode === null}
                                         onClick={() => setCreateStep(index as 0 | 1)}
                                         className={`flex items-center gap-2 text-xs font-black transition ${
                                             createStep === index
@@ -576,7 +594,7 @@ export function PortfolioManagement({
                                         출발점 선택
                                     </h4>
                                     <p className="mt-1 text-xs text-slate-500">
-                                        등록된 회사 경력과 프로젝트만 표시합니다.
+                                        연결할 원본을 고르거나 독립 사례로 바로 시작합니다.
                                     </p>
                                 </div>
                                 <span className="shrink-0 text-[11px] font-bold text-slate-400">
@@ -584,7 +602,24 @@ export function PortfolioManagement({
                                 </span>
                             </div>
 
-                            <label className="mt-4 flex shrink-0 items-center gap-2 border-b border-slate-300 py-2.5 focus-within:border-slate-900">
+                            <button
+                                type="button"
+                                onClick={selectStandaloneCase}
+                                className="group mt-4 flex shrink-0 items-center gap-3 border-y border-slate-200 bg-white px-3 py-3 text-left transition-colors hover:bg-slate-50"
+                            >
+                                <FileText className="h-5 w-5 shrink-0 text-slate-500" />
+                                <span className="min-w-0 flex-1">
+                                    <span className="block text-[13px] font-semibold text-slate-900">
+                                        원본 없이 직접 작성
+                                    </span>
+                                    <span className="mt-0.5 block text-[11px] text-slate-500">
+                                        아이디어, 활동, 개인 작업 등 자유로운 사례로 시작합니다.
+                                    </span>
+                                </span>
+                                <ArrowRight className="h-4 w-4 shrink-0 text-slate-300 group-hover:text-slate-700" />
+                            </button>
+
+                            <label className="mt-3 flex shrink-0 items-center gap-2 border-b border-slate-300 py-2.5 focus-within:border-slate-900">
                                 <Search className="h-4 w-4 shrink-0 text-slate-400" />
                                 <span className="sr-only">경력·프로젝트 원본 검색</span>
                                 <input
@@ -657,7 +692,7 @@ export function PortfolioManagement({
                         </div>
                     ) : (
                         <div className="mx-auto mt-6 min-h-0 w-full max-w-2xl flex-1 overflow-y-auto pr-1">
-                            {selectedCreateExperience && (
+                            {createMode && (
                                 <>
                                     <div className="flex items-end justify-between gap-4">
                                         <div>
@@ -665,7 +700,7 @@ export function PortfolioManagement({
                                                 사례 기본 정보
                                             </h4>
                                             <p className="mt-1 text-xs leading-5 text-slate-500">
-                                                방문자에게 보일 사례 제목을 확인합니다.
+                                                방문자에게 보일 사례 제목을 입력합니다.
                                             </p>
                                         </div>
                                         <button
@@ -673,19 +708,28 @@ export function PortfolioManagement({
                                             onClick={() => setCreateStep(0)}
                                             className="inline-flex items-center gap-1 text-[11px] font-black text-slate-500 hover:text-slate-900"
                                         >
-                                            <ArrowLeft className="h-3.5 w-3.5" /> 원본 다시 선택
+                                            <ArrowLeft className="h-3.5 w-3.5" /> 출발점 다시 선택
                                         </button>
                                     </div>
 
-                                    <div className="mt-5 border-y border-slate-200 py-4">
-                                        <p className="text-xs text-slate-400">연결 원본</p>
-                                        <p className="mt-1.5 text-sm font-semibold text-slate-900">
-                                            {selectedCreateExperience.title}
-                                        </p>
-                                        <p className="mt-1 text-sm text-slate-500">
-                                            {experienceOrgName(selectedCreateExperience)}
-                                        </p>
-                                    </div>
+                                    {selectedCreateExperience ? (
+                                        <div className="mt-5 border-y border-slate-200 py-4">
+                                            <p className="text-xs text-slate-400">연결 원본</p>
+                                            <p className="mt-1.5 text-sm font-semibold text-slate-900">
+                                                {selectedCreateExperience.title}
+                                            </p>
+                                            <p className="mt-1 text-sm text-slate-500">
+                                                {experienceOrgName(selectedCreateExperience)}
+                                            </p>
+                                        </div>
+                                    ) : (
+                                        <div className="mt-5 border-y border-slate-200 py-4">
+                                            <p className="text-xs text-slate-400">작성 방식</p>
+                                            <p className="mt-1.5 text-sm font-semibold text-slate-900">
+                                                원본 없이 독립 사례로 작성
+                                            </p>
+                                        </div>
+                                    )}
 
                                     <label className="mt-6 block text-sm font-medium text-slate-700">
                                         사례 제목
@@ -721,7 +765,7 @@ export function PortfolioManagement({
                                         <button
                                             type="button"
                                             disabled={
-                                                !createForm.experienceId ||
+                                                createMode === null ||
                                                 !createForm.slug.trim() ||
                                                 !createForm.title.trim() ||
                                                 createMutation.isPending
@@ -796,7 +840,9 @@ export function PortfolioManagement({
                         </div>
                         <div className="min-h-0 flex-1 space-y-1.5 overflow-y-auto p-2.5">
                             {filteredCaseStudies.map((caseStudy: PortfolioCaseStudy) => {
-                                const sourceExperience = experienceById.get(caseStudy.experienceId);
+                                const sourceExperience = caseStudy.experienceId
+                                    ? experienceById.get(caseStudy.experienceId)
+                                    : undefined;
                                 const isSelected = selectedId === caseStudy.id;
                                 return (
                                     <button
@@ -829,6 +875,13 @@ export function PortfolioManagement({
                                                 <BriefcaseBusiness className="h-3 w-3 shrink-0" />
                                                 {experienceOrgName(sourceExperience)} ·{' '}
                                                 {sourceExperience.title}
+                                            </span>
+                                        )}
+                                        {!sourceExperience && (
+                                            <span
+                                                className={`mt-1.5 flex items-center gap-1 truncate text-[10px] font-bold ${isSelected ? 'text-slate-300' : 'text-slate-500'}`}
+                                            >
+                                                <FileText className="h-3 w-3 shrink-0" /> 독립 사례
                                             </span>
                                         )}
                                         <div

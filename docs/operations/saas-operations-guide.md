@@ -2735,3 +2735,15 @@ SELECT 'portfolio_case_study_study', COUNT(*) FROM portfolio_case_study_study;
 - 배포 전에는 포트폴리오 revision 선택, 템플릿 저장·재로드, AI 문구 수정, 제외·순서 변경, 기존
   브라우저 인쇄/PDF 결과를 한 흐름으로 확인한다. 공고 연결 템플릿에서도 포트폴리오 section과 source
   metadata가 유지되는지 별도로 회귀 검증한다.
+
+### 15.40 원본 없는 독립 포트폴리오 사례
+
+- `V7__allow_standalone_portfolio_case_study.sql`은 `portfolio_case_study.experience_id`를 nullable로
+  변경해 경력·프로젝트 원본이 없어도 아이디어, 개인 활동, 독립 작업을 사례로 작성할 수 있게 한다.
+  기존 외래 키와 연결형 사례의 Workspace 소유권 검증은 유지된다.
+- 독립 사례는 특정 경력의 `experience_detail`을 근거로 저장할 수 없다. Workspace에 등록된 Study,
+  Skill, Competency와 사용자가 직접 입력한 메모는 AI 사실 정리 입력으로 선택할 수 있다.
+- 배포 전 disposable MySQL에 V1~V7 신규 설치와 V1~V6 상태에서 V7 증분 적용을 각각 확인한다.
+  기존 연결형 사례 조회·revision 저장·발행과 독립 사례 생성·AI 초안·발행을 함께 회귀 검증한다.
+- stage·운영 migration 적용과 배포는 별도 승인 전까지 수행하지 않는다. 이전 애플리케이션으로 롤백할
+  때 nullable 컬럼은 호환되므로 유지하고, 독립 사례를 만든 뒤에는 이전 버전에서 해당 행을 편집하지 않는다.

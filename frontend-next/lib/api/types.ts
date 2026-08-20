@@ -1403,7 +1403,7 @@ export type PortfolioCaseStudyContent = {
 
 export type PortfolioCaseStudy = {
     id: number;
-    experienceId: number;
+    experienceId: number | null;
     slug: string;
     title: string;
     status: PortfolioCaseStudyStatus;
@@ -1431,7 +1431,7 @@ export type PortfolioCaseStudyDetail = {
 };
 
 export type PortfolioCaseStudyCreateRequest = {
-    experienceId: number;
+    experienceId: number | null;
     slug: string;
     title: string;
 };
@@ -1463,7 +1463,7 @@ export type PortfolioCaseStudyPublic = {
     id: number;
     slug: string;
     title: string;
-    experienceId: number;
+    experienceId: number | null;
     content: PortfolioCaseStudyContent;
     renderedMarkdown: string;
     updatedAt: string;

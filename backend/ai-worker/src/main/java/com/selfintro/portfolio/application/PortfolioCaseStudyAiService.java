@@ -215,7 +215,7 @@ public class PortfolioCaseStudyAiService {
 
     private PortfolioCaseStudyContent run(PreparedGeneration prepared, StreamSink sink)
             throws JsonProcessingException {
-        if (sink != null) sink.stage(1, "프로젝트와 Study 자료를 바탕으로 사실관계를 정리하고 있습니다");
+        if (sink != null) sink.stage(1, "선택한 근거 자료를 바탕으로 사실관계를 정리하고 있습니다");
         String extractionInput = objectMapper.writeValueAsString(prepared.extractionContext());
         String extractionRaw =
                 sink == null
@@ -249,16 +249,18 @@ public class PortfolioCaseStudyAiService {
             Long caseStudyId,
             PortfolioCaseStudyGenerateRequest request) {
         Experience experience =
-                experienceRepository
-                        .findById(experienceId)
-                        .orElseThrow(
-                                () ->
-                                        new ResponseStatusException(
-                                                HttpStatus.NOT_FOUND, "존재하지 않는 프로젝트입니다."));
+                experienceId == null
+                        ? null
+                        : experienceRepository
+                                .findById(experienceId)
+                                .orElseThrow(
+                                        () ->
+                                                new ResponseStatusException(
+                                                        HttpStatus.NOT_FOUND, "존재하지 않는 프로젝트입니다."));
 
         List<Skill> skills =
                 request.skillIds() == null || request.skillIds().isEmpty()
-                        ? experience.getSkills()
+                        ? experience == null ? List.of() : experience.getSkills()
                         : validateSubset(
                                 workspaceId == null
                                         ? skillRepository.findAllById(request.skillIds())
@@ -273,7 +275,10 @@ public class PortfolioCaseStudyAiService {
 
         List<Study> studies =
                 request.studyIds() == null || request.studyIds().isEmpty()
-                        ? studyRepository.findAllByExperiences_IdOrderByTitleAsc(experienceId)
+                        ? experienceId == null
+                                ? List.of()
+                                : studyRepository.findAllByExperiences_IdOrderByTitleAsc(
+                                        experienceId)
                         : validateSubset(
                                 workspaceId == null
                                         ? studyRepository.findAllById(request.studyIds())
@@ -285,14 +290,14 @@ public class PortfolioCaseStudyAiService {
         List<Competency> competencies =
                 resolveCompetencies(workspaceId, experienceId, request.competencyIds());
 
-        List<ExperienceDetail> details = experience.getDetails();
+        List<ExperienceDetail> details = experience == null ? List.of() : experience.getDetails();
         PortfolioCaseStudyContent baseContent =
                 readBaseContent(request.baseRevisionId(), caseStudyId);
 
         ExtractionContext extractionContext =
                 new ExtractionContext(
                         blankToNull(request.instruction()),
-                        ExperienceFact.from(experience),
+                        experience == null ? null : ExperienceFact.from(experience),
                         details.stream().map(ExperienceDetailFact::from).toList(),
                         competencies.stream().map(CompetencyFact::from).toList(),
                         skills.stream().map(SkillFact::from).toList(),
@@ -320,6 +325,7 @@ public class PortfolioCaseStudyAiService {
                                     workspaceId, requestedIds);
             return validateSubset(found, requestedIds, "역량");
         }
+        if (experienceId == null) return List.of();
         List<Competency> candidates =
                 workspaceId == null
                         ? competencyRepository.findAllByOrderByDisplayOrderAsc()
