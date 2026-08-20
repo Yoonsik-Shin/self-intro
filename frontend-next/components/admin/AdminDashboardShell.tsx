@@ -1114,7 +1114,7 @@ export function AdminDashboardShell({ workspaceSlug }: { workspaceSlug: string }
                     <div
                         className={`grid h-full min-h-0 w-full grid-cols-1 ${
                             isSidebarCollapsed
-                                ? 'gap-4 pl-0 pr-4 sm:pr-6'
+                                ? 'gap-6 pl-0 pr-4 sm:pr-6'
                                 : 'gap-6 px-4 py-6 sm:px-6'
                         } ${isResizingSidebar ? '' : 'transition-[grid-template-columns] duration-300 ease-in-out'}`}
                         style={{
