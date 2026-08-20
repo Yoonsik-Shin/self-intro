@@ -89,8 +89,8 @@ function CaseFlowStepper({
                                 className={`flex w-full min-w-0 items-center gap-1.5 text-left text-[10px] font-black transition sm:text-[11px] ${
                                     index === currentStep
                                         ? 'text-slate-950'
-                                        : index < currentStep
-                                          ? 'text-slate-500 hover:text-slate-800'
+                                        : canSelect
+                                          ? 'cursor-pointer text-slate-500 hover:text-slate-900'
                                           : 'cursor-default text-slate-300'
                                 }`}
                             >
@@ -1219,7 +1219,7 @@ export function PortfolioManagement({
                                         <section className="overflow-hidden">
                                             <CaseFlowStepper
                                                 currentStep={aiSetupStep + 2}
-                                                maxReachableStep={aiSetupStep + 2}
+                                                maxReachableStep={CASE_FLOW_STEPS.length - 1}
                                                 minimumSelectableStep={1}
                                                 onSelect={(step) => {
                                                     if (step === 1) {
