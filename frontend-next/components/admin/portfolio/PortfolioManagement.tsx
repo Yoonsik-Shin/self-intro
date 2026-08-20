@@ -779,7 +779,6 @@ export function PortfolioManagement({
     return (
         <div className="flex h-full min-h-0 flex-col gap-4 overflow-hidden">
             <AdminPageHeader
-                eyebrow="Source Record"
                 title="포트폴리오 사례 관리"
                 description="경력·프로젝트 원본을 연결하거나 독립 사례를 설계하고, 근거 기반 AI 초안과 revision을 관리합니다. 공개 순서는 공개 페이지에서 별도로 구성합니다."
                 actions={

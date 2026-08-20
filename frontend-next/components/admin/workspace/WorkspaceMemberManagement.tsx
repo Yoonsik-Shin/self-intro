@@ -70,7 +70,6 @@ export function WorkspaceMemberManagement({ workspaceSlug, role }: Props) {
         <section className="space-y-4">
             <div>
                 <AdminPageHeader
-                    eyebrow="Workspace Access"
                     title="멤버·역할 관리"
                     description="플랫폼 가입 초대와 별개인 Workspace 참여 초대입니다. 초대받은 활성 계정이 메일 링크를 직접 수락해야 권한이 생깁니다. OWNER 이전은 기존 OWNER를 ADMIN으로 변경합니다."
                 />

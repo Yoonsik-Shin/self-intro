@@ -3284,7 +3284,6 @@ export function JobApplicationManagement({
     return (
         <div className="flex h-full min-h-0 flex-col gap-4 overflow-hidden">
             <AdminPageHeader
-                eyebrow="Workspace Career Pipeline"
                 title="지원 공고 관리"
                 description="지원한 채용 공고를 리스트로 관리하고, 보드에서 카드를 드래그해 전형 단계를 빠르게 옮길 수 있습니다."
                 actions={

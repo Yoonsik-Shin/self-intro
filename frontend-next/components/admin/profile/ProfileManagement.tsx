@@ -104,7 +104,6 @@ export function ProfileManagement({ workspaceSlug }: { workspaceSlug: string }) 
     return (
         <div className="space-y-4">
             <AdminPageHeader
-                eyebrow="Source Record"
                 title="프로필 정보 관리"
                 description="이력서 헤더 및 바이오 요약 영역의 원본 정보를 편집합니다."
             />

@@ -49,7 +49,6 @@ export function ArchitectureManagement() {
     return (
         <div className="space-y-4">
             <AdminPageHeader
-                eyebrow="플랫폼 운영"
                 title="시스템 아키텍처 관리"
                 description="공개 아키텍처 페이지에 표시할 개요, 구성 요소, 배포 흐름도를 관리합니다."
             />

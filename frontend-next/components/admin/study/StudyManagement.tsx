@@ -487,7 +487,6 @@ export function StudyManagement({
     return (
         <div className="space-y-4">
             <AdminPageHeader
-                eyebrow="Source Record"
                 title="학습 기록 관리"
                 description="학습 원본과 관련 기술·경험을 기록합니다. 공개할 글과 카테고리는 공개 페이지에서 선택합니다."
                 actions={

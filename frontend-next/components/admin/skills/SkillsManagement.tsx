@@ -340,7 +340,6 @@ export function SkillsManagement({ workspaceSlug }: { workspaceSlug: string }) {
     return (
         <div className="space-y-4">
             <AdminPageHeader
-                eyebrow="Source Record"
                 title="내 기술 스택"
                 description="공통 기술 카탈로그에서 선택하고 이 Workspace의 실무 경험과 활용 정보를 연결합니다."
                 actions={

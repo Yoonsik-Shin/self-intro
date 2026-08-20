@@ -163,7 +163,6 @@ function InvitationOperationsPanel() {
             <div className="space-y-4">
                 <AdminPageHeader
                     headingAs="h1"
-                    eyebrow="Platform Operations"
                     title="비공개 베타 초대 관리"
                     description="Workspace 사용자가 아니라 플랫폼 운영자 권한으로 관리하는 화면입니다."
                 />

@@ -574,7 +574,6 @@ export function PrintTemplateManagement({
     return (
         <div className="space-y-4">
             <AdminPageHeader
-                eyebrow="지원·출력"
                 title="PDF 인쇄 템플릿 관리"
                 description="방문자가 선택할 PDF 인쇄 템플릿을 관리합니다. 문구와 레이아웃은 인쇄 미리보기에서 직접 편집할 수 있습니다."
                 actions={

@@ -56,7 +56,6 @@ export function WorkspacePurgeOperationsPanel() {
         <div className="space-y-4 text-slate-800">
             <AdminPageHeader
                 headingAs="h1"
-                eyebrow="Platform Operations"
                 title="Workspace 삭제 점검"
                 description="폐쇄된 Workspace의 저장소별 삭제 후보와 차단 사유를 점검합니다. 이 화면의 dry-run은 데이터를 삭제하지 않으며, 실제 물리 삭제 실행기는 비활성화되어 있습니다."
             />

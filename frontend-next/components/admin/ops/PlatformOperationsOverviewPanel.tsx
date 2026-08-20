@@ -18,7 +18,6 @@ export function PlatformOperationsOverviewPanel() {
         <section className="space-y-4 text-slate-800">
             <AdminPageHeader
                 headingAs="h1"
-                eyebrow="Platform Operations"
                 title="사용자·Workspace 운영 현황"
                 description="개인정보나 Workspace 콘텐츠를 열람하지 않고 계정, Workspace, Membership의 상태별 집계만 확인합니다."
                 actions={

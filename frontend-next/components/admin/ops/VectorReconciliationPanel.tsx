@@ -104,7 +104,6 @@ export function VectorReconciliationPanel() {
         <div className="space-y-4 text-slate-800">
             <AdminPageHeader
                 headingAs="h1"
-                eyebrow="Platform Operations"
                 title="Vector 정합성 점검"
                 description="MySQL 원본과 Oracle Vector의 Experience·Study namespace 수를 읽기 전용으로 대조합니다. 이 화면은 ID·제목·본문을 표시하지 않으며 명시적으로 확인한 고아 파생 Vector만 정리할 수 있습니다. 전체 백필은 실행하지 않습니다."
             />

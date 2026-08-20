@@ -303,7 +303,6 @@ export function WorkspaceJobApplicationManagement({
     return (
         <div className="space-y-4">
             <AdminPageHeader
-                eyebrow="Workspace Career Pipeline"
                 title="지원 현황"
                 description="공통 공고를 가져와 이 Workspace만의 지원 상태와 맞춤 자료를 관리합니다."
                 actions={

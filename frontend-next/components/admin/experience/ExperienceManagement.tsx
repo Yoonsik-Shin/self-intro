@@ -884,7 +884,6 @@ export function ExperienceManagement({
     return (
         <div className="space-y-4">
             <AdminPageHeader
-                eyebrow="Source Record"
                 title="이력 및 경력 관리"
                 description="경력·프로젝트·교육·자격 원본을 기록합니다. 공개 범위와 타임라인 구성은 공개 페이지에서 관리합니다."
                 actions={

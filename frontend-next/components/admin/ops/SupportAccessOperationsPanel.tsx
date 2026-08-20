@@ -96,7 +96,6 @@ export function SupportAccessOperationsPanel() {
         <div className="space-y-4 text-slate-800">
             <AdminPageHeader
                 headingAs="h1"
-                eyebrow="Platform Operations"
                 title="지원 접근 요청·최소 진단"
                 description="Workspace 소유자의 명시적 승인을 받은 범위만 최대 60분 동안 진단합니다. 원문·연락처 값은 표시하지 않으며 일반 관리 화면으로 가장하지 않습니다."
             />

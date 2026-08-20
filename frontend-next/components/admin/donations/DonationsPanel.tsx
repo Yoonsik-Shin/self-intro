@@ -59,7 +59,6 @@ export function DonationsPanel() {
     return (
         <div className="space-y-4">
             <AdminPageHeader
-                eyebrow="Platform Support"
                 title="후원 내역"
                 description="Ko-fi 후원 내역과 공개 페이지의 후원 버튼 노출 상태를 관리합니다."
                 actions={

@@ -42,7 +42,6 @@ export function SkillProposalOperations() {
     return (
         <div className="space-y-4">
             <AdminPageHeader
-                eyebrow="Platform Catalog Governance"
                 title="기술 카탈로그 심사"
                 description="Workspace 사용자가 공통 카탈로그에 없는 기술을 제안하면 여기서 승인·반려합니다. 승인해야 공통 카탈로그(skill 테이블)에 정식으로 들어갑니다."
             />

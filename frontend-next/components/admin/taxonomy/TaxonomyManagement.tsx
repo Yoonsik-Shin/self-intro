@@ -158,7 +158,6 @@ export function TaxonomyManagement() {
     return (
         <div className="space-y-4">
             <AdminPageHeader
-                eyebrow="Platform Catalog"
                 title="카테고리 체계 관리"
                 description="학습 기록과 학습 자료가 함께 쓰는 계층형 카테고리를 관리합니다. 어느 레벨에든 하위 카테고리를 만들 수 있고, 하나의 기록을 여러 카테고리에 연결할 수 있습니다."
                 actions={

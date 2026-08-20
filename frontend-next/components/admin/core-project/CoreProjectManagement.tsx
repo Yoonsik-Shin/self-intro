@@ -211,7 +211,6 @@ export function CoreProjectManagement({
     return (
         <div className="space-y-4">
             <AdminPageHeader
-                eyebrow="Public Composition"
                 title="핵심 프로젝트 관리"
                 description="독립 프로젝트와 직장 소속 프로젝트를 핵심 포트폴리오에 편성하고 노출 순서를 관리합니다."
                 actions={

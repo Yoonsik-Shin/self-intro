@@ -409,7 +409,6 @@ export function CompetencyManagement({
     return (
         <div className="space-y-4">
             <AdminPageHeader
-                eyebrow="Source Record"
                 title="핵심 역량 관리"
                 description="역량 원본과 실무·학습 근거를 기록합니다. 공개 범위는 공개 페이지에서 구성합니다."
                 actions={

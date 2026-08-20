@@ -152,7 +152,6 @@ export function WorkspaceLearningResourceManagement({ workspaceSlug }: { workspa
     return (
         <div className="space-y-4">
             <AdminPageHeader
-                eyebrow="Workspace Learning"
                 title="학습 자료"
                 description="자료 정보는 공통 카탈로그에서 선택하고, 진행 상태와 개인 메모는 이 Workspace에만 저장합니다."
                 actions={

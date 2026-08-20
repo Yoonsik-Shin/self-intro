@@ -137,7 +137,6 @@ export function PublicPageCompositionManagement({
         <div className="flex h-full min-h-0 flex-col gap-4 overflow-y-auto xl:overflow-hidden">
             <div className="shrink-0">
                 <AdminPageHeader
-                    eyebrow="PUBLIC PAGE"
                     title="공개 페이지 구성·발행"
                     description="왼쪽에서 공개할 항목을 선택하면 가운데 미리보기에 바로 반영됩니다. 오른쪽에서 발행 이력을 확인하고 새 버전을 발행합니다."
                 />

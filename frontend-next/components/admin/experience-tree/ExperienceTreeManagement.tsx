@@ -144,7 +144,6 @@ export function ExperienceTreeManagement({ workspaceSlug }: { workspaceSlug: str
             <div>
                 <AdminPageHeader
                     headingAs="h1"
-                    eyebrow="원본 기록"
                     title="개발자 온톨로지 관리"
                     description="정적 기술 상황에 Fundamental·Advanced·Retrospect 학습 기록을 연결합니다."
                     actions={

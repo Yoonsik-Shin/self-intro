@@ -18,7 +18,6 @@ export function WorkspaceSettingsPanel({ workspaceSlug, workspaceName, role }: P
     return (
         <div className="space-y-4">
             <AdminPageHeader
-                eyebrow="Workspace Settings"
                 title="주소·이름·탈퇴·폐쇄 설정"
                 description="자주 사용하지 않는 Workspace 기본 설정을 관리합니다."
             />

@@ -51,7 +51,6 @@ export function JobCatalogPermissionOperations() {
     return (
         <div className="space-y-4">
             <AdminPageHeader
-                eyebrow="Platform Catalog Governance"
                 title="공고 공유 심사"
                 description="운영자 판단이 아니라 권리자 직접 제공, 서면 이용 허락, 재배포를 허용한 공식 API 약관 중 하나를 증빙한 공고만 공통 카탈로그에 공개합니다. 개인 지원 상태와 문서는 이 화면에서 다루지 않습니다."
             />

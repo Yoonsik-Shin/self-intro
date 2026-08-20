@@ -51,7 +51,6 @@ export function WorkspaceSupportAccessPanel({ workspaceSlug }: { workspaceSlug: 
         <div className="space-y-4 text-slate-800">
             <AdminPageHeader
                 headingAs="h1"
-                eyebrow="Workspace Security"
                 title="고객 지원 접근 동의"
                 description="이 화면은 플랫폼 운영 기능이 아니라 내 Workspace 데이터에 대한 소유자의 동의 화면입니다. 승인해도 원문·연락처 값이나 일반 관리 권한은 제공되지 않습니다."
             />
