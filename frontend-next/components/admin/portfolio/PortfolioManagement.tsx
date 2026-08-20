@@ -788,7 +788,7 @@ export function PortfolioManagement({
                                         }`}
                                     >
                                         <div className="flex items-start justify-between gap-3">
-                                            <span className="line-clamp-2 text-sm font-black leading-5">
+                                            <span className="line-clamp-2 text-[13px] font-black leading-[1.15rem]">
                                                 {caseStudy.title}
                                             </span>
                                             {caseStudy.status === 'PUBLISHED' && (
@@ -799,7 +799,7 @@ export function PortfolioManagement({
                                         </div>
                                         {sourceExperience && (
                                             <span
-                                                className={`mt-2 flex items-center gap-1 truncate text-[11px] font-bold ${isSelected ? 'text-slate-300' : 'text-slate-500'}`}
+                                                className={`mt-1.5 flex items-center gap-1 truncate text-[10px] font-bold ${isSelected ? 'text-slate-300' : 'text-slate-500'}`}
                                             >
                                                 <BriefcaseBusiness className="h-3 w-3 shrink-0" />
                                                 {experienceOrgName(sourceExperience)} ·{' '}
@@ -807,7 +807,7 @@ export function PortfolioManagement({
                                             </span>
                                         )}
                                         <div
-                                            className={`mt-3 flex items-center justify-between gap-2 text-[10px] ${isSelected ? 'text-slate-400' : 'text-slate-400'}`}
+                                            className={`mt-2.5 flex items-center justify-between gap-2 text-[9px] ${isSelected ? 'text-slate-400' : 'text-slate-400'}`}
                                         >
                                             <span className="truncate font-mono">
                                                 /{caseStudy.slug}
