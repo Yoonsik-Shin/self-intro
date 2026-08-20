@@ -25,7 +25,7 @@ export function AdminPageHeader({
 
     return (
         <header
-            className={`flex flex-col sm:flex-row sm:justify-between ${
+            className={`sticky top-0 z-30 flex shrink-0 flex-col bg-[#f8fafc] sm:flex-row sm:justify-between ${
                 compact ? 'gap-3 pb-3 sm:items-center' : 'gap-4 pb-5 sm:items-end'
             }`}
         >

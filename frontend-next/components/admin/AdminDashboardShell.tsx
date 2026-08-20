@@ -1089,7 +1089,7 @@ export function AdminDashboardShell({ workspaceSlug }: { workspaceSlug: string }
                         }}
                     >
                         <aside
-                            className={`relative isolate col-start-1 row-start-1 min-h-0 min-w-0 overflow-x-hidden overflow-y-auto transition-all duration-300 ease-in-out [scrollbar-width:none] [&::-webkit-scrollbar]:hidden ${isSidebarCollapsed ? 'rounded-2xl border border-slate-200 bg-white shadow-sm' : ''}`}
+                            className={`relative isolate col-start-1 row-start-1 min-h-0 min-w-0 overflow-x-hidden overflow-y-auto overscroll-contain transition-all duration-300 ease-in-out [scrollbar-width:none] [&::-webkit-scrollbar]:hidden ${isSidebarCollapsed ? 'rounded-2xl border border-slate-200 bg-white shadow-sm' : ''}`}
                         >
                             <div
                                 className={
@@ -1288,12 +1288,12 @@ export function AdminDashboardShell({ workspaceSlug }: { workspaceSlug: string }
                         <section
                             ref={adminScrollRegionRef}
                             data-admin-scroll-region
-                            className={`min-h-0 min-w-0 overflow-x-hidden pr-1 ${
+                            className={`h-full min-h-0 min-w-0 overflow-x-hidden overscroll-contain pr-1 ${
                                 activeTab === 'PUBLIC_COMPOSITION'
                                     ? 'overflow-y-auto xl:overflow-hidden'
                                     : activeTab === 'PORTFOLIO'
                                       ? 'overflow-y-auto lg:overflow-y-hidden'
-                                      : 'space-y-6 overflow-y-auto'
+                                      : 'overflow-hidden [&>*]:h-full [&>*]:min-h-0 [&>*]:overflow-y-auto [&>*]:overscroll-contain'
                             }`}
                         >
                             {activeTab === 'WORKSPACE_HOME' && currentWorkspace && (

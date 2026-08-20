@@ -8,6 +8,7 @@ import { ApiError, invitationApi, type Invitation, type IssuedInvitation } from 
 import { useRecentReauthentication } from '@/hooks/useRecentReauthentication';
 import { useAuthStore } from '@/store/useAuthStore';
 import { RecentReauthenticationStatus } from '@/components/admin/security/RecentReauthenticationStatus';
+import { AdminPageHeader } from '@/components/admin/common/AdminPageHeader';
 
 const statusStyle: Record<Invitation['status'], string> = {
     ACTIVE: 'bg-emerald-50 text-emerald-700',
@@ -160,16 +161,12 @@ function InvitationOperationsPanel() {
     return (
         <div className="text-slate-800">
             <div className="space-y-6">
-                <header className="flex flex-wrap items-start justify-between gap-4">
-                    <div>
-                        <h1 className="text-3xl font-black tracking-tight text-slate-950">
-                            비공개 베타 초대 관리
-                        </h1>
-                        <p className="mt-2 text-sm text-slate-600">
-                            Workspace 사용자가 아니라 플랫폼 운영자 권한으로 관리하는 화면입니다.
-                        </p>
-                    </div>
-                </header>
+                <AdminPageHeader
+                    headingAs="h1"
+                    eyebrow="Platform Operations"
+                    title="비공개 베타 초대 관리"
+                    description="Workspace 사용자가 아니라 플랫폼 운영자 권한으로 관리하는 화면입니다."
+                />
 
                 <RecentReauthenticationStatus description="초대 목록은 이메일을 마스킹합니다. 상단에서 인증하면 발급·폐기·교체 발송에 같은 최근 인증 상태가 10분 동안 적용됩니다." />
 
