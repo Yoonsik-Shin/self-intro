@@ -750,7 +750,7 @@ export function PortfolioManagement({
                             '--source-panel-width': `${sourcePanelWidth}px`,
                         } as CSSProperties
                     }
-                    className="flex min-h-[44rem] flex-col gap-4 lg:min-h-0 lg:flex-1 lg:flex-row lg:gap-2"
+                    className="flex min-h-[44rem] flex-col gap-4 lg:min-h-0 lg:flex-1 lg:flex-row lg:gap-0"
                 >
                     {/* 원본 목록: 공개 페이지 포함 여부가 아니라 Workspace에 저장된 사례 원본을 탐색한다. */}
                     <aside className="flex min-h-[34rem] w-full shrink-0 flex-col overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm lg:min-h-0 lg:w-[var(--source-panel-width)]">
@@ -896,13 +896,13 @@ export function PortfolioManagement({
                                 setSourcePanelWidth(SOURCE_PANEL_MAX_WIDTH);
                             }
                         }}
-                        className={`group relative hidden w-6 shrink-0 cursor-col-resize touch-none items-center justify-center self-stretch outline-none lg:flex ${isResizingSourcePanel ? 'select-none' : ''}`}
+                        className={`group relative z-10 hidden w-3 shrink-0 cursor-col-resize touch-none items-center justify-center self-stretch outline-none lg:flex ${isResizingSourcePanel ? 'select-none' : ''}`}
                     >
                         <span
                             className={`h-full w-px transition-colors ${isResizingSourcePanel ? 'bg-slate-500' : 'bg-slate-200 group-hover:bg-slate-400 group-focus-visible:bg-slate-500'}`}
                         />
                         <GripVertical
-                            className={`absolute h-7 w-4 rounded border bg-white transition-colors ${isResizingSourcePanel ? 'border-slate-500 text-slate-700' : 'border-slate-300 text-slate-400 group-hover:border-slate-400 group-hover:text-slate-600'}`}
+                            className={`absolute h-7 w-3 rounded border bg-white transition-colors ${isResizingSourcePanel ? 'border-slate-500 text-slate-700' : 'border-slate-300 text-slate-400 group-hover:border-slate-400 group-hover:text-slate-600'}`}
                         />
                     </div>
 
@@ -1865,7 +1865,7 @@ export function PortfolioManagement({
                             )}
                         </main>
                     ) : (
-                        <main className="flex min-h-[34rem] min-w-0 flex-1 items-center justify-center border-l border-slate-200 px-6 text-center lg:min-h-0">
+                        <main className="flex min-h-[34rem] min-w-0 flex-1 items-center justify-center px-6 text-center lg:min-h-0">
                             <div className="max-w-sm">
                                 <FolderGit2 className="mx-auto h-8 w-8 text-slate-300" />
                                 <h3 className="mt-4 text-base font-black text-slate-800">
