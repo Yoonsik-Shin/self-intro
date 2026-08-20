@@ -1241,7 +1241,7 @@ export function PortfolioManagement({
                 {/* 상세 편집 */}
                 {!createOpen &&
                     (selectedCaseStudy ? (
-                        <main className="flex min-h-0 min-w-0 flex-1 flex-col gap-4 overflow-hidden px-1 pb-1 lg:order-3">
+                        <main className="flex min-h-0 min-w-0 flex-1 flex-col gap-4 overflow-hidden pb-1 lg:order-3">
                             <div className="z-10 shrink-0 border-b border-slate-200 bg-[#f8fafc]/95 pt-1 backdrop-blur-sm">
                                 <div className="flex items-start justify-between gap-4">
                                     <div className="min-w-0">

@@ -1334,7 +1334,7 @@ export function AdminDashboardShell({ workspaceSlug }: { workspaceSlug: string }
                         <section
                             ref={adminScrollRegionRef}
                             data-admin-scroll-region
-                            className={`h-full min-h-0 min-w-0 overflow-x-hidden overscroll-contain pr-1 ${isSidebarCollapsed ? 'py-6' : ''} ${
+                            className={`h-full min-h-0 min-w-0 overflow-x-hidden overscroll-contain ${isSidebarCollapsed ? 'py-6' : ''} ${
                                 activeTab === 'PUBLIC_COMPOSITION'
                                     ? 'overflow-y-auto xl:overflow-hidden'
                                     : activeTab === 'PORTFOLIO'
