@@ -17,8 +17,8 @@ export function AdminPageHeader({
     eyebrow,
     actions,
     headingAs = 'h2',
-    compact = false,
-    descriptionMode = 'inline',
+    compact = true,
+    descriptionMode = 'tooltip',
 }: AdminPageHeaderProps) {
     const Heading = headingAs;
     const tooltipLabel = typeof title === 'string' ? `${title} 설명` : '페이지 설명';

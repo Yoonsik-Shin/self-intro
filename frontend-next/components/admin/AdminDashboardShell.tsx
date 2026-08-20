@@ -1024,30 +1024,26 @@ export function AdminDashboardShell({ workspaceSlug }: { workspaceSlug: string }
                         className="grid h-full min-h-0 w-full grid-cols-1 gap-6 px-4 py-6 transition-[grid-template-columns] duration-300 ease-in-out sm:px-6 lg:px-8"
                         style={{
                             gridTemplateColumns: isSidebarCollapsed
-                                ? '64px minmax(0, 1fr)'
-                                : '240px minmax(0, 1fr)',
+                                ? '56px minmax(0, 1fr)'
+                                : '216px minmax(0, 1fr)',
                         }}
                     >
                         <aside
                             className={`isolate min-h-0 min-w-0 overflow-x-hidden overflow-y-auto transition-all duration-300 ease-in-out [scrollbar-width:none] [&::-webkit-scrollbar]:hidden ${isSidebarCollapsed ? 'rounded-2xl border border-slate-200 bg-white shadow-sm' : ''}`}
                         >
                             <div
-                                className={
+                                className={`sticky top-0 z-30 mb-2 flex h-10 items-center px-2 ${
                                     isSidebarCollapsed
-                                        ? 'sticky top-0 z-30 mb-3 flex h-14 items-center justify-center rounded-t-[15px] border-b border-slate-100 bg-white px-2'
-                                        : undefined
-                                }
+                                        ? 'justify-center rounded-t-[15px] border-b border-slate-100 bg-white'
+                                        : 'justify-end bg-[#f8fafc]'
+                                }`}
                             >
                                 <button
                                     type="button"
                                     onClick={() => setIsSidebarCollapsed((collapsed) => !collapsed)}
                                     title={isSidebarCollapsed ? '메뉴 펼치기' : '메뉴 접기'}
                                     aria-expanded={!isSidebarCollapsed}
-                                    className={`z-20 flex items-center justify-center rounded-lg text-slate-400 transition-colors hover:text-slate-900 focus:outline-none focus-visible:ring-2 focus-visible:ring-slate-300 focus-visible:ring-offset-1 ${
-                                        isSidebarCollapsed
-                                            ? 'h-9 w-9 shrink-0 bg-slate-50 shadow-sm hover:bg-slate-100'
-                                            : 'absolute right-1 top-0 !m-0 h-8 w-8 hover:bg-slate-100'
-                                    }`}
+                                    className="z-20 flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-white text-slate-400 shadow-sm ring-1 ring-slate-200 transition-colors hover:bg-slate-100 hover:text-slate-900 focus:outline-none focus-visible:ring-2 focus-visible:ring-slate-400 focus-visible:ring-offset-1"
                                 >
                                     {isSidebarCollapsed ? (
                                         <ChevronRight className="h-4 w-4" />
@@ -1080,7 +1076,7 @@ export function AdminDashboardShell({ workspaceSlug }: { workspaceSlug: string }
                                                 isSidebarCollapsed
                                                     ? 'max-h-0 opacity-0'
                                                     : groupIndex === 0
-                                                      ? 'h-8 max-h-8 pr-9 opacity-100'
+                                                      ? 'h-8 max-h-8 opacity-100'
                                                       : 'h-6 max-h-6 opacity-100'
                                             }`}
                                         >
