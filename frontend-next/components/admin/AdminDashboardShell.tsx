@@ -1114,7 +1114,7 @@ export function AdminDashboardShell({ workspaceSlug }: { workspaceSlug: string }
                             </div>
                             <nav
                                 aria-label="Workspace 관리 메뉴"
-                                className={`space-y-5 ${isSidebarCollapsed ? 'pb-3' : 'pr-3'}`}
+                                className={`space-y-5 ${isSidebarCollapsed ? 'pb-3' : 'pr-11'}`}
                             >
                                 {visibleMenuGroups.map((group, groupIndex) => (
                                     <section
