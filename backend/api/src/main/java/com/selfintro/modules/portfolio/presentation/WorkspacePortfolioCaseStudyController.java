@@ -6,10 +6,10 @@ import com.selfintro.modules.portfolio.application.PortfolioCaseStudyService;
 import com.selfintro.modules.portfolio.presentation.dto.PortfolioCaseStudyCreateRequest;
 import com.selfintro.modules.portfolio.presentation.dto.PortfolioCaseStudyDetailResponse;
 import com.selfintro.modules.portfolio.presentation.dto.PortfolioCaseStudyPublishRequest;
-import com.selfintro.modules.portfolio.presentation.dto.PortfolioCaseStudyRenameRequest;
 import com.selfintro.modules.portfolio.presentation.dto.PortfolioCaseStudyResponse;
 import com.selfintro.modules.portfolio.presentation.dto.PortfolioCaseStudyRevisionResponse;
 import com.selfintro.modules.portfolio.presentation.dto.PortfolioCaseStudySaveRevisionRequest;
+import com.selfintro.modules.portfolio.presentation.dto.PortfolioCaseStudyUpdateRequest;
 import jakarta.validation.Valid;
 import java.util.List;
 import lombok.RequiredArgsConstructor;
@@ -50,11 +50,12 @@ public class WorkspacePortfolioCaseStudyController {
     }
 
     @PutMapping("/{id}")
-    public PortfolioCaseStudyResponse rename(
+    public PortfolioCaseStudyResponse update(
             @CurrentWorkspace Long workspaceId,
             @PathVariable Long id,
-            @Valid @RequestBody PortfolioCaseStudyRenameRequest request) {
-        return portfolioCaseStudyService.rename(workspaceId, id, request.slug(), request.title());
+            @Valid @RequestBody PortfolioCaseStudyUpdateRequest request) {
+        return portfolioCaseStudyService.update(
+                workspaceId, id, request.experienceId(), request.slug(), request.title());
     }
 
     @DeleteMapping("/{id}")

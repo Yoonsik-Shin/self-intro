@@ -62,9 +62,15 @@ public class PortfolioCaseStudy {
         return caseStudy;
     }
 
-    public void rename(String slug, String title) {
+    public void update(Long experienceId, String slug, String title) {
+        boolean sourceChanged = !java.util.Objects.equals(this.experienceId, experienceId);
+        this.experienceId = experienceId;
         this.slug = slug;
         this.title = title;
+        if (sourceChanged && STATUS_PUBLISHED.equals(this.status)) {
+            this.status = STATUS_DRAFT;
+            this.publishedRevisionId = null;
+        }
         this.updatedAt = LocalDateTime.now();
     }
 

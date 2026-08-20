@@ -830,7 +830,7 @@ export function AdminDashboardShell({ workspaceSlug }: { workspaceSlug: string }
                         title="홈으로 이동"
                         className="-mx-1 -my-0.5 rounded-lg px-1 py-0.5 text-left transition hover:bg-slate-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500"
                     >
-                        <h1 className="text-base font-black text-slate-900">
+                        <h1 className="text-base font-semibold tracking-tight text-slate-900">
                             {currentWorkspace?.name ?? '워크스페이스'}
                         </h1>
                         <p className="text-[11px] font-bold text-slate-400">
@@ -1135,7 +1135,7 @@ export function AdminDashboardShell({ workspaceSlug }: { workspaceSlug: string }
                                             }`}
                                         >
                                             <h2
-                                                className={`shrink-0 whitespace-nowrap text-[13px] font-black tracking-[0.01em] ${group.requiresPlatformOperator ? 'text-white' : 'text-slate-600'}`}
+                                                className={`shrink-0 whitespace-nowrap text-[13px] font-semibold tracking-tight ${group.requiresPlatformOperator ? 'text-white' : 'text-slate-600'}`}
                                             >
                                                 {group.label}
                                             </h2>
@@ -1188,7 +1188,7 @@ export function AdminDashboardShell({ workspaceSlug }: { workspaceSlug: string }
                                                     >
                                                         {startsOperatorSection && (
                                                             <p
-                                                                className={`mb-1 overflow-hidden px-2 text-[9px] font-black tracking-[0.08em] text-slate-500 transition-all duration-300 ${
+                                                                className={`mb-1 overflow-hidden px-2 text-[9px] font-semibold tracking-[0.08em] text-slate-500 transition-all duration-300 ${
                                                                     isSidebarCollapsed
                                                                         ? 'max-h-0 opacity-0'
                                                                         : 'max-h-5 opacity-100'
@@ -1204,7 +1204,7 @@ export function AdminDashboardShell({ workspaceSlug }: { workspaceSlug: string }
                                                             aria-current={
                                                                 isActive ? 'page' : undefined
                                                             }
-                                                            className={`flex items-center rounded-xl text-[13px] font-bold transition-all duration-300 ease-in-out ${
+                                                            className={`flex items-center rounded-xl text-[13px] font-semibold transition-all duration-300 ease-in-out ${
                                                                 isSidebarCollapsed
                                                                     ? 'mx-auto h-10 w-10 justify-center'
                                                                     : 'w-full gap-1.5 px-2 py-2 text-left'

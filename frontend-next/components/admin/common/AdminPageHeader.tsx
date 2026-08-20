@@ -32,7 +32,7 @@ export function AdminPageHeader({
             <div className="min-w-0">
                 {eyebrow && (
                     <p
-                        className={`font-black uppercase text-indigo-600 ${
+                        className={`font-semibold uppercase text-indigo-600 ${
                             compact ? 'text-[10px] tracking-[0.14em]' : 'text-xs tracking-[0.16em]'
                         }`}
                     >
@@ -43,7 +43,7 @@ export function AdminPageHeader({
                     className={`flex min-w-0 items-center gap-2 ${eyebrow ? (compact ? 'mt-1' : 'mt-1.5') : ''}`}
                 >
                     <Heading
-                        className={`min-w-0 truncate font-black tracking-tight text-slate-950 ${compact ? 'text-xl' : 'text-2xl'}`}
+                        className={`min-w-0 truncate font-semibold tracking-tight text-slate-950 ${compact ? 'text-xl' : 'text-2xl'}`}
                     >
                         {title}
                     </Heading>

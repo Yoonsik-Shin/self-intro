@@ -25,10 +25,14 @@ export const portfolioApi = {
             `/api/workspaces/${encodeURIComponent(workspaceSlug)}/portfolio/case-studies/manage`,
             { method: 'POST', body: JSON.stringify(payload) }
         ),
-    workspaceRename: (workspaceSlug: string, id: number, slug: string, title: string) =>
+    workspaceUpdate: (
+        workspaceSlug: string,
+        id: number,
+        payload: PortfolioCaseStudyCreateRequest
+    ) =>
         request<PortfolioCaseStudy>(
             `/api/workspaces/${encodeURIComponent(workspaceSlug)}/portfolio/case-studies/manage/${id}`,
-            { method: 'PUT', body: JSON.stringify({ slug, title }) }
+            { method: 'PUT', body: JSON.stringify(payload) }
         ),
     workspaceRemove: (workspaceSlug: string, id: number) =>
         request<void>(

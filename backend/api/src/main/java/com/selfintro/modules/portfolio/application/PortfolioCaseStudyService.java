@@ -73,14 +73,25 @@ public class PortfolioCaseStudyService {
     }
 
     @Transactional
-    public PortfolioCaseStudyResponse rename(Long workspaceId, Long id, String slug, String title) {
+    public PortfolioCaseStudyResponse update(
+            Long workspaceId, Long id, Long experienceId, String slug, String title) {
         PortfolioCaseStudy caseStudy = findOrThrow(workspaceId, id);
+        validateExperience(workspaceId, experienceId);
         if (!caseStudy.getSlug().equals(slug)
                 && caseStudyRepository.existsByWorkspaceIdAndSlugAndIdNot(workspaceId, slug, id)) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "이미 사용 중인 slug입니다.");
         }
-        caseStudy.rename(slug, title);
+        caseStudy.update(experienceId, slug, title);
         return PortfolioCaseStudyResponse.from(caseStudy);
+    }
+
+    private void validateExperience(Long workspaceId, Long experienceId) {
+        if (experienceId != null
+                && experienceRepository
+                        .findByIdAndWorkspaceId(experienceId, workspaceId)
+                        .isEmpty()) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "존재하지 않는 프로젝트입니다.");
+        }
     }
 
     @Transactional

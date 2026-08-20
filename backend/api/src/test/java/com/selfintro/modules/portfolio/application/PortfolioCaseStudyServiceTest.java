@@ -67,6 +67,26 @@ class PortfolioCaseStudyServiceTest {
     }
 
     @Test
+    void updatesConnectedExperienceAndReturnsPublishedCaseToDraft() {
+        PortfolioCaseStudy caseStudy = PortfolioCaseStudy.create(7L, 10L, "case", "사례");
+        caseStudy.publish(100L);
+        when(caseStudyRepository.findByIdAndWorkspaceId(30L, 7L))
+                .thenReturn(Optional.of(caseStudy));
+        when(experienceRepository.findByIdAndWorkspaceId(20L, 7L))
+                .thenReturn(
+                        Optional.of(
+                                mock(
+                                        com.selfintro.modules.experience.domain.entity.Experience
+                                                .class)));
+
+        PortfolioCaseStudyResponse updated = service.update(7L, 30L, 20L, "case", "사례 제목");
+
+        assertThat(updated.experienceId()).isEqualTo(20L);
+        assertThat(updated.status()).isEqualTo(PortfolioCaseStudy.STATUS_DRAFT);
+        assertThat(updated.publishedRevisionId()).isNull();
+    }
+
+    @Test
     void savesConversationMetadataWithAiRevision() {
         PortfolioCaseStudy caseStudy = PortfolioCaseStudy.create(7L, 10L, "case", "사례");
         PortfolioCaseStudyRevision base = PortfolioCaseStudyRevision.create(30L, 1, "AI", "{}", "");

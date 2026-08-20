@@ -60,9 +60,9 @@ const SOURCE_PANEL_DEFAULT_WIDTH = 256;
 const AI_SETUP_STEPS = ['학습 기록', '핵심 역량', '기술', 'AI 대화'] as const;
 const CASE_FLOW_STEPS = ['원본 선택', '기본 정보', ...AI_SETUP_STEPS] as const;
 const FLOW_BACK_BUTTON_CLASS =
-    'inline-flex items-center justify-center gap-1.5 rounded-lg border border-slate-300 bg-white px-4 py-2.5 text-xs font-black text-slate-600 transition-colors hover:border-slate-400 hover:bg-slate-50 hover:text-slate-900';
+    'inline-flex items-center justify-center gap-1.5 rounded-lg border border-slate-300 bg-white px-4 py-2.5 text-xs font-semibold text-slate-600 transition-colors hover:border-slate-400 hover:bg-slate-50 hover:text-slate-900';
 const FLOW_NEXT_BUTTON_CLASS =
-    'inline-flex items-center justify-center gap-1.5 rounded-lg bg-slate-900 px-4 py-2.5 text-xs font-black text-white transition-colors hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-40';
+    'inline-flex items-center justify-center gap-1.5 rounded-lg bg-slate-900 px-4 py-2.5 text-xs font-semibold text-white transition-colors hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-40';
 const STUDY_SECTION_LABELS = {
     FUNDAMENTAL: '기초 학습',
     ADVANCED: '심화 학습',
@@ -136,7 +136,7 @@ function EvidencePicker({
         <div className="flex h-full min-h-0 flex-col">
             <div className="shrink-0 border-y border-slate-200 py-3">
                 <div className="flex items-center justify-between gap-3">
-                    <span className="text-[11px] font-black text-slate-600">
+                    <span className="text-[11px] font-semibold text-slate-600">
                         선택됨 {selectedOptions.length}
                     </span>
                     {selectedOptions.length > 0 && (
@@ -188,7 +188,7 @@ function EvidencePicker({
                 {Array.from(groupedVisibleOptions).map(([category, categoryOptions]) => (
                     <section key={category}>
                         <div className="sticky top-0 z-[1] flex items-center justify-between border-b border-slate-200 bg-slate-100/95 px-3 py-2 backdrop-blur-sm">
-                            <span className="text-[10px] font-black uppercase tracking-[0.08em] text-slate-500">
+                            <span className="text-[10px] font-semibold uppercase tracking-[0.08em] text-slate-500">
                                 {category}
                             </span>
                             <span className="text-[9px] font-bold text-slate-400">
@@ -515,14 +515,13 @@ export function PortfolioManagement({
         },
     });
 
-    const renameMutation = useMutation({
+    const updateCaseStudyMutation = useMutation({
         mutationFn: () =>
-            portfolioApi.workspaceRename(
-                workspaceSlug,
-                editingCreatedCaseId as number,
-                createForm.slug.trim(),
-                createForm.title.trim()
-            ),
+            portfolioApi.workspaceUpdate(workspaceSlug, editingCreatedCaseId as number, {
+                experienceId: createMode === 'EXPERIENCE' ? Number(createForm.experienceId) : null,
+                slug: createForm.slug.trim(),
+                title: createForm.title.trim(),
+            }),
         onSuccess: (updated) => {
             queryClient.invalidateQueries({ queryKey: ['portfolio-case-studies', workspaceSlug] });
             queryClient.invalidateQueries({
@@ -752,21 +751,25 @@ export function PortfolioManagement({
             .toLocaleLowerCase()
             .replace(/[^a-z0-9]+/g, '-')
             .replace(/^-+|-+$/g, '');
-        setCreateForm({
+        setCreateForm((current) => ({
             experienceId: String(experienceId),
-            title: experience.title,
-            slug: asciiSlug ? `${asciiSlug}-${experienceId}` : `case-study-${experienceId}`,
-        });
+            title: editingCreatedCaseId ? current.title : experience.title,
+            slug: editingCreatedCaseId
+                ? current.slug
+                : asciiSlug
+                  ? `${asciiSlug}-${experienceId}`
+                  : `case-study-${experienceId}`,
+        }));
         setCreateMode('EXPERIENCE');
         setCreateStep(1);
     };
 
     const selectStandaloneCase = () => {
-        setCreateForm({
+        setCreateForm((current) => ({
             experienceId: '',
-            title: '',
-            slug: `standalone-${Date.now().toString(36)}`,
-        });
+            title: editingCreatedCaseId ? current.title : '',
+            slug: editingCreatedCaseId ? current.slug : `standalone-${Date.now().toString(36)}`,
+        }));
         setCreateMode('STANDALONE');
         setCreateStep(1);
     };
@@ -821,7 +824,7 @@ export function PortfolioManagement({
                                 <CaseFlowStepper
                                     currentStep={createStep}
                                     maxReachableStep={createMode === null ? 0 : 1}
-                                    minimumSelectableStep={editingCreatedCaseId ? 1 : 0}
+                                    minimumSelectableStep={0}
                                     onSelect={(step) => setCreateStep(step as 0 | 1)}
                                 />
                             </div>
@@ -982,10 +985,11 @@ export function PortfolioManagement({
                                             />
                                         </label>
 
-                                        {(createMutation.error || renameMutation.error) && (
+                                        {(createMutation.error ||
+                                            updateCaseStudyMutation.error) && (
                                             <p className="mt-5 border-y border-rose-200 py-2.5 text-xs font-medium text-rose-700">
-                                                {renameMutation.error instanceof Error
-                                                    ? renameMutation.error.message
+                                                {updateCaseStudyMutation.error instanceof Error
+                                                    ? updateCaseStudyMutation.error.message
                                                     : createMutation.error instanceof Error
                                                       ? createMutation.error.message
                                                       : '사례 기본 정보를 저장하지 못했습니다.'}
@@ -995,20 +999,10 @@ export function PortfolioManagement({
                                         <div className="sticky bottom-0 z-10 mt-auto flex shrink-0 items-center justify-between border-t border-slate-200 bg-[#f8fafc] py-4">
                                             <button
                                                 type="button"
-                                                onClick={() => {
-                                                    if (editingCreatedCaseId) {
-                                                        setAiSetupStep(0);
-                                                        setCreateOpen(false);
-                                                        return;
-                                                    }
-                                                    setCreateStep(0);
-                                                }}
+                                                onClick={() => setCreateStep(0)}
                                                 className={FLOW_BACK_BUTTON_CLASS}
                                             >
-                                                <ArrowLeft className="h-3.5 w-3.5" />{' '}
-                                                {editingCreatedCaseId
-                                                    ? '편집으로 돌아가기'
-                                                    : '이전'}
+                                                <ArrowLeft className="h-3.5 w-3.5" /> 이전
                                             </button>
                                             <button
                                                 type="button"
@@ -1017,21 +1011,21 @@ export function PortfolioManagement({
                                                     !createForm.slug.trim() ||
                                                     !createForm.title.trim() ||
                                                     createMutation.isPending ||
-                                                    renameMutation.isPending
+                                                    updateCaseStudyMutation.isPending
                                                 }
                                                 onClick={() =>
                                                     editingCreatedCaseId
-                                                        ? renameMutation.mutate()
+                                                        ? updateCaseStudyMutation.mutate()
                                                         : createMutation.mutate()
                                                 }
                                                 className={FLOW_NEXT_BUTTON_CLASS}
                                             >
                                                 {createMutation.isPending ||
-                                                renameMutation.isPending
+                                                updateCaseStudyMutation.isPending
                                                     ? '저장 중...'
                                                     : '다음'}
                                                 {!createMutation.isPending &&
-                                                    !renameMutation.isPending && (
+                                                    !updateCaseStudyMutation.isPending && (
                                                         <ArrowRight className="h-4 w-4" />
                                                     )}
                                             </button>
@@ -1046,7 +1040,7 @@ export function PortfolioManagement({
                 <aside className="flex min-h-[20rem] max-h-[50vh] w-full shrink-0 flex-col overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm lg:order-1 lg:h-full lg:min-h-0 lg:max-h-none lg:w-[var(--source-panel-width)]">
                     <div className="border-b border-slate-200 p-3.5">
                         <div className="flex items-center justify-between gap-3">
-                            <p className="text-sm font-black text-slate-900">사례 원본</p>
+                            <p className="text-sm font-semibold text-slate-900">사례 원본</p>
                             <span className="text-xs font-bold text-slate-400">
                                 {caseStudies.length}개
                             </span>
@@ -1061,7 +1055,7 @@ export function PortfolioManagement({
                                 className="w-full rounded-xl border border-slate-200 bg-slate-50 py-2.5 pl-9 pr-3 text-xs font-medium text-slate-800 outline-none transition focus:border-slate-700 focus:bg-white"
                             />
                         </label>
-                        <div className="mt-3 grid grid-cols-3 gap-1 text-[10px] font-black">
+                        <div className="mt-3 grid grid-cols-3 gap-1 text-[10px] font-semibold">
                             {(
                                 [
                                     ['ALL', `전체 ${caseStudies.length}`],
@@ -1106,7 +1100,7 @@ export function PortfolioManagement({
                                     }`}
                                 >
                                     <div className="flex items-start justify-between gap-3">
-                                        <span className="line-clamp-2 text-[13px] font-black leading-[1.15rem]">
+                                        <span className="line-clamp-2 text-[13px] font-semibold leading-[1.15rem]">
                                             {caseStudy.title}
                                         </span>
                                         {caseStudy.status === 'PUBLISHED' && (
@@ -1154,7 +1148,7 @@ export function PortfolioManagement({
                                     <button
                                         type="button"
                                         onClick={openCreateWorkspace}
-                                        className="mt-4 text-xs font-black text-slate-900 underline underline-offset-4"
+                                        className="mt-4 text-xs font-semibold text-slate-900 underline underline-offset-4"
                                     >
                                         첫 사례 설계하기
                                     </button>
@@ -1218,7 +1212,7 @@ export function PortfolioManagement({
                                                 {selectedCaseStudy.title}
                                             </h2>
                                             <span
-                                                className={`rounded-full px-2 py-1 text-[9px] font-black ${
+                                                className={`rounded-full px-2 py-1 text-[9px] font-semibold ${
                                                     selectedCaseStudy.status === 'PUBLISHED'
                                                         ? 'bg-emerald-100 text-emerald-700'
                                                         : 'bg-slate-100 text-slate-500'
@@ -1227,7 +1221,7 @@ export function PortfolioManagement({
                                                 {STATUS_LABELS[selectedCaseStudy.status]}
                                             </span>
                                             {hasUnsavedChanges && detailView === 'EDITOR' && (
-                                                <span className="rounded-full bg-amber-100 px-2 py-1 text-[9px] font-black text-amber-700">
+                                                <span className="rounded-full bg-amber-100 px-2 py-1 text-[9px] font-semibold text-amber-700">
                                                     저장하지 않은 변경
                                                 </span>
                                             )}
@@ -1277,7 +1271,7 @@ export function PortfolioManagement({
                             {detailView === 'REVISIONS' && (
                                 <div className="min-h-0 flex-1 space-y-3 overflow-y-auto overscroll-contain pb-8">
                                     <div className="border-b border-slate-200 pb-4">
-                                        <h3 className="text-xs font-black text-slate-900">
+                                        <h3 className="text-xs font-semibold text-slate-900">
                                             저장된 revision
                                         </h3>
                                         <p className="mt-1 text-[11px] leading-5 text-slate-500">
@@ -1301,16 +1295,16 @@ export function PortfolioManagement({
                                                 <div className="flex flex-wrap items-start justify-between gap-3">
                                                     <div>
                                                         <div className="flex items-center gap-2">
-                                                            <span className="text-sm font-black text-slate-900">
+                                                            <span className="text-sm font-semibold text-slate-900">
                                                                 v{revision.version}
                                                             </span>
-                                                            <span className="rounded-full bg-slate-100 px-2 py-1 text-[9px] font-black text-slate-600">
+                                                            <span className="rounded-full bg-slate-100 px-2 py-1 text-[9px] font-semibold text-slate-600">
                                                                 {revision.source === 'AI'
                                                                     ? 'AI 초안'
                                                                     : '직접 편집'}
                                                             </span>
                                                             {isPublished && (
-                                                                <span className="inline-flex items-center gap-1 rounded-full bg-emerald-100 px-2 py-1 text-[9px] font-black text-emerald-700">
+                                                                <span className="inline-flex items-center gap-1 rounded-full bg-emerald-100 px-2 py-1 text-[9px] font-semibold text-emerald-700">
                                                                     <CheckCircle2 className="h-2.5 w-2.5" />{' '}
                                                                     현재 기준 revision
                                                                 </span>
@@ -1337,7 +1331,7 @@ export function PortfolioManagement({
                                                                 );
                                                                 setDetailView('EDITOR');
                                                             }}
-                                                            className="rounded-lg border border-slate-300 px-3 py-2 text-[10px] font-black text-slate-700 hover:bg-slate-50"
+                                                            className="rounded-lg border border-slate-300 px-3 py-2 text-[10px] font-semibold text-slate-700 hover:bg-slate-50"
                                                         >
                                                             편집기로 불러오기
                                                         </button>
@@ -1350,7 +1344,7 @@ export function PortfolioManagement({
                                                                     )
                                                                 }
                                                                 disabled={publishMutation.isPending}
-                                                                className="rounded-lg bg-emerald-600 px-3 py-2 text-[10px] font-black text-white disabled:opacity-50"
+                                                                className="rounded-lg bg-emerald-600 px-3 py-2 text-[10px] font-semibold text-white disabled:opacity-50"
                                                             >
                                                                 기준 revision으로 지정
                                                             </button>
@@ -1378,7 +1372,7 @@ export function PortfolioManagement({
                                             <button
                                                 type="button"
                                                 onClick={() => setDetailView('REVISIONS')}
-                                                className="text-[10px] font-black text-blue-600"
+                                                className="text-[10px] font-semibold text-blue-600"
                                             >
                                                 다른 revision 보기
                                             </button>
@@ -1558,7 +1552,7 @@ export function PortfolioManagement({
                                                         <button
                                                             type="button"
                                                             onClick={() => setAiSetupStep(0)}
-                                                            className="text-[10px] font-black text-slate-500 hover:text-slate-900"
+                                                            className="text-[10px] font-semibold text-slate-500 hover:text-slate-900"
                                                         >
                                                             근거 다시 선택
                                                         </button>
@@ -2008,7 +2002,7 @@ export function PortfolioManagement({
                                             disabled={
                                                 saveRevisionMutation.isPending || !hasUnsavedChanges
                                             }
-                                            className="rounded-md bg-slate-800 px-3 py-1.5 text-xs font-black text-white disabled:opacity-40"
+                                            className="rounded-md bg-slate-800 px-3 py-1.5 text-xs font-semibold text-white disabled:opacity-40"
                                         >
                                             {saveRevisionMutation.isPending
                                                 ? '저장 중...'
@@ -2033,7 +2027,7 @@ export function PortfolioManagement({
                                                             ? '변경 내용을 새 revision으로 저장한 뒤 기준본으로 지정하세요.'
                                                             : undefined
                                                     }
-                                                    className="rounded-md bg-emerald-600 px-3 py-1.5 text-xs font-black text-white disabled:opacity-50"
+                                                    className="rounded-md bg-emerald-600 px-3 py-1.5 text-xs font-semibold text-white disabled:opacity-50"
                                                 >
                                                     v{selectedRevision.version} 기준본 지정
                                                 </button>
@@ -2066,7 +2060,7 @@ export function PortfolioManagement({
                         <main className="flex min-h-[20rem] min-w-0 flex-1 items-center justify-center px-6 text-center lg:order-3 lg:min-h-0">
                             <div className="max-w-sm">
                                 <FolderGit2 className="mx-auto h-8 w-8 text-slate-300" />
-                                <h3 className="mt-4 text-base font-black text-slate-800">
+                                <h3 className="mt-4 text-base font-semibold tracking-tight text-slate-800">
                                     편집할 사례를 선택하세요
                                 </h3>
                                 <p className="mt-2 text-sm leading-6 text-slate-500">
