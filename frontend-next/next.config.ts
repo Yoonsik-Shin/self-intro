@@ -35,6 +35,10 @@ const nextConfig: NextConfig = {
     },
     env: {
         NEXT_PUBLIC_BUILD_DATE: buildDate,
+        // Docker Compose가 프로세스 환경으로 주입한 공개 API 주소도 브라우저 번들에
+        // 명시적으로 고정한다. Next dev가 바인드 마운트 환경에서 이 값을 누락하면
+        // 클라이언트 요청이 상대 경로(/api/*)로 3000번 Next 서버에 들어가 404가 난다.
+        NEXT_PUBLIC_API_BASE_URL: process.env.NEXT_PUBLIC_API_BASE_URL ?? '',
     },
     webpack(config, { dev }) {
         // Docker Desktop의 익명 .next 볼륨에서 webpack filesystem cache가 장기간
