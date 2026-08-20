@@ -156,6 +156,10 @@ const WorkspaceSupportAccessPanel = dynamic(() =>
 const PREVIEW_MIN_WIDTH = 420;
 const PREVIEW_MAX_WIDTH = 960;
 const PREVIEW_DEFAULT_WIDTH = 760;
+const SIDEBAR_COLLAPSED_WIDTH = 56;
+const SIDEBAR_MIN_WIDTH = 184;
+const SIDEBAR_MAX_WIDTH = 320;
+const SIDEBAR_DEFAULT_WIDTH = 216;
 // 이 뷰포트 너비 아래에서는 도킹 대신 미리보기가 화면 전체를 차지한다(모바일 풀스크린처럼).
 const PREVIEW_STACK_BREAKPOINT = 640;
 // 미리보기를 도킹했을 때 사이드바 + 최소한의 admin 콘텐츠 영역을 위해 남겨두는 폭.
@@ -478,6 +482,18 @@ export function AdminDashboardShell({ workspaceSlug }: { workspaceSlug: string }
     const [publicCompositionSection, setPublicCompositionSection] =
         useState<PublicCompositionSection>('profile');
     const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
+    const [sidebarWidth, setSidebarWidth] = useState(() => {
+        const stored =
+            typeof window !== 'undefined'
+                ? window.localStorage.getItem('admin-sidebar-width')
+                : null;
+        const parsed = stored ? parseInt(stored, 10) : NaN;
+        return Number.isFinite(parsed)
+            ? Math.min(Math.max(parsed, SIDEBAR_MIN_WIDTH), SIDEBAR_MAX_WIDTH)
+            : SIDEBAR_DEFAULT_WIDTH;
+    });
+    const [isResizingSidebar, setIsResizingSidebar] = useState(false);
+    const sidebarResizeStartRef = useRef<{ x: number; width: number } | null>(null);
     const sidebarCollapsedBeforeMapRef = useRef(false);
     const isJobMapViewRef = useRef(false);
     const adminScrollRegionRef = useRef<HTMLElement | null>(null);
@@ -586,6 +602,50 @@ export function AdminDashboardShell({ workspaceSlug }: { workspaceSlug: string }
         compactViewport.addEventListener('change', handleViewportChange);
         return () => compactViewport.removeEventListener('change', handleViewportChange);
     }, []);
+
+    const handleSidebarResizeStart = (event: ReactPointerEvent<HTMLDivElement>) => {
+        if (event.button !== 0 || isSidebarCollapsed) return;
+        event.preventDefault();
+        sidebarResizeStartRef.current = { x: event.clientX, width: sidebarWidth };
+        setIsResizingSidebar(true);
+    };
+
+    useEffect(() => {
+        if (!isResizingSidebar) return;
+
+        const handlePointerMove = (event: PointerEvent) => {
+            const start = sidebarResizeStartRef.current;
+            if (!start) return;
+            const nextWidth = Math.min(
+                Math.max(start.width + event.clientX - start.x, SIDEBAR_MIN_WIDTH),
+                SIDEBAR_MAX_WIDTH
+            );
+            setSidebarWidth(nextWidth);
+        };
+
+        const handlePointerUp = () => {
+            sidebarResizeStartRef.current = null;
+            setIsResizingSidebar(false);
+        };
+
+        window.addEventListener('pointermove', handlePointerMove);
+        window.addEventListener('pointerup', handlePointerUp);
+        window.addEventListener('pointercancel', handlePointerUp);
+        document.body.style.cursor = 'col-resize';
+        document.body.style.userSelect = 'none';
+
+        return () => {
+            window.removeEventListener('pointermove', handlePointerMove);
+            window.removeEventListener('pointerup', handlePointerUp);
+            window.removeEventListener('pointercancel', handlePointerUp);
+            document.body.style.cursor = '';
+            document.body.style.userSelect = '';
+        };
+    }, [isResizingSidebar]);
+
+    useEffect(() => {
+        window.localStorage.setItem('admin-sidebar-width', String(sidebarWidth));
+    }, [sidebarWidth]);
 
     const [isPreviewOpen, setIsPreviewOpen] = useState(false);
     const [isPreviewVisible, setIsPreviewVisible] = useState(false);
@@ -1021,15 +1081,15 @@ export function AdminDashboardShell({ workspaceSlug }: { workspaceSlug: string }
             <div className="flex min-h-0 flex-1">
                 <div className="min-h-0 min-w-0 flex-1 overflow-hidden">
                     <div
-                        className="grid h-full min-h-0 w-full grid-cols-1 gap-6 px-4 py-6 transition-[grid-template-columns] duration-300 ease-in-out sm:px-6"
+                        className={`grid h-full min-h-0 w-full grid-cols-1 gap-6 px-4 py-6 sm:px-6 ${isResizingSidebar ? '' : 'transition-[grid-template-columns] duration-300 ease-in-out'}`}
                         style={{
                             gridTemplateColumns: isSidebarCollapsed
-                                ? '56px minmax(0, 1fr)'
-                                : '216px minmax(0, 1fr)',
+                                ? `${SIDEBAR_COLLAPSED_WIDTH}px minmax(0, 1fr)`
+                                : `${sidebarWidth}px minmax(0, 1fr)`,
                         }}
                     >
                         <aside
-                            className={`relative isolate min-h-0 min-w-0 overflow-x-hidden overflow-y-auto transition-all duration-300 ease-in-out [scrollbar-width:none] [&::-webkit-scrollbar]:hidden ${isSidebarCollapsed ? 'rounded-2xl border border-slate-200 bg-white shadow-sm' : ''}`}
+                            className={`relative isolate col-start-1 row-start-1 min-h-0 min-w-0 overflow-x-hidden overflow-y-auto transition-all duration-300 ease-in-out [scrollbar-width:none] [&::-webkit-scrollbar]:hidden ${isSidebarCollapsed ? 'rounded-2xl border border-slate-200 bg-white shadow-sm' : ''}`}
                         >
                             <div
                                 className={
@@ -1187,6 +1247,43 @@ export function AdminDashboardShell({ workspaceSlug }: { workspaceSlug: string }
                                 ))}
                             </nav>
                         </aside>
+                        {!isSidebarCollapsed && (
+                            <div
+                                role="separator"
+                                aria-label="사이드바 너비 조절"
+                                aria-orientation="vertical"
+                                aria-valuemin={SIDEBAR_MIN_WIDTH}
+                                aria-valuemax={SIDEBAR_MAX_WIDTH}
+                                aria-valuenow={sidebarWidth}
+                                tabIndex={0}
+                                title="드래그하거나 방향키로 사이드바 너비 조절"
+                                onPointerDown={handleSidebarResizeStart}
+                                onKeyDown={(event) => {
+                                    if (event.key === 'ArrowLeft') {
+                                        event.preventDefault();
+                                        setSidebarWidth((width) =>
+                                            Math.max(width - 8, SIDEBAR_MIN_WIDTH)
+                                        );
+                                    } else if (event.key === 'ArrowRight') {
+                                        event.preventDefault();
+                                        setSidebarWidth((width) =>
+                                            Math.min(width + 8, SIDEBAR_MAX_WIDTH)
+                                        );
+                                    } else if (event.key === 'Home') {
+                                        event.preventDefault();
+                                        setSidebarWidth(SIDEBAR_MIN_WIDTH);
+                                    } else if (event.key === 'End') {
+                                        event.preventDefault();
+                                        setSidebarWidth(SIDEBAR_MAX_WIDTH);
+                                    }
+                                }}
+                                className="group relative z-20 col-start-1 row-start-1 mt-10 w-6 translate-x-1/2 justify-self-end self-stretch cursor-col-resize touch-none outline-none"
+                            >
+                                <span
+                                    className={`absolute inset-y-0 left-1/2 w-px -translate-x-1/2 transition-colors ${isResizingSidebar ? 'bg-slate-500' : 'bg-transparent group-hover:bg-slate-300 group-focus-visible:bg-slate-400'}`}
+                                />
+                            </div>
+                        )}
 
                         <section
                             ref={adminScrollRegionRef}
