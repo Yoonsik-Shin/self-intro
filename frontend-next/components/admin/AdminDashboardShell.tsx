@@ -239,34 +239,6 @@ const ADMIN_MENU_GROUPS: AdminMenuGroup[] = [
         ],
     },
     {
-        label: 'Workspace 설정',
-        description: '현재 Workspace의 기본 정보, 멤버, 보안 동의를 관리합니다.',
-        scope: 'WORKSPACE',
-        items: [
-            {
-                id: 'WORKSPACE_SETTINGS',
-                label: '설정',
-                description: '공개 주소, 이름, 탈퇴, 폐쇄 등 Workspace 기본 설정을 관리합니다.',
-                icon: Settings,
-            },
-            {
-                id: 'MEMBERS',
-                label: '멤버·권한',
-                description: 'Workspace에 참여하는 멤버와 역할을 관리합니다.',
-                icon: Users,
-                workspaceAdminOnly: true,
-            },
-            {
-                id: 'WORKSPACE_SUPPORT_ACCESS',
-                label: '고객 지원 접근 동의',
-                description:
-                    '플랫폼 지원 담당자가 보낸 최소 진단 요청을 소유자가 승인·거절·철회합니다.',
-                icon: ShieldCheck,
-                workspaceOwnerOnly: true,
-            },
-        ],
-    },
-    {
         label: '내 기록',
         description: 'Workspace에 저장되며 저장만으로 공개 페이지에 노출되지 않습니다.',
         scope: 'SOURCE',
@@ -339,6 +311,34 @@ const ADMIN_MENU_GROUPS: AdminMenuGroup[] = [
                 label: '이력서·PDF 템플릿',
                 description: '지원 목적별 이력서와 PDF 출력 구성을 관리합니다.',
                 icon: Printer,
+            },
+        ],
+    },
+    {
+        label: 'Workspace 설정',
+        description: '현재 Workspace의 기본 정보, 멤버, 보안 동의를 관리합니다.',
+        scope: 'WORKSPACE',
+        items: [
+            {
+                id: 'WORKSPACE_SETTINGS',
+                label: '설정',
+                description: '공개 주소, 이름, 탈퇴, 폐쇄 등 Workspace 기본 설정을 관리합니다.',
+                icon: Settings,
+            },
+            {
+                id: 'MEMBERS',
+                label: '멤버·권한',
+                description: 'Workspace에 참여하는 멤버와 역할을 관리합니다.',
+                icon: Users,
+                workspaceAdminOnly: true,
+            },
+            {
+                id: 'WORKSPACE_SUPPORT_ACCESS',
+                label: '고객 지원 접근 동의',
+                description:
+                    '플랫폼 지원 담당자가 보낸 최소 진단 요청을 소유자가 승인·거절·철회합니다.',
+                icon: ShieldCheck,
+                workspaceOwnerOnly: true,
             },
         ],
     },
