@@ -64,6 +64,117 @@ const FLOW_BACK_BUTTON_CLASS =
 const FLOW_NEXT_BUTTON_CLASS =
     'inline-flex items-center justify-center gap-1.5 rounded-lg bg-slate-900 px-4 py-2.5 text-xs font-black text-white transition-colors hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-40';
 
+type EvidencePickerOption = {
+    id: number;
+    label: string;
+};
+
+function EvidencePicker({
+    options,
+    selectedIds,
+    onToggle,
+    searchPlaceholder,
+}: {
+    options: EvidencePickerOption[];
+    selectedIds: number[];
+    onToggle: (id: number) => void;
+    searchPlaceholder: string;
+}) {
+    const [query, setQuery] = useState('');
+    const [visibleCount, setVisibleCount] = useState(10);
+    const normalizedQuery = query.trim().toLocaleLowerCase();
+    const selectedIdSet = new Set(selectedIds);
+    const selectedOptions = options.filter((option) => selectedIdSet.has(option.id));
+    const matchingOptions = options.filter(
+        (option) =>
+            !selectedIdSet.has(option.id) &&
+            (!normalizedQuery || option.label.toLocaleLowerCase().includes(normalizedQuery))
+    );
+    const visibleOptions = matchingOptions.slice(0, visibleCount);
+
+    return (
+        <div className="flex h-full min-h-0 flex-col">
+            <div className="shrink-0 border-y border-slate-200 py-3">
+                <div className="flex items-center justify-between gap-3">
+                    <span className="text-[11px] font-black text-slate-600">
+                        선택됨 {selectedOptions.length}
+                    </span>
+                    {selectedOptions.length > 0 && (
+                        <span className="text-[10px] text-slate-400">
+                            항목을 누르면 선택이 해제됩니다.
+                        </span>
+                    )}
+                </div>
+                {selectedOptions.length > 0 ? (
+                    <div className="mt-2 flex max-h-24 flex-wrap gap-1.5 overflow-y-auto">
+                        {selectedOptions.map((option) => (
+                            <button
+                                key={option.id}
+                                type="button"
+                                onClick={() => onToggle(option.id)}
+                                className="inline-flex max-w-full items-center gap-1.5 rounded-md bg-slate-900 px-2.5 py-1.5 text-left text-[11px] font-bold text-white"
+                            >
+                                <span className="truncate">{option.label}</span>
+                                <X className="h-3 w-3 shrink-0 text-slate-300" />
+                            </button>
+                        ))}
+                    </div>
+                ) : (
+                    <p className="mt-2 text-xs text-slate-400">아직 선택한 항목이 없습니다.</p>
+                )}
+            </div>
+
+            <label className="mt-3 flex shrink-0 items-center gap-2 border-b border-slate-300 py-2.5 focus-within:border-slate-900">
+                <Search className="h-4 w-4 shrink-0 text-slate-400" />
+                <span className="sr-only">{searchPlaceholder}</span>
+                <input
+                    value={query}
+                    onChange={(event) => {
+                        setQuery(event.target.value);
+                        setVisibleCount(10);
+                    }}
+                    placeholder={searchPlaceholder}
+                    className="min-w-0 flex-1 bg-transparent text-sm text-slate-900 outline-none placeholder:text-slate-400"
+                />
+                <span className="shrink-0 text-[10px] font-bold text-slate-400">
+                    {matchingOptions.length}개
+                </span>
+            </label>
+
+            <div className="mt-2 min-h-0 flex-1 overflow-y-auto border-y border-slate-200">
+                {visibleOptions.map((option) => (
+                    <button
+                        key={option.id}
+                        type="button"
+                        onClick={() => onToggle(option.id)}
+                        className="group flex w-full items-center gap-3 border-b border-slate-200 px-3 py-3 text-left transition-colors last:border-b-0 hover:bg-slate-50"
+                    >
+                        <span className="min-w-0 flex-1 text-xs font-semibold leading-5 text-slate-700">
+                            {option.label}
+                        </span>
+                        <Plus className="h-4 w-4 shrink-0 text-slate-300 group-hover:text-slate-700" />
+                    </button>
+                ))}
+                {matchingOptions.length === 0 && (
+                    <div className="px-4 py-10 text-center text-xs font-medium text-slate-400">
+                        {normalizedQuery ? '검색 결과가 없습니다.' : '선택할 항목이 없습니다.'}
+                    </div>
+                )}
+            </div>
+
+            {matchingOptions.length > visibleCount && (
+                <button
+                    type="button"
+                    onClick={() => setVisibleCount((count) => count + 10)}
+                    className="mt-2 shrink-0 py-2 text-xs font-black text-slate-500 hover:text-slate-900"
+                >
+                    더 보기 · {matchingOptions.length - visibleCount}개 남음
+                </button>
+            )}
+        </div>
+    );
+}
+
 function CaseFlowStepper({
     currentStep,
     maxReachableStep,
@@ -1245,124 +1356,75 @@ export function PortfolioManagement({
                                                         </p>
                                                     </div>
 
-                                                    <div className="mt-4 min-h-0 flex-1 overflow-y-auto">
+                                                    <div className="mt-4 min-h-0 flex-1 overflow-hidden">
                                                         {aiSetupStep === 0 && (
-                                                            <div className="flex flex-wrap gap-2">
-                                                                {(studyPage?.content ?? [])
-                                                                    .slice(0, 30)
-                                                                    .map((study) => (
-                                                                        <button
-                                                                            key={study.id}
-                                                                            type="button"
-                                                                            onClick={() =>
-                                                                                setStudyIds(
-                                                                                    (current) =>
-                                                                                        current.includes(
-                                                                                            study.id
-                                                                                        )
-                                                                                            ? current.filter(
-                                                                                                  (
-                                                                                                      id
-                                                                                                  ) =>
-                                                                                                      id !==
-                                                                                                      study.id
-                                                                                              )
-                                                                                            : [
-                                                                                                  ...current,
-                                                                                                  study.id,
-                                                                                              ]
-                                                                                )
-                                                                            }
-                                                                            className={`rounded-lg border px-3 py-2 text-xs font-bold transition ${
-                                                                                studyIds.includes(
-                                                                                    study.id
-                                                                                )
-                                                                                    ? 'border-slate-900 bg-slate-900 text-white'
-                                                                                    : 'border-slate-300 bg-white text-slate-600 hover:border-slate-500'
-                                                                            }`}
-                                                                        >
-                                                                            {study.title}
-                                                                        </button>
-                                                                    ))}
-                                                            </div>
+                                                            <EvidencePicker
+                                                                key="studies"
+                                                                options={(
+                                                                    studyPage?.content ?? []
+                                                                ).map((study) => ({
+                                                                    id: study.id,
+                                                                    label: study.title,
+                                                                }))}
+                                                                selectedIds={studyIds}
+                                                                onToggle={(id) =>
+                                                                    setStudyIds((current) =>
+                                                                        current.includes(id)
+                                                                            ? current.filter(
+                                                                                  (itemId) =>
+                                                                                      itemId !== id
+                                                                              )
+                                                                            : [...current, id]
+                                                                    )
+                                                                }
+                                                                searchPlaceholder="학습 기록 검색"
+                                                            />
                                                         )}
 
                                                         {aiSetupStep === 1 && (
-                                                            <div className="flex flex-wrap gap-2">
-                                                                {competencies.map((competency) => (
-                                                                    <button
-                                                                        key={competency.id}
-                                                                        type="button"
-                                                                        onClick={() =>
-                                                                            setCompetencyIds(
-                                                                                (current) =>
-                                                                                    current.includes(
-                                                                                        competency.id
-                                                                                    )
-                                                                                        ? current.filter(
-                                                                                              (
-                                                                                                  id
-                                                                                              ) =>
-                                                                                                  id !==
-                                                                                                  competency.id
-                                                                                          )
-                                                                                        : [
-                                                                                              ...current,
-                                                                                              competency.id,
-                                                                                          ]
-                                                                            )
-                                                                        }
-                                                                        className={`rounded-lg border px-3 py-2 text-xs font-bold transition ${
-                                                                            competencyIds.includes(
-                                                                                competency.id
-                                                                            )
-                                                                                ? 'border-slate-900 bg-slate-900 text-white'
-                                                                                : 'border-slate-300 bg-white text-slate-600 hover:border-slate-500'
-                                                                        }`}
-                                                                    >
-                                                                        {competency.title}
-                                                                    </button>
-                                                                ))}
-                                                            </div>
+                                                            <EvidencePicker
+                                                                key="competencies"
+                                                                options={competencies.map(
+                                                                    (competency) => ({
+                                                                        id: competency.id,
+                                                                        label: competency.title,
+                                                                    })
+                                                                )}
+                                                                selectedIds={competencyIds}
+                                                                onToggle={(id) =>
+                                                                    setCompetencyIds((current) =>
+                                                                        current.includes(id)
+                                                                            ? current.filter(
+                                                                                  (itemId) =>
+                                                                                      itemId !== id
+                                                                              )
+                                                                            : [...current, id]
+                                                                    )
+                                                                }
+                                                                searchPlaceholder="핵심 역량 검색"
+                                                            />
                                                         )}
 
                                                         {aiSetupStep === 2 && (
-                                                            <div className="flex flex-wrap gap-2">
-                                                                {skills.map((skill) => (
-                                                                    <button
-                                                                        key={skill.id}
-                                                                        type="button"
-                                                                        onClick={() =>
-                                                                            setSkillIds(
-                                                                                (current) =>
-                                                                                    current.includes(
-                                                                                        skill.id
-                                                                                    )
-                                                                                        ? current.filter(
-                                                                                              (
-                                                                                                  id
-                                                                                              ) =>
-                                                                                                  id !==
-                                                                                                  skill.id
-                                                                                          )
-                                                                                        : [
-                                                                                              ...current,
-                                                                                              skill.id,
-                                                                                          ]
-                                                                            )
-                                                                        }
-                                                                        className={`rounded-lg border px-3 py-2 text-xs font-bold transition ${
-                                                                            skillIds.includes(
-                                                                                skill.id
-                                                                            )
-                                                                                ? 'border-slate-900 bg-slate-900 text-white'
-                                                                                : 'border-slate-300 bg-white text-slate-600 hover:border-slate-500'
-                                                                        }`}
-                                                                    >
-                                                                        {skill.name}
-                                                                    </button>
-                                                                ))}
-                                                            </div>
+                                                            <EvidencePicker
+                                                                key="skills"
+                                                                options={skills.map((skill) => ({
+                                                                    id: skill.id,
+                                                                    label: skill.name,
+                                                                }))}
+                                                                selectedIds={skillIds}
+                                                                onToggle={(id) =>
+                                                                    setSkillIds((current) =>
+                                                                        current.includes(id)
+                                                                            ? current.filter(
+                                                                                  (itemId) =>
+                                                                                      itemId !== id
+                                                                              )
+                                                                            : [...current, id]
+                                                                    )
+                                                                }
+                                                                searchPlaceholder="기술 검색"
+                                                            />
                                                         )}
                                                     </div>
 
