@@ -3282,7 +3282,7 @@ export function JobApplicationManagement({
     const isSaving = createMutation.isPending || updateMutation.isPending;
 
     return (
-        <div className="space-y-4">
+        <div className="flex h-full min-h-0 flex-col gap-4 overflow-hidden">
             <AdminPageHeader
                 title="지원 공고 관리"
                 description="지원한 채용 공고를 리스트로 관리하고, 보드에서 카드를 드래그해 전형 단계를 빠르게 옮길 수 있습니다."
@@ -3300,7 +3300,7 @@ export function JobApplicationManagement({
                 }
             />
 
-            <div className="flex flex-wrap items-center gap-2">
+            <div className="flex shrink-0 flex-wrap items-center gap-2">
                 <div className="flex rounded-lg border border-slate-200 bg-white p-0.5">
                     <button
                         type="button"
@@ -3371,8 +3371,8 @@ export function JobApplicationManagement({
                     </p>
                 </div>
             ) : viewMode === 'LIST' ? (
-                <div className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
-                    <div className="flex flex-wrap items-end justify-between gap-3 border-b border-slate-200 px-5">
+                <div className="flex min-h-0 flex-1 flex-col overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
+                    <div className="flex shrink-0 flex-wrap items-end justify-between gap-3 border-b border-slate-200 px-5">
                         <div className="flex items-center gap-5 pt-4">
                             {(
                                 [
@@ -3485,7 +3485,7 @@ export function JobApplicationManagement({
                             )}
                         </div>
                     </div>
-                    <div className="flex items-center gap-1.5 border-b border-slate-100 bg-slate-50/70 px-5 py-2 overflow-x-auto">
+                    <div className="flex shrink-0 items-center gap-1.5 overflow-x-auto border-b border-slate-100 bg-slate-50/70 px-5 py-2">
                         {listSection === 'CANDIDATES'
                             ? (
                                   [
@@ -3565,7 +3565,7 @@ export function JobApplicationManagement({
                     {listSection === 'CANDIDATES' ? (
                         <>
                             {listCandidates.length === 0 ? (
-                                <div className="py-12 text-center">
+                                <div className="min-h-0 flex-1 overflow-y-auto py-12 text-center">
                                     <p className="text-sm font-semibold text-slate-400">
                                         {candidates.length === 0
                                             ? '수집된 공고가 없습니다.'
@@ -3582,7 +3582,7 @@ export function JobApplicationManagement({
                                     )}
                                 </div>
                             ) : (
-                                <div className="overflow-x-auto">
+                                <div className="min-h-0 flex-1 overflow-auto overscroll-contain">
                                     <table className="w-full min-w-[720px] text-left text-sm border-collapse">
                                         <thead className="bg-slate-50 text-xs uppercase tracking-wider text-slate-400">
                                             <tr>
@@ -3979,7 +3979,7 @@ export function JobApplicationManagement({
                     ) : (
                         <>
                             {listApplications.length === 0 ? (
-                                <div className="py-12 text-center">
+                                <div className="min-h-0 flex-1 overflow-y-auto py-12 text-center">
                                     <p className="text-sm font-semibold text-slate-400">
                                         {applications.length === 0
                                             ? '등록된 지원 공고가 없습니다.'
@@ -3996,7 +3996,7 @@ export function JobApplicationManagement({
                                     )}
                                 </div>
                             ) : (
-                                <div className="overflow-x-auto">
+                                <div className="min-h-0 flex-1 overflow-auto overscroll-contain">
                                     <table className="w-full min-w-[820px] text-left text-sm border-collapse">
                                         <thead className="bg-slate-50 text-xs uppercase tracking-wider text-slate-400">
                                             <tr>
@@ -4376,7 +4376,7 @@ export function JobApplicationManagement({
                             stopBoardAutoScroll();
                         }
                     }}
-                    className="w-full min-w-0 overflow-x-auto overflow-y-hidden pb-3 custom-scrollbar"
+                    className="min-h-0 w-full min-w-0 flex-1 overflow-x-auto overflow-y-hidden pb-3 custom-scrollbar"
                 >
                     <div
                         ref={boardRef}
@@ -4672,7 +4672,7 @@ export function JobApplicationManagement({
                     </div>
                 </div>
             ) : viewMode === 'CALENDAR' ? (
-                <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
+                <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
                     <div className="mb-3 flex items-center justify-between">
                         <button
                             type="button"
@@ -4765,14 +4765,16 @@ export function JobApplicationManagement({
                     </div>
                 </div>
             ) : (
-                <JobPostingMapView
-                    postings={postings}
-                    settings={settingsData}
-                    onUpdateSettings={() => {
-                        queryClient.invalidateQueries({ queryKey: ['jobPostingSettings'] });
-                    }}
-                    onSelectPosting={(posting) => openDrawer(posting)}
-                />
+                <div className="min-h-0 flex-1">
+                    <JobPostingMapView
+                        postings={postings}
+                        settings={settingsData}
+                        onUpdateSettings={() => {
+                            queryClient.invalidateQueries({ queryKey: ['jobPostingSettings'] });
+                        }}
+                        onSelectPosting={(posting) => openDrawer(posting)}
+                    />
+                </div>
             )}
 
             {detailDrawerAnim.shouldRender &&

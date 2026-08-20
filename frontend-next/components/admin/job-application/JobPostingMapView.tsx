@@ -780,7 +780,7 @@ export default function JobPostingMapView({
     }, [isDetailPanelOpen, detailPanelWidth]);
 
     return (
-        <div className="flex flex-col h-[calc(100vh-7rem)] min-h-[750px] rounded-2xl border border-slate-200/90 bg-white overflow-hidden shadow-xl text-slate-800">
+        <div className="flex h-full min-h-0 flex-col overflow-hidden rounded-2xl border border-slate-200/90 bg-white text-slate-800 shadow-xl">
             {/* 가까이 겹친 마커의 빈 여백 클릭이 아래 마커로 통과되도록: 아이콘 컨테이너는 pointer-events 없음,
                 실제 보이는 원/라벨(.jp-hit)만 클릭 가능 */}
             <style>{`
