@@ -1043,7 +1043,7 @@ export function AdminDashboardShell({ workspaceSlug }: { workspaceSlug: string }
                                     onClick={() => setIsSidebarCollapsed((collapsed) => !collapsed)}
                                     title={isSidebarCollapsed ? '메뉴 펼치기' : '메뉴 접기'}
                                     aria-expanded={!isSidebarCollapsed}
-                                    className="z-20 flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-white text-slate-400 shadow-sm ring-1 ring-slate-200 transition-colors hover:bg-slate-100 hover:text-slate-900 focus:outline-none focus-visible:ring-2 focus-visible:ring-slate-400 focus-visible:ring-offset-1"
+                                    className="z-20 flex h-8 w-8 shrink-0 items-center justify-center rounded-md text-slate-400 transition-colors hover:bg-slate-200/70 hover:text-slate-900 focus:outline-none focus-visible:ring-2 focus-visible:ring-slate-400 focus-visible:ring-offset-1"
                                 >
                                     {isSidebarCollapsed ? (
                                         <ChevronRight className="h-4 w-4" />
@@ -1054,7 +1054,7 @@ export function AdminDashboardShell({ workspaceSlug }: { workspaceSlug: string }
                             </div>
                             <nav
                                 aria-label="Workspace 관리 메뉴"
-                                className={`space-y-5 ${isSidebarCollapsed ? 'px-2 pb-3' : ''}`}
+                                className={`space-y-5 ${isSidebarCollapsed ? 'pb-3' : ''}`}
                             >
                                 {visibleMenuGroups.map((group, groupIndex) => (
                                     <section
@@ -1152,7 +1152,7 @@ export function AdminDashboardShell({ workspaceSlug }: { workspaceSlug: string }
                                                             }
                                                             className={`flex items-center rounded-xl text-sm font-bold transition-all duration-300 ease-in-out ${
                                                                 isSidebarCollapsed
-                                                                    ? 'mx-auto h-11 w-11 justify-center'
+                                                                    ? 'mx-auto h-10 w-10 justify-center'
                                                                     : 'w-full gap-2.5 px-3 py-2.5 text-left'
                                                             } ${
                                                                 isActive
