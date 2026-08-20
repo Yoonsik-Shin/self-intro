@@ -704,7 +704,7 @@ export function PortfolioManagement({
                                 </div>
                             </div>
                         ) : (
-                            <div className="mx-auto mt-6 min-h-0 w-full max-w-2xl flex-1 overflow-y-auto pr-1">
+                            <div className="mx-auto mt-6 min-h-0 w-full max-w-4xl flex-1 overflow-y-auto pr-1">
                                 {createMode && (
                                     <>
                                         <div className="flex items-end justify-between gap-4">
