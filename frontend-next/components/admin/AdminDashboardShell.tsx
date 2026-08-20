@@ -1095,7 +1095,7 @@ export function AdminDashboardShell({ workspaceSlug }: { workspaceSlug: string }
                                 className={
                                     isSidebarCollapsed
                                         ? 'sticky top-0 z-30 mb-2 flex h-14 items-start justify-center rounded-t-[15px] border-b border-slate-100 bg-white px-2 pt-3'
-                                        : 'absolute right-0 top-0 z-30'
+                                        : 'sticky top-0 z-30 ml-auto -mb-8 h-8 w-8 rounded-md bg-[#f8fafc]/95 backdrop-blur-sm'
                                 }
                             >
                                 <button
