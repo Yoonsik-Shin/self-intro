@@ -1170,7 +1170,7 @@ export function AdminDashboardShell({ workspaceSlug }: { workspaceSlug: string }
                                             }`}
                                         >
                                             <h2
-                                                className={`shrink-0 whitespace-nowrap text-[13px] font-semibold tracking-tight ${group.requiresPlatformOperator ? 'text-white' : 'text-slate-600'}`}
+                                                className={`shrink-0 whitespace-nowrap text-[13px] font-bold tracking-tight ${group.requiresPlatformOperator ? 'text-white' : 'text-slate-600'}`}
                                             >
                                                 {group.label}
                                             </h2>
