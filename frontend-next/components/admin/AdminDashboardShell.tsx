@@ -1303,7 +1303,7 @@ export function AdminDashboardShell({ workspaceSlug }: { workspaceSlug: string }
                                 activeTab === 'PUBLIC_COMPOSITION'
                                     ? 'overflow-y-auto xl:overflow-hidden'
                                     : activeTab === 'PORTFOLIO'
-                                      ? 'overflow-y-auto lg:overflow-y-hidden'
+                                      ? 'overflow-hidden [&>*]:h-full [&>*]:min-h-0'
                                       : 'overflow-hidden [&>*]:h-full [&>*]:min-h-0 [&>*]:overflow-y-auto [&>*]:overscroll-contain'
                             }`}
                         >

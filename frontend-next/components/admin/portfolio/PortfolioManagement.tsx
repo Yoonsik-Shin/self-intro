@@ -512,7 +512,7 @@ export function PortfolioManagement({
     };
 
     return (
-        <div className="space-y-4 lg:flex lg:h-full lg:min-h-0 lg:flex-col lg:gap-4 lg:space-y-0 lg:overflow-hidden">
+        <div className="flex h-full min-h-0 flex-col gap-4 overflow-hidden">
             <AdminPageHeader
                 eyebrow="Source Record"
                 title="포트폴리오 사례 관리"
@@ -545,10 +545,10 @@ export function PortfolioManagement({
                         '--source-panel-width': `${sourcePanelWidth}px`,
                     } as CSSProperties
                 }
-                className="flex min-h-[44rem] flex-col gap-4 lg:min-h-0 lg:flex-1 lg:flex-row lg:gap-0"
+                className="flex min-h-0 flex-1 flex-col gap-4 overflow-y-auto overscroll-contain lg:flex-row lg:gap-0 lg:overflow-hidden"
             >
                 {createOpen && (
-                    <section className="flex min-h-[38rem] min-w-0 flex-1 flex-col px-1 py-1 lg:order-3 lg:min-h-0 lg:overflow-hidden lg:px-3">
+                    <section className="flex min-h-0 min-w-0 flex-1 flex-col overflow-y-auto px-1 py-1 lg:order-3 lg:overflow-hidden lg:px-3">
                         <div className="mx-auto w-full max-w-4xl shrink-0">
                             <h3 className="text-xl font-semibold tracking-tight text-slate-950">
                                 어떤 이야기를 하나의 사례로 보여줄까요?
@@ -795,7 +795,7 @@ export function PortfolioManagement({
                     </section>
                 )}
                 {/* 원본 목록: 공개 페이지 포함 여부가 아니라 Workspace에 저장된 사례 원본을 탐색한다. */}
-                <aside className="flex min-h-[34rem] w-full shrink-0 flex-col overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm lg:order-1 lg:min-h-0 lg:w-[var(--source-panel-width)]">
+                <aside className="flex min-h-[20rem] max-h-[50vh] w-full shrink-0 flex-col overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm lg:order-1 lg:h-full lg:min-h-0 lg:max-h-none lg:w-[var(--source-panel-width)]">
                     <div className="border-b border-slate-200 p-3.5">
                         <div className="flex items-center justify-between gap-3">
                             <p className="text-sm font-black text-slate-900">사례 원본</p>
@@ -1879,7 +1879,7 @@ export function PortfolioManagement({
                             )}
                         </main>
                     ) : (
-                        <main className="flex min-h-[34rem] min-w-0 flex-1 items-center justify-center px-6 text-center lg:order-3 lg:min-h-0">
+                        <main className="flex min-h-[20rem] min-w-0 flex-1 items-center justify-center px-6 text-center lg:order-3 lg:min-h-0">
                             <div className="max-w-sm">
                                 <FolderGit2 className="mx-auto h-8 w-8 text-slate-300" />
                                 <h3 className="mt-4 text-base font-black text-slate-800">
