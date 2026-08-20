@@ -501,10 +501,9 @@ public class StudyAiService {
         }
     }
 
-    private record StudyFact(Long id, String title, String summary, String status) {
+    private record StudyFact(Long id, String title, String summary) {
         static StudyFact from(Study value) {
-            return new StudyFact(
-                    value.getId(), value.getTitle(), value.getSummary(), value.getStatus().name());
+            return new StudyFact(value.getId(), value.getTitle(), value.getSummary());
         }
     }
 }

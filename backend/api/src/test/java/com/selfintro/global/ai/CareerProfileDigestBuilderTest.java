@@ -8,7 +8,6 @@ import com.selfintro.modules.competency.domain.repository.CompetencyRepository;
 import com.selfintro.modules.experience.domain.entity.Project;
 import com.selfintro.modules.experience.domain.repository.ExperienceRepository;
 import com.selfintro.modules.study.domain.entity.Study;
-import com.selfintro.modules.study.domain.enums.StudyStatus;
 import com.selfintro.modules.study.domain.repository.StudyRepository;
 import java.time.LocalDate;
 import java.util.List;
@@ -56,7 +55,6 @@ class CareerProfileDigestBuilderTest {
                         "Oracle 26ai 학습",
                         "Vector DB 및 SQL 공부",
                         "내용",
-                        StudyStatus.PUBLISHED,
                         LocalDate.now(),
                         null);
 

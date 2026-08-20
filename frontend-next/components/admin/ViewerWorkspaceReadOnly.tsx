@@ -166,7 +166,7 @@ export function ViewerWorkspaceReadOnly({
                 items={studyItems.map((study) => ({
                     id: study.id,
                     title: study.title,
-                    meta: `${study.section} · ${study.status}`,
+                    meta: study.section,
                     description: study.summary || '요약이 없습니다.',
                 }))}
             />

@@ -63,10 +63,6 @@ public class Study {
 
     @Enumerated(EnumType.STRING)
     @Column(nullable = false, length = 20)
-    private StudyStatus status;
-
-    @Enumerated(EnumType.STRING)
-    @Column(nullable = false, length = 20)
     private StudySection section = StudySection.ETC;
 
     @BatchSize(size = 100)
@@ -142,14 +138,12 @@ public class Study {
             String title,
             String summary,
             String contentMarkdown,
-            StudyStatus status,
             LocalDate learnedAt,
             LocalDateTime publishedAt) {
         this.slug = slug;
         this.title = title;
         this.summary = summary;
         this.contentMarkdown = contentMarkdown;
-        this.status = status;
         this.learnedAt = learnedAt;
         this.publishedAt = publishedAt;
         this.createdAt = LocalDateTime.now();
@@ -161,10 +155,9 @@ public class Study {
             String title,
             String summary,
             String contentMarkdown,
-            StudyStatus status,
             LocalDate learnedAt,
             LocalDateTime publishedAt) {
-        return new Study(slug, title, summary, contentMarkdown, status, learnedAt, publishedAt);
+        return new Study(slug, title, summary, contentMarkdown, learnedAt, publishedAt);
     }
 
     public void assignWorkspace(Long workspaceId) {
@@ -176,14 +169,12 @@ public class Study {
             String title,
             String summary,
             String contentMarkdown,
-            StudyStatus status,
             LocalDate learnedAt,
             LocalDateTime publishedAt) {
         this.slug = slug;
         this.title = title;
         this.summary = summary;
         this.contentMarkdown = contentMarkdown;
-        this.status = status;
         this.learnedAt = learnedAt;
         this.publishedAt = publishedAt;
         this.updatedAt = LocalDateTime.now();

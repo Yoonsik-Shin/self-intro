@@ -608,14 +608,12 @@ public class CompetencyAiService {
         }
     }
 
-    private record StudyFact(
-            Long id, String title, String summary, String status, List<String> skills) {
+    private record StudyFact(Long id, String title, String summary, List<String> skills) {
         static StudyFact from(Study value) {
             return new StudyFact(
                     value.getId(),
                     value.getTitle(),
                     value.getSummary(),
-                    value.getStatus().name(),
                     value.getSkills().stream().map(Skill::getName).toList());
         }
     }

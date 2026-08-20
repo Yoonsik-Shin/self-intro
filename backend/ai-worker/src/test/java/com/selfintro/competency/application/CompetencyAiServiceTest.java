@@ -19,7 +19,6 @@ import com.selfintro.modules.skill.domain.entity.Skill;
 import com.selfintro.modules.skill.domain.repository.SkillRepository;
 import com.selfintro.modules.skill.domain.repository.WorkspaceSkillRepository;
 import com.selfintro.modules.study.domain.entity.Study;
-import com.selfintro.modules.study.domain.enums.StudyStatus;
 import com.selfintro.modules.study.domain.repository.StudyRepository;
 import java.util.List;
 import org.junit.jupiter.api.BeforeEach;
@@ -72,7 +71,6 @@ class CompetencyAiServiceTest {
         Study study = mock(Study.class);
         when(study.getId()).thenReturn(30L);
         when(study.getTitle()).thenReturn("동시성 학습");
-        when(study.getStatus()).thenReturn(StudyStatus.PUBLISHED);
         when(study.getSkills()).thenReturn(List.of(skill));
         when(studyRepository.findAll()).thenReturn(List.of(study));
         when(competencyRepository.findAllByOrderByDisplayOrderAsc()).thenReturn(List.of());
