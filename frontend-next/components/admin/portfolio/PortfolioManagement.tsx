@@ -817,6 +817,7 @@ export function PortfolioManagement({
             <AdminPageHeader
                 title="포트폴리오 사례 관리"
                 description="경력·프로젝트 원본을 연결하거나 독립 사례를 설계하고, 근거 기반 AI 초안과 revision을 관리합니다. 공개 순서는 공개 페이지에서 별도로 구성합니다."
+                contentInset="none"
                 actions={
                     createOpen ? (
                         <button
@@ -1240,7 +1241,7 @@ export function PortfolioManagement({
                 {/* 상세 편집 */}
                 {!createOpen &&
                     (selectedCaseStudy ? (
-                        <main className="flex min-h-0 min-w-0 flex-1 flex-col gap-4 overflow-hidden px-1 pb-1 lg:order-3 lg:px-3">
+                        <main className="flex min-h-0 min-w-0 flex-1 flex-col gap-4 overflow-hidden px-1 pb-1 lg:order-3">
                             <div className="z-10 shrink-0 border-b border-slate-200 bg-[#f8fafc]/95 pt-1 backdrop-blur-sm">
                                 <div className="flex items-start justify-between gap-4">
                                     <div className="min-w-0">
@@ -1434,7 +1435,7 @@ export function PortfolioManagement({
 
                                             {aiSetupStep < AI_SETUP_STEPS.length - 1 ? (
                                                 <div className="flex min-h-0 flex-1 flex-col">
-                                                    <div className="shrink-0 px-2 pt-5 sm:px-3">
+                                                    <div className="shrink-0 pt-5">
                                                         <div className="flex items-center gap-1.5">
                                                             <h4 className="text-xl font-semibold tracking-tight text-slate-950">
                                                                 {AI_SETUP_STEPS[aiSetupStep]}
@@ -1461,7 +1462,7 @@ export function PortfolioManagement({
                                                         </div>
                                                     </div>
 
-                                                    <div className="mt-3 min-h-0 flex-1 overflow-hidden px-2 sm:px-3">
+                                                    <div className="mt-3 min-h-0 flex-1 overflow-hidden">
                                                         {aiSetupStep === 0 && (
                                                             <EvidencePicker
                                                                 key="studies"
@@ -1546,7 +1547,7 @@ export function PortfolioManagement({
                                                         )}
                                                     </div>
 
-                                                    <div className="mt-4 flex shrink-0 items-center justify-between border-t border-slate-200 px-2 py-4 sm:px-3">
+                                                    <div className="mt-3 flex shrink-0 items-center justify-between border-t border-slate-200 py-2.5">
                                                         <button
                                                             type="button"
                                                             onClick={() => {
