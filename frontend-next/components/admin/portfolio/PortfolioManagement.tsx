@@ -59,6 +59,7 @@ const STATUS_LABELS = {
 const SOURCE_PANEL_MIN_WIDTH = 220;
 const SOURCE_PANEL_MAX_WIDTH = 420;
 const SOURCE_PANEL_DEFAULT_WIDTH = 256;
+const AI_SETUP_STEPS = ['작성 방향', '학습 기록', '핵심 역량', '기술', 'AI 대화'] as const;
 
 function revisionChatContent(content: PortfolioCaseStudyContent): string {
     return [
@@ -93,6 +94,7 @@ export function PortfolioManagement({
     const [studyIds, setStudyIds] = useState<number[]>([]);
     const [skillIds, setSkillIds] = useState<number[]>([]);
     const [competencyIds, setCompetencyIds] = useState<number[]>([]);
+    const [aiSetupStep, setAiSetupStep] = useState(0);
     const [uploadingImage, setUploadingImage] = useState(false);
     const [sourcePanelWidth, setSourcePanelWidth] = useState(() => {
         const stored =
@@ -263,11 +265,18 @@ export function PortfolioManagement({
     // 렌더 중 setState로 처리해 리렌더가 한 번 더 도는 effect 패턴을 피한다.
     const [syncedDetail, setSyncedDetail] = useState(detail);
     if (detail !== syncedDetail) {
+        const caseChanged = detail?.caseStudy.id !== syncedDetail?.caseStudy.id;
         setSyncedDetail(detail);
         const latest = detail?.revisions[0];
         setContent(latest ? latest.content : EMPTY_CONTENT);
         setStudyIds(latest ? latest.content.sourceStudyIds : []);
         setSelectedRevisionId(latest?.id ?? null);
+        if (caseChanged) {
+            setInstruction('');
+            setSkillIds([]);
+            setCompetencyIds([]);
+            setAiSetupStep(latest ? AI_SETUP_STEPS.length - 1 : 0);
+        }
     }
 
     const createMutation = useMutation({
@@ -1100,161 +1109,266 @@ export function PortfolioManagement({
                                                 </div>
                                             </div>
 
-                                            <div className="grid xl:grid-cols-[minmax(16rem,0.72fr)_minmax(28rem,1.28fr)]">
-                                                <div className="space-y-5 border-b border-slate-200 bg-slate-100/55 p-4 xl:border-b-0 xl:border-r">
-                                                    <label className="block text-xs font-black text-slate-700">
-                                                        작성 방향
-                                                        <textarea
-                                                            value={instruction}
-                                                            onChange={(event) =>
-                                                                setInstruction(event.target.value)
+                                            <ol className="grid grid-cols-5 border-b border-slate-200 bg-slate-50/70 px-2 py-3">
+                                                {AI_SETUP_STEPS.map((step, index) => (
+                                                    <li key={step} className="min-w-0">
+                                                        <button
+                                                            type="button"
+                                                            onClick={() =>
+                                                                index <= aiSetupStep &&
+                                                                setAiSetupStep(index)
                                                             }
-                                                            placeholder="예: 운영 안정성을 높이기 위해 내린 판단과 트레이드오프 중심"
-                                                            rows={3}
-                                                            className="mt-2 w-full resize-none rounded-xl border border-slate-300 bg-white px-3 py-2.5 text-sm leading-5 outline-none transition focus:border-slate-700 focus:ring-2 focus:ring-slate-200"
-                                                        />
-                                                    </label>
-
-                                                    <div>
-                                                        <div className="flex items-center justify-between">
-                                                            <p className="text-xs font-black text-slate-700">
-                                                                학습 기록
-                                                            </p>
-                                                            <span className="text-[10px] font-bold text-slate-400">
-                                                                {studyIds.length}개 선택
+                                                            disabled={index > aiSetupStep}
+                                                            className={`flex w-full min-w-0 items-center gap-1.5 text-left text-[10px] font-black transition sm:text-[11px] ${
+                                                                index === aiSetupStep
+                                                                    ? 'text-slate-950'
+                                                                    : index < aiSetupStep
+                                                                      ? 'text-slate-500 hover:text-slate-800'
+                                                                      : 'cursor-default text-slate-300'
+                                                            }`}
+                                                        >
+                                                            <span
+                                                                className={`grid h-5 w-5 shrink-0 place-items-center rounded-full text-[9px] ${
+                                                                    index <= aiSetupStep
+                                                                        ? 'bg-slate-900 text-white'
+                                                                        : 'bg-slate-200 text-slate-400'
+                                                                }`}
+                                                            >
+                                                                {index + 1}
                                                             </span>
-                                                        </div>
-                                                        <div className="mt-2 flex max-h-28 flex-wrap gap-1.5 overflow-y-auto">
-                                                            {(studyPage?.content ?? [])
-                                                                .slice(0, 30)
-                                                                .map((study) => (
+                                                            <span className="truncate">{step}</span>
+                                                        </button>
+                                                    </li>
+                                                ))}
+                                            </ol>
+
+                                            {aiSetupStep < AI_SETUP_STEPS.length - 1 ? (
+                                                <div className="flex min-h-[28rem] flex-col bg-slate-100/55 p-5 sm:p-6">
+                                                    <div className="shrink-0">
+                                                        <span className="text-[10px] font-black uppercase tracking-[0.14em] text-slate-400">
+                                                            Step {aiSetupStep + 1} of{' '}
+                                                            {AI_SETUP_STEPS.length - 1}
+                                                        </span>
+                                                        <h4 className="mt-1 text-lg font-black text-slate-950">
+                                                            {AI_SETUP_STEPS[aiSetupStep]}
+                                                        </h4>
+                                                        <p className="mt-1 text-xs leading-5 text-slate-500">
+                                                            {aiSetupStep === 0
+                                                                ? '이번 사례에서 강조할 판단과 문제 해결 관점을 적어주세요.'
+                                                                : aiSetupStep === 1
+                                                                  ? '초안의 근거로 사용할 학습 기록을 선택하세요.'
+                                                                  : aiSetupStep === 2
+                                                                    ? '이 사례가 보여줄 핵심 역량을 선택하세요.'
+                                                                    : '사례에서 실제로 사용한 기술을 선택하세요.'}
+                                                        </p>
+                                                    </div>
+
+                                                    <div className="mt-6 min-h-0 flex-1 overflow-y-auto">
+                                                        {aiSetupStep === 0 && (
+                                                            <textarea
+                                                                value={instruction}
+                                                                onChange={(event) =>
+                                                                    setInstruction(
+                                                                        event.target.value
+                                                                    )
+                                                                }
+                                                                placeholder="예: 운영 안정성을 높이기 위해 내린 판단과 트레이드오프 중심"
+                                                                rows={7}
+                                                                autoFocus
+                                                                className="w-full resize-none rounded-xl border border-slate-300 bg-white px-4 py-3 text-sm leading-6 outline-none transition focus:border-slate-700 focus:ring-2 focus:ring-slate-200"
+                                                            />
+                                                        )}
+
+                                                        {aiSetupStep === 1 && (
+                                                            <div className="flex flex-wrap gap-2">
+                                                                {(studyPage?.content ?? [])
+                                                                    .slice(0, 30)
+                                                                    .map((study) => (
+                                                                        <button
+                                                                            key={study.id}
+                                                                            type="button"
+                                                                            onClick={() =>
+                                                                                setStudyIds(
+                                                                                    (current) =>
+                                                                                        current.includes(
+                                                                                            study.id
+                                                                                        )
+                                                                                            ? current.filter(
+                                                                                                  (
+                                                                                                      id
+                                                                                                  ) =>
+                                                                                                      id !==
+                                                                                                      study.id
+                                                                                              )
+                                                                                            : [
+                                                                                                  ...current,
+                                                                                                  study.id,
+                                                                                              ]
+                                                                                )
+                                                                            }
+                                                                            className={`rounded-lg border px-3 py-2 text-xs font-bold transition ${
+                                                                                studyIds.includes(
+                                                                                    study.id
+                                                                                )
+                                                                                    ? 'border-slate-900 bg-slate-900 text-white'
+                                                                                    : 'border-slate-300 bg-white text-slate-600 hover:border-slate-500'
+                                                                            }`}
+                                                                        >
+                                                                            {study.title}
+                                                                        </button>
+                                                                    ))}
+                                                            </div>
+                                                        )}
+
+                                                        {aiSetupStep === 2 && (
+                                                            <div className="flex flex-wrap gap-2">
+                                                                {competencies.map((competency) => (
                                                                     <button
-                                                                        key={study.id}
+                                                                        key={competency.id}
                                                                         type="button"
                                                                         onClick={() =>
-                                                                            setStudyIds(
+                                                                            setCompetencyIds(
                                                                                 (current) =>
                                                                                     current.includes(
-                                                                                        study.id
+                                                                                        competency.id
                                                                                     )
                                                                                         ? current.filter(
                                                                                               (
                                                                                                   id
                                                                                               ) =>
                                                                                                   id !==
-                                                                                                  study.id
+                                                                                                  competency.id
                                                                                           )
                                                                                         : [
                                                                                               ...current,
-                                                                                              study.id,
+                                                                                              competency.id,
                                                                                           ]
                                                                             )
                                                                         }
-                                                                        className={`rounded-lg border px-2.5 py-1.5 text-[11px] font-bold transition ${
-                                                                            studyIds.includes(
-                                                                                study.id
+                                                                        className={`rounded-lg border px-3 py-2 text-xs font-bold transition ${
+                                                                            competencyIds.includes(
+                                                                                competency.id
                                                                             )
                                                                                 ? 'border-slate-900 bg-slate-900 text-white'
-                                                                                : 'border-slate-200 bg-white text-slate-600 hover:border-slate-400'
+                                                                                : 'border-slate-300 bg-white text-slate-600 hover:border-slate-500'
                                                                         }`}
                                                                     >
-                                                                        {study.title}
+                                                                        {competency.title}
                                                                     </button>
                                                                 ))}
-                                                        </div>
-                                                    </div>
+                                                            </div>
+                                                        )}
 
-                                                    <div>
-                                                        <div className="flex items-center justify-between">
-                                                            <p className="text-xs font-black text-slate-700">
-                                                                핵심 역량
-                                                            </p>
-                                                            <span className="text-[10px] font-bold text-slate-400">
-                                                                {competencyIds.length}개 선택
-                                                            </span>
-                                                        </div>
-                                                        <div className="mt-2 flex max-h-28 flex-wrap gap-1.5 overflow-y-auto">
-                                                            {competencies.map((competency) => (
-                                                                <button
-                                                                    key={competency.id}
-                                                                    type="button"
-                                                                    onClick={() =>
-                                                                        setCompetencyIds(
-                                                                            (current) =>
-                                                                                current.includes(
-                                                                                    competency.id
-                                                                                )
-                                                                                    ? current.filter(
-                                                                                          (id) =>
-                                                                                              id !==
-                                                                                              competency.id
-                                                                                      )
-                                                                                    : [
-                                                                                          ...current,
-                                                                                          competency.id,
-                                                                                      ]
-                                                                        )
-                                                                    }
-                                                                    className={`rounded-lg border px-2.5 py-1.5 text-[11px] font-bold transition ${
-                                                                        competencyIds.includes(
-                                                                            competency.id
-                                                                        )
-                                                                            ? 'border-slate-900 bg-slate-900 text-white'
-                                                                            : 'border-slate-200 bg-white text-slate-600 hover:border-slate-400'
-                                                                    }`}
-                                                                >
-                                                                    {competency.title}
-                                                                </button>
-                                                            ))}
-                                                        </div>
-                                                    </div>
-
-                                                    <div>
-                                                        <div className="flex items-center justify-between">
-                                                            <p className="text-xs font-black text-slate-700">
-                                                                기술
-                                                            </p>
-                                                            <span className="text-[10px] font-bold text-slate-400">
-                                                                {skillIds.length}개 선택
-                                                            </span>
-                                                        </div>
-                                                        <div className="mt-2 flex max-h-28 flex-wrap gap-1.5 overflow-y-auto">
-                                                            {skills.map((skill) => (
-                                                                <button
-                                                                    key={skill.id}
-                                                                    type="button"
-                                                                    onClick={() =>
-                                                                        setSkillIds((current) =>
-                                                                            current.includes(
+                                                        {aiSetupStep === 3 && (
+                                                            <div className="flex flex-wrap gap-2">
+                                                                {skills.map((skill) => (
+                                                                    <button
+                                                                        key={skill.id}
+                                                                        type="button"
+                                                                        onClick={() =>
+                                                                            setSkillIds(
+                                                                                (current) =>
+                                                                                    current.includes(
+                                                                                        skill.id
+                                                                                    )
+                                                                                        ? current.filter(
+                                                                                              (
+                                                                                                  id
+                                                                                              ) =>
+                                                                                                  id !==
+                                                                                                  skill.id
+                                                                                          )
+                                                                                        : [
+                                                                                              ...current,
+                                                                                              skill.id,
+                                                                                          ]
+                                                                            )
+                                                                        }
+                                                                        className={`rounded-lg border px-3 py-2 text-xs font-bold transition ${
+                                                                            skillIds.includes(
                                                                                 skill.id
                                                                             )
-                                                                                ? current.filter(
-                                                                                      (id) =>
-                                                                                          id !==
-                                                                                          skill.id
-                                                                                  )
-                                                                                : [
-                                                                                      ...current,
-                                                                                      skill.id,
-                                                                                  ]
-                                                                        )
-                                                                    }
-                                                                    className={`rounded-lg border px-2.5 py-1.5 text-[11px] font-bold transition ${
-                                                                        skillIds.includes(skill.id)
-                                                                            ? 'border-slate-900 bg-slate-900 text-white'
-                                                                            : 'border-slate-200 bg-white text-slate-600 hover:border-slate-400'
-                                                                    }`}
-                                                                >
-                                                                    {skill.name}
-                                                                </button>
-                                                            ))}
-                                                        </div>
+                                                                                ? 'border-slate-900 bg-slate-900 text-white'
+                                                                                : 'border-slate-300 bg-white text-slate-600 hover:border-slate-500'
+                                                                        }`}
+                                                                    >
+                                                                        {skill.name}
+                                                                    </button>
+                                                                ))}
+                                                            </div>
+                                                        )}
                                                     </div>
 
-                                                    {aiStages.length > 0 && (
+                                                    <div className="mt-6 flex shrink-0 items-center justify-between border-t border-slate-200 pt-4">
+                                                        <button
+                                                            type="button"
+                                                            onClick={() =>
+                                                                setAiSetupStep((current) =>
+                                                                    Math.max(0, current - 1)
+                                                                )
+                                                            }
+                                                            disabled={aiSetupStep === 0}
+                                                            className="inline-flex items-center gap-1.5 px-2 py-2 text-xs font-black text-slate-500 disabled:invisible"
+                                                        >
+                                                            <ArrowLeft className="h-3.5 w-3.5" />
+                                                            이전
+                                                        </button>
+                                                        <div className="flex items-center gap-3">
+                                                            {aiSetupStep > 0 && (
+                                                                <span className="text-[10px] font-bold text-slate-400">
+                                                                    {aiSetupStep === 1
+                                                                        ? `${studyIds.length}개 선택`
+                                                                        : aiSetupStep === 2
+                                                                          ? `${competencyIds.length}개 선택`
+                                                                          : `${skillIds.length}개 선택`}
+                                                                </span>
+                                                            )}
+                                                            <button
+                                                                type="button"
+                                                                onClick={() =>
+                                                                    setAiSetupStep((current) =>
+                                                                        Math.min(
+                                                                            AI_SETUP_STEPS.length -
+                                                                                1,
+                                                                            current + 1
+                                                                        )
+                                                                    )
+                                                                }
+                                                                disabled={
+                                                                    aiSetupStep === 0 &&
+                                                                    !instruction.trim()
+                                                                }
+                                                                className="inline-flex items-center gap-1.5 rounded-lg bg-slate-900 px-4 py-2.5 text-xs font-black text-white disabled:cursor-not-allowed disabled:opacity-40"
+                                                            >
+                                                                {aiSetupStep === 3
+                                                                    ? 'AI 대화 시작'
+                                                                    : '다음'}
+                                                                <ArrowRight className="h-3.5 w-3.5" />
+                                                            </button>
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                            ) : (
+                                                <div className="bg-white">
+                                                    <div className="flex flex-wrap items-center justify-between gap-3 border-b border-slate-200 px-4 py-3">
+                                                        <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-[10px] font-bold text-slate-500">
+                                                            <span>학습 {studyIds.length}</span>
+                                                            <span>역량 {competencyIds.length}</span>
+                                                            <span>기술 {skillIds.length}</span>
+                                                        </div>
+                                                        <button
+                                                            type="button"
+                                                            onClick={() => setAiSetupStep(0)}
+                                                            className="text-[10px] font-black text-slate-500 hover:text-slate-900"
+                                                        >
+                                                            근거 다시 선택
+                                                        </button>
+                                                    </div>
+
+                                                    {(aiStages.length > 0 || aiError) && (
                                                         <div
                                                             ref={chatRef}
-                                                            className="max-h-64 space-y-2 overflow-y-auto border-t border-slate-200 pt-4"
+                                                            className="max-h-64 space-y-2 overflow-y-auto border-b border-slate-200 bg-slate-50 px-4 py-3"
                                                         >
                                                             {aiStages.map((stage) => (
                                                                 <AiStageBubble
@@ -1263,47 +1377,53 @@ export function PortfolioManagement({
                                                                     fieldLabels={AI_FIELD_LABELS}
                                                                 />
                                                             ))}
+                                                            {aiError && (
+                                                                <p className="rounded-lg border border-rose-200 bg-rose-50 px-3 py-2 text-xs font-bold text-rose-700">
+                                                                    {aiError}
+                                                                </p>
+                                                            )}
                                                         </div>
                                                     )}
-                                                    {aiError && (
-                                                        <p className="rounded-xl border border-rose-200 bg-rose-50 px-3 py-2 text-xs font-bold text-rose-700">
-                                                            {aiError}
-                                                        </p>
-                                                    )}
-                                                </div>
 
-                                                <div className="h-[38rem] min-h-0 overflow-hidden bg-white">
-                                                    <AiRevisionChat
-                                                        revisions={aiRevisionMessages}
-                                                        isGenerating={isGenerating}
-                                                        onGenerate={(feedback) =>
-                                                            void requestAiGenerate(feedback)
-                                                        }
-                                                        onCancelGenerate={() =>
-                                                            abortRef.current?.abort()
-                                                        }
-                                                        onApplyMessage={(message) => {
-                                                            const revision = detail?.revisions.find(
-                                                                (candidate) =>
-                                                                    candidate.id === message.id
-                                                            );
-                                                            if (!revision) return;
-                                                            setSelectedRevisionId(revision.id);
-                                                            setContent(revision.content);
-                                                            setStudyIds(
-                                                                revision.content.sourceStudyIds
-                                                            );
-                                                        }}
-                                                        title="포트폴리오 초안 & 개선 대화"
-                                                        subtitle="피드백과 결과가 content revision에 함께 기록됩니다."
-                                                        generateButtonLabel="새 초안 생성"
-                                                        emptyTitle="저장된 AI 초안이 없습니다."
-                                                        emptyDescription="근거로 사용할 학습·기술을 고른 뒤 새 초안을 생성하세요. 생성 결과는 자동으로 revision에 저장됩니다."
-                                                        inputPlaceholder="현재 revision에서 개선할 점을 입력하세요"
-                                                        showModelSelector={false}
-                                                    />
+                                                    <div className="h-[38rem] min-h-0 overflow-hidden">
+                                                        <AiRevisionChat
+                                                            revisions={aiRevisionMessages}
+                                                            isGenerating={isGenerating}
+                                                            onGenerate={(feedback) =>
+                                                                void requestAiGenerate(feedback)
+                                                            }
+                                                            onCancelGenerate={() =>
+                                                                abortRef.current?.abort()
+                                                            }
+                                                            onApplyMessage={(message) => {
+                                                                const revision =
+                                                                    detail?.revisions.find(
+                                                                        (candidate) =>
+                                                                            candidate.id ===
+                                                                            message.id
+                                                                    );
+                                                                if (!revision) return;
+                                                                setSelectedRevisionId(revision.id);
+                                                                setContent(revision.content);
+                                                                setStudyIds(
+                                                                    revision.content.sourceStudyIds
+                                                                );
+                                                            }}
+                                                            title="포트폴리오 초안 & 개선 대화"
+                                                            subtitle="선택한 근거를 바탕으로 초안을 만들고 대화로 계속 개선합니다."
+                                                            generateButtonLabel={
+                                                                detail?.revisions.length
+                                                                    ? '새 초안 생성'
+                                                                    : '첫 초안 생성'
+                                                            }
+                                                            emptyTitle="이제 AI와 대화를 시작하세요."
+                                                            emptyDescription="첫 초안을 생성한 뒤 개선 요청을 이어가면 모든 결과가 revision으로 기록됩니다."
+                                                            inputPlaceholder="강조하거나 개선할 방향을 입력하세요"
+                                                            showModelSelector={false}
+                                                        />
+                                                    </div>
                                                 </div>
-                                            </div>
+                                            )}
                                         </section>
                                     )}
 
