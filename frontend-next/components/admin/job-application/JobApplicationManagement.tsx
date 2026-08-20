@@ -55,6 +55,7 @@ import { ApiError, imageApi, jobPostingApi, printTemplateApi } from '@/lib/api';
 import { useSlideDrawer } from '@/lib/hooks/useSlideDrawer';
 import { useAiModelStore } from '@/store/useAiModelStore';
 import { AiModelUsageBadge } from '../AiModelUsageBadge';
+import { AdminPageHeader } from '../common/AdminPageHeader';
 import { PositionChoicePicker } from './PositionChoicePicker';
 import { PostingMemoEditor } from './PostingMemoEditor';
 import { ScreenshotIngestPanel } from './ScreenshotIngestPanel';
@@ -3282,15 +3283,10 @@ export function JobApplicationManagement({
 
     return (
         <div className="space-y-6">
-            <div className="flex items-center justify-between border-b border-slate-200 pb-3">
-                <div>
-                    <h2 className="text-xl font-black text-slate-950">지원 공고 관리</h2>
-                    <p className="mt-0.5 text-sm text-slate-500">
-                        지원한 채용 공고를 리스트로 관리하고, 보드에서 카드를 드래그해 전형 단계를
-                        빠르게 옮길 수 있습니다.
-                    </p>
-                </div>
-                <div className="flex items-center gap-1.5 xl:gap-2">
+            <AdminPageHeader
+                title="지원 공고 관리"
+                description="지원한 채용 공고를 리스트로 관리하고, 보드에서 카드를 드래그해 전형 단계를 빠르게 옮길 수 있습니다."
+                actions={
                     <button
                         type="button"
                         onClick={openCreateDrawer}
@@ -3301,8 +3297,8 @@ export function JobApplicationManagement({
                         <Plus className="h-4 w-4" />
                         <span className="hidden xl:inline">새 공고 등록</span>
                     </button>
-                </div>
-            </div>
+                }
+            />
 
             <div className="flex flex-wrap items-center gap-2">
                 <div className="flex rounded-lg border border-slate-200 bg-white p-0.5">
