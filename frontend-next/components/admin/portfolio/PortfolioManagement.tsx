@@ -10,11 +10,9 @@ import {
     FileText,
     FolderGit2,
     GripVertical,
-    History,
     Loader2,
     Plus,
     Search,
-    Sparkles,
     Trash2,
     Upload,
     X,
@@ -229,11 +227,6 @@ export function PortfolioManagement({
     );
     const publishedCount = caseStudies.filter((item) => item.status === 'PUBLISHED').length;
     const draftCount = caseStudies.filter((item) => item.status === 'DRAFT').length;
-    const selectedSourceExperience = selectedCaseStudy
-        ? selectedCaseStudy.experienceId
-            ? experienceById.get(selectedCaseStudy.experienceId)
-            : null
-        : null;
     const selectedRevision =
         detail?.revisions.find((revision) => revision.id === selectedRevisionId) ??
         detail?.revisions[0] ??
@@ -968,15 +961,12 @@ export function PortfolioManagement({
                 {/* 상세 편집 */}
                 {!createOpen &&
                     (selectedCaseStudy ? (
-                        <main className="min-w-0 flex-1 space-y-6 overflow-y-auto overscroll-contain px-1 pb-8 lg:order-3 lg:min-h-0 lg:px-3">
-                            <div className="sticky top-0 z-10 border-b border-slate-200 bg-[#f8fafc]/95 pb-4 pt-1 backdrop-blur-sm">
+                        <main className="min-w-0 flex-1 space-y-4 overflow-y-auto overscroll-contain px-1 pb-8 lg:order-3 lg:min-h-0 lg:px-3">
+                            <div className="sticky top-0 z-10 border-b border-slate-200 bg-[#f8fafc]/95 pt-1 backdrop-blur-sm">
                                 <div className="flex items-start justify-between gap-4">
                                     <div className="min-w-0">
-                                        <span className="text-[10px] font-black uppercase tracking-[0.16em] text-slate-500">
-                                            Case study workspace
-                                        </span>
-                                        <div className="mt-1 flex flex-wrap items-center gap-2">
-                                            <h2 className="truncate text-xl font-black tracking-tight text-slate-950">
+                                        <div className="flex flex-wrap items-center gap-2">
+                                            <h2 className="truncate text-lg font-black tracking-tight text-slate-950">
                                                 {selectedCaseStudy.title}
                                             </h2>
                                             <span
@@ -994,62 +984,45 @@ export function PortfolioManagement({
                                                 </span>
                                             )}
                                         </div>
-                                        <p className="mt-1 truncate text-[11px] text-slate-400">
-                                            /{selectedCaseStudy.slug}
-                                            {selectedSourceExperience && (
-                                                <>
-                                                    {' · '}
-                                                    {experienceOrgName(
-                                                        selectedSourceExperience
-                                                    )} · {selectedSourceExperience.title}
-                                                </>
-                                            )}
-                                        </p>
                                     </div>
                                     <button
                                         type="button"
+                                        aria-label="사례 삭제"
+                                        title="사례 삭제"
                                         onClick={() => {
                                             if (window.confirm('이 케이스스터디를 삭제할까요?')) {
                                                 deleteMutation.mutate(selectedCaseStudy.id);
                                             }
                                         }}
-                                        className="inline-flex shrink-0 items-center gap-1.5 rounded-md border border-rose-200 px-2.5 py-1.5 text-[11px] font-bold text-rose-600 hover:bg-rose-50"
+                                        className="grid h-8 w-8 shrink-0 place-items-center rounded-md text-slate-400 hover:bg-rose-50 hover:text-rose-600"
                                     >
-                                        <Trash2 className="h-3.5 w-3.5" /> 삭제
+                                        <Trash2 className="h-4 w-4" />
                                     </button>
                                 </div>
 
-                                <div className="mt-4 flex flex-wrap items-end justify-between gap-3">
-                                    <div className="inline-flex rounded-xl border border-slate-200 bg-slate-50 p-1">
-                                        <button
-                                            type="button"
-                                            onClick={() => setDetailView('EDITOR')}
-                                            className={`inline-flex items-center gap-1.5 rounded-md px-3 py-1.5 text-[11px] font-black transition ${
-                                                detailView === 'EDITOR'
-                                                    ? 'bg-slate-900 text-white shadow-sm'
-                                                    : 'text-slate-500'
-                                            }`}
-                                        >
-                                            <FileText className="h-3.5 w-3.5" /> 내용 편집
-                                        </button>
-                                        <button
-                                            type="button"
-                                            onClick={() => setDetailView('REVISIONS')}
-                                            className={`inline-flex items-center gap-1.5 rounded-md px-3 py-1.5 text-[11px] font-black transition ${
-                                                detailView === 'REVISIONS'
-                                                    ? 'bg-slate-900 text-white shadow-sm'
-                                                    : 'text-slate-500'
-                                            }`}
-                                        >
-                                            <History className="h-3.5 w-3.5" /> revision 이력{' '}
-                                            {detail?.revisions.length ?? 0}
-                                        </button>
-                                    </div>
-                                    <p className="max-w-xl text-[10px] font-medium leading-4 text-slate-500">
-                                        기준 revision은 공개 구성에서 선택할 후보입니다. 실제 방문자
-                                        노출과 순서는 <strong>공개 페이지 → 경험 구성</strong>에서만
-                                        결정합니다.
-                                    </p>
+                                <div className="mt-3 flex items-center gap-5">
+                                    <button
+                                        type="button"
+                                        onClick={() => setDetailView('EDITOR')}
+                                        className={`border-b-2 px-1 pb-2 text-xs font-black transition ${
+                                            detailView === 'EDITOR'
+                                                ? 'border-slate-900 text-slate-950'
+                                                : 'border-transparent text-slate-400 hover:text-slate-700'
+                                        }`}
+                                    >
+                                        내용 편집
+                                    </button>
+                                    <button
+                                        type="button"
+                                        onClick={() => setDetailView('REVISIONS')}
+                                        className={`border-b-2 px-1 pb-2 text-xs font-black transition ${
+                                            detailView === 'REVISIONS'
+                                                ? 'border-slate-900 text-slate-950'
+                                                : 'border-transparent text-slate-400 hover:text-slate-700'
+                                        }`}
+                                    >
+                                        이력 {detail?.revisions.length ?? 0}
+                                    </button>
                                 </div>
                             </div>
 
@@ -1166,26 +1139,8 @@ export function PortfolioManagement({
 
                                     {/* 서버의 Workspace 권한·출처 검증을 통과하는 편집자에게 AI 입력을 노출한다. */}
                                     {enablePlatformAi && (
-                                        <section className="overflow-hidden border-y border-slate-200">
-                                            <div className="border-b border-slate-200 px-1 py-4">
-                                                <div className="flex items-start gap-3">
-                                                    <span className="grid h-9 w-9 shrink-0 place-items-center rounded-xl bg-slate-900 text-white">
-                                                        <Sparkles className="h-4 w-4" />
-                                                    </span>
-                                                    <div>
-                                                        <h3 className="text-sm font-black text-slate-950">
-                                                            근거 기반 AI 초안
-                                                        </h3>
-                                                        <p className="mt-1 text-xs leading-5 text-slate-500">
-                                                            사용할 근거를 먼저 고른 뒤 초안을
-                                                            만들고, 오른쪽 대화에서 현재 revision을
-                                                            계속 개선합니다.
-                                                        </p>
-                                                    </div>
-                                                </div>
-                                            </div>
-
-                                            <ol className="grid grid-cols-5 border-b border-slate-200 bg-slate-50/70 px-2 py-3">
+                                        <section className="overflow-hidden border-b border-slate-200">
+                                            <ol className="grid grid-cols-5 border-y border-slate-200 px-2 py-3">
                                                 {AI_SETUP_STEPS.map((step, index) => (
                                                     <li key={step} className="min-w-0">
                                                         <button
@@ -1219,13 +1174,9 @@ export function PortfolioManagement({
                                             </ol>
 
                                             {aiSetupStep < AI_SETUP_STEPS.length - 1 ? (
-                                                <div className="flex min-h-[28rem] flex-col bg-slate-100/55 p-5 sm:p-6">
+                                                <div className="flex min-h-[22rem] flex-col px-2 py-5 sm:px-3">
                                                     <div className="shrink-0">
-                                                        <span className="text-[10px] font-black uppercase tracking-[0.14em] text-slate-400">
-                                                            Step {aiSetupStep + 1} of{' '}
-                                                            {AI_SETUP_STEPS.length - 1}
-                                                        </span>
-                                                        <h4 className="mt-1 text-lg font-black text-slate-950">
+                                                        <h4 className="text-base font-black text-slate-950">
                                                             {AI_SETUP_STEPS[aiSetupStep]}
                                                         </h4>
                                                         <p className="mt-1 text-xs leading-5 text-slate-500">
@@ -1239,7 +1190,7 @@ export function PortfolioManagement({
                                                         </p>
                                                     </div>
 
-                                                    <div className="mt-6 min-h-0 flex-1 overflow-y-auto">
+                                                    <div className="mt-4 min-h-0 flex-1 overflow-y-auto">
                                                         {aiSetupStep === 0 && (
                                                             <textarea
                                                                 value={instruction}
@@ -1249,7 +1200,7 @@ export function PortfolioManagement({
                                                                     )
                                                                 }
                                                                 placeholder="예: 운영 안정성을 높이기 위해 내린 판단과 트레이드오프 중심"
-                                                                rows={7}
+                                                                rows={5}
                                                                 autoFocus
                                                                 className="w-full resize-none rounded-xl border border-slate-300 bg-white px-4 py-3 text-sm leading-6 outline-none transition focus:border-slate-700 focus:ring-2 focus:ring-slate-200"
                                                             />
