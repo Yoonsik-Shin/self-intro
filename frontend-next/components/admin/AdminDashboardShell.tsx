@@ -504,8 +504,8 @@ export function AdminDashboardShell({ workspaceSlug }: { workspaceSlug: string }
                 if (!isJobMapViewRef.current) {
                     sidebarCollapsedBeforeMapRef.current = isSidebarCollapsed;
                     isJobMapViewRef.current = true;
+                    setIsSidebarCollapsed(true);
                 }
-                setIsSidebarCollapsed(true);
                 return;
             }
 
