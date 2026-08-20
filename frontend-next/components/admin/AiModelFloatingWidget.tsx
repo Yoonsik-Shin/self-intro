@@ -19,7 +19,7 @@ import {
 } from '@/lib/constants/aiModels';
 import { useAiModelStore } from '@/store/useAiModelStore';
 
-const WIDGET_SIZE = 38;
+const WIDGET_SIZE = 32;
 const PANEL_WIDTH = 288;
 const PANEL_GAP = 10;
 const TOOLTIP_GAP = 8;
@@ -341,9 +341,9 @@ export function AiModelFloatingWidget() {
                 isNearDock ? 'scale-125 ring-4 ring-indigo-400' : isOpen ? 'ring-slate-900' : ''
             }`}
         >
-            <ProviderMark provider={selected?.provider ?? 'custom'} className="h-4 w-4" />
+            <ProviderMark provider={selected?.provider ?? 'custom'} className="h-3.5 w-3.5" />
             {selected && (
-                <span className="absolute -right-1 -bottom-1 flex h-4 min-w-4 items-center justify-center rounded-full border border-white bg-white px-0.5 text-[9px] leading-none font-black text-slate-700 shadow">
+                <span className="absolute -right-1 -bottom-1 flex h-3.5 min-w-3.5 items-center justify-center rounded-full border border-white bg-white px-0.5 text-[8px] leading-none font-semibold text-slate-700 shadow">
                     {selected.versionBadge}
                 </span>
             )}
