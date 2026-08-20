@@ -439,7 +439,13 @@ export function PortfolioManagement({
     };
 
     return (
-        <div className="space-y-6">
+        <div
+            className={
+                createOpen
+                    ? 'space-y-6 lg:flex lg:h-full lg:min-h-0 lg:flex-col lg:gap-6 lg:space-y-0 lg:overflow-hidden'
+                    : 'space-y-6'
+            }
+        >
             <AdminPageHeader
                 eyebrow="Source Record"
                 title="포트폴리오 사례 관리"
@@ -466,8 +472,8 @@ export function PortfolioManagement({
             />
 
             {createOpen ? (
-                <section className="min-h-[40rem] bg-white py-2">
-                    <div className="max-w-3xl">
+                <section className="bg-white py-2 lg:flex lg:min-h-0 lg:flex-1 lg:flex-col lg:overflow-hidden">
+                    <div className="max-w-3xl shrink-0">
                         <h3 className="text-2xl font-semibold tracking-tight text-slate-950">
                             어떤 경험을 하나의 사례로 보여줄까요?
                         </h3>
@@ -477,8 +483,8 @@ export function PortfolioManagement({
                         </p>
                     </div>
 
-                    <div className="mt-9 grid gap-10 lg:grid-cols-[minmax(15rem,0.72fr)_minmax(23rem,1.28fr)] xl:gap-14 xl:grid-cols-[minmax(17rem,0.68fr)_minmax(25rem,1.32fr)]">
-                        <div>
+                    <div className="mt-9 grid gap-10 lg:min-h-0 lg:flex-1 lg:grid-cols-[minmax(15rem,0.72fr)_minmax(23rem,1.28fr)] xl:gap-14 xl:grid-cols-[minmax(17rem,0.68fr)_minmax(25rem,1.32fr)]">
+                        <div className="lg:flex lg:min-h-0 lg:flex-col">
                             <div className="flex items-end justify-between gap-4">
                                 <div>
                                     <h4 className="text-base font-semibold text-slate-900">
@@ -504,7 +510,7 @@ export function PortfolioManagement({
                                 />
                             </label>
 
-                            <div className="mt-3 max-h-[28rem] overflow-y-auto border-t border-slate-200">
+                            <div className="mt-3 max-h-[28rem] overflow-y-auto border-t border-slate-200 lg:min-h-0 lg:max-h-none lg:flex-1">
                                 {filteredProjectOptions.map((experience) => {
                                     const isSelected =
                                         createForm.experienceId === String(experience.id);
@@ -565,7 +571,7 @@ export function PortfolioManagement({
                             </div>
                         </div>
 
-                        <div className="border-t border-slate-200 pt-8 lg:border-l lg:border-t-0 lg:pl-10 lg:pt-0 xl:pl-14">
+                        <div className="border-t border-slate-200 pt-8 lg:flex lg:min-h-0 lg:flex-col lg:border-l lg:border-t-0 lg:pl-10 lg:pt-0 xl:pl-14">
                             <h4 className="text-base font-semibold text-slate-900">
                                 사례 기본 정보
                             </h4>
@@ -574,7 +580,7 @@ export function PortfolioManagement({
                             </p>
 
                             {selectedCreateExperience ? (
-                                <div className="mt-7">
+                                <div className="mt-7 lg:min-h-0 lg:flex-1 lg:overflow-y-auto lg:pr-2">
                                     <div className="border-b border-slate-200 pb-5">
                                         <p className="text-xs text-slate-400">연결 원본</p>
                                         <p className="mt-1.5 text-sm font-semibold text-slate-900">
