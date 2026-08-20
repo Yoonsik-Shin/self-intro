@@ -1253,7 +1253,7 @@ export function AdminDashboardShell({ workspaceSlug }: { workspaceSlug: string }
                                 onClick={() => setIsSidebarCollapsed(true)}
                                 title="메뉴 접기"
                                 aria-expanded={true}
-                                className="z-30 col-start-1 row-start-1 flex h-8 w-6 translate-x-full items-center justify-center justify-self-end rounded-md text-slate-400 transition-colors hover:bg-slate-200/70 hover:text-slate-900 focus:outline-none focus-visible:ring-2 focus-visible:ring-slate-400 focus-visible:ring-offset-1"
+                                className="z-30 col-start-1 row-start-1 flex h-8 w-6 translate-x-1/2 items-center justify-center justify-self-end rounded-md text-slate-400 transition-colors hover:bg-slate-200/70 hover:text-slate-900 focus:outline-none focus-visible:ring-2 focus-visible:ring-slate-400 focus-visible:ring-offset-1"
                             >
                                 <ChevronLeft className="h-4 w-4" />
                             </button>
