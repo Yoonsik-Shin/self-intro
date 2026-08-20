@@ -4,17 +4,16 @@ import { useState, type FormEvent } from 'react';
 import { useRouter } from 'next/navigation';
 import { useQuery } from '@tanstack/react-query';
 import { Link2 } from 'lucide-react';
-import { ApiError, workspaceApi } from '@/lib/api';
+import { ApiError, workspaceApi, type WorkspaceRole } from '@/lib/api';
 import { useRecentReauthentication } from '@/hooks/useRecentReauthentication';
 import { useAuthStore } from '@/store/useAuthStore';
-import { RecentReauthenticationStatus } from '@/components/admin/security/RecentReauthenticationStatus';
 
 type Props = {
     workspaceSlug: string;
-    role: 'OWNER' | 'ADMIN' | 'EDITOR' | 'VIEWER';
+    role: WorkspaceRole;
 };
 
-export function WorkspaceSlugSettings({ workspaceSlug, role }: Props) {
+export function WorkspaceAddressSettings({ workspaceSlug, role }: Props) {
     const router = useRouter();
     const checkSession = useAuthStore((state) => state.checkSession);
     const { isReauthenticated: reauthenticated, clear: clearReauthentication } =
@@ -67,15 +66,13 @@ export function WorkspaceSlugSettings({ workspaceSlug, role }: Props) {
     const settings = settingsQuery.data;
     return (
         <section className="rounded-3xl border border-slate-200 bg-white p-8 shadow-sm">
-            <div className="flex items-start gap-3">
-                <span className="rounded-xl bg-indigo-50 p-3 text-indigo-700">
-                    <Link2 className="h-5 w-5" />
-                </span>
+            <div className="flex items-start gap-2.5">
+                <Link2 className="mt-0.5 h-5 w-5 shrink-0 text-indigo-600" />
                 <div>
                     <span className="text-xs font-black uppercase tracking-[0.16em] text-indigo-600">
                         Public URL
                     </span>
-                    <h2 className="mt-2 text-2xl font-black text-slate-950">공개 주소 관리</h2>
+                    <h2 className="mt-1 text-xl font-black text-slate-950">공개 주소 관리</h2>
                     <p className="mt-2 max-w-2xl text-sm leading-6 text-slate-600">
                         공개 페이지 URL의 마지막 부분을 관리합니다. 주소를 변경해도 이전 주소는 같은
                         Workspace로 계속 연결되며, 주소를 알아도 관리 권한이 생기지는 않습니다.
@@ -92,45 +89,39 @@ export function WorkspaceSlugSettings({ workspaceSlug, role }: Props) {
                 </p>
             )}
 
-            <div className="mt-6 grid gap-5 lg:grid-cols-2">
-                <RecentReauthenticationStatus description="주소 변경은 최근 10분 안에 비밀번호를 확인한 OWNER 또는 ADMIN만 수행할 수 있습니다." />
-
-                <form onSubmit={changeSlug} className="rounded-2xl bg-slate-50 p-5">
-                    <label
-                        htmlFor="workspace-public-slug"
-                        className="text-sm font-black text-slate-900"
+            <form onSubmit={changeSlug} className="mt-6">
+                <label
+                    htmlFor="workspace-public-slug"
+                    className="text-sm font-black text-slate-900"
+                >
+                    기본 공개 주소
+                </label>
+                <div className="mt-3 flex max-w-lg gap-2">
+                    <input
+                        id="workspace-public-slug"
+                        value={slug}
+                        minLength={settings?.minimumLength ?? 3}
+                        maxLength={settings?.maximumLength ?? 60}
+                        pattern="[a-z0-9](?:[a-z0-9-]*[a-z0-9])"
+                        onChange={(event) => setSlug(event.target.value.toLowerCase())}
+                        className="min-w-0 flex-1 rounded-xl border border-slate-200 bg-white px-3 py-2 font-mono text-sm outline-none focus:border-indigo-500"
+                        required
+                    />
+                    <button
+                        disabled={pending || !reauthenticated || slug === settings?.canonicalSlug}
+                        className="rounded-xl bg-slate-950 px-4 py-2 text-sm font-black text-white disabled:opacity-40"
                     >
-                        기본 공개 주소
-                    </label>
-                    <div className="mt-3 flex gap-2">
-                        <input
-                            id="workspace-public-slug"
-                            value={slug}
-                            minLength={settings?.minimumLength ?? 3}
-                            maxLength={settings?.maximumLength ?? 60}
-                            pattern="[a-z0-9](?:[a-z0-9-]*[a-z0-9])"
-                            onChange={(event) => setSlug(event.target.value.toLowerCase())}
-                            className="min-w-0 flex-1 rounded-xl border border-slate-200 bg-white px-3 py-2 font-mono text-sm outline-none focus:border-indigo-500"
-                            required
-                        />
-                        <button
-                            disabled={
-                                pending || !reauthenticated || slug === settings?.canonicalSlug
-                            }
-                            className="rounded-xl bg-slate-950 px-4 py-2 text-sm font-black text-white disabled:opacity-40"
-                        >
-                            변경
-                        </button>
-                    </div>
-                    <p className="mt-2 text-xs text-slate-500">
-                        공개 페이지 URL의 마지막 부분입니다. 영문 소문자·숫자·하이픈, 3~60자를
-                        사용할 수 있으며 시작과 끝에는 하이픈을 사용할 수 없습니다.
-                    </p>
-                </form>
-            </div>
+                        변경
+                    </button>
+                </div>
+                <p className="mt-2 text-xs text-slate-500">
+                    공개 페이지 URL의 마지막 부분입니다. 영문 소문자·숫자·하이픈, 3~60자를 사용할 수
+                    있으며 시작과 끝에는 하이픈을 사용할 수 없습니다.
+                </p>
+            </form>
 
             {settings?.activeAliases.length ? (
-                <div className="mt-5 rounded-2xl border border-slate-200 p-4">
+                <div className="mt-5 border-t border-slate-200 pt-4">
                     <p className="text-xs font-black uppercase tracking-wider text-slate-500">
                         이전 공개 주소
                     </p>

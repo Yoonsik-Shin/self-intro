@@ -32,13 +32,13 @@ export function RecentReauthenticationStatus({ description }: { description: str
     }
 
     return (
-        <div className="rounded-2xl bg-slate-950 p-5 shadow-sm">
+        <div className="rounded-xl bg-slate-900 px-4 py-3">
             <div className="flex flex-wrap items-center justify-between gap-3">
-                <div className="flex items-center gap-2 font-black text-white">
+                <div className="flex items-center gap-2 text-sm font-black text-white">
                     {isReauthenticated ? (
                         <Check className="h-4 w-4 text-emerald-300" />
                     ) : (
-                        <KeyRound className="h-4 w-4" />
+                        <KeyRound className="h-4 w-4 text-slate-300" />
                     )}
                     {isReauthenticated
                         ? `중요 작업 인증됨 · ${formatRemaining(remainingSeconds)} 남음`
@@ -60,13 +60,8 @@ export function RecentReauthenticationStatus({ description }: { description: str
                     </button>
                 )}
             </div>
-            <p className="mt-2 text-xs leading-5 text-slate-300">{description}</p>
-            <p className="mt-3 text-xs font-bold text-indigo-200">
-                {isReauthenticated
-                    ? '남은 시간 동안 다른 중요 작업에도 같은 인증이 적용됩니다.'
-                    : '상단 계정 영역의 “중요 작업 인증”에서 현재 비밀번호를 확인해 주세요.'}
-            </p>
-            {error && <p className="mt-2 text-xs font-bold text-red-400">{error}</p>}
+            <p className="mt-1.5 text-xs leading-5 text-slate-400">{description}</p>
+            {error && <p className="mt-1.5 text-xs font-bold text-red-400">{error}</p>}
         </div>
     );
 }

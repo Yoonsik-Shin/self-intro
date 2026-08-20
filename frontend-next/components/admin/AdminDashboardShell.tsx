@@ -45,13 +45,13 @@ import {
     ShieldAlert,
     ShieldCheck,
     Database,
+    Settings,
 } from 'lucide-react';
 import { systemStatusApi } from '@/lib/api';
 import { useAuthStore } from '@/store/useAuthStore';
 import { AiModelFloatingWidget } from './AiModelFloatingWidget';
 import { WorkspacePublicationPanel } from './publication/WorkspacePublicationPanel';
-import { WorkspaceSlugSettings } from './workspace/WorkspaceSlugSettings';
-import { WorkspaceLifecycleSettings } from './workspace/WorkspaceLifecycleSettings';
+import { WorkspaceSettingsPanel } from './workspace/WorkspaceSettingsPanel';
 import { WorkspaceMemberManagement } from './workspace/WorkspaceMemberManagement';
 import { ReauthenticationControl } from './security/ReauthenticationControl';
 import {
@@ -162,6 +162,7 @@ const ADMIN_CONTENT_RESERVE_WIDTH = 460;
 
 type TabId =
     | 'WORKSPACE_HOME'
+    | 'WORKSPACE_SETTINGS'
     | 'PUBLICATION'
     | 'PUBLIC_PROFILE'
     | 'PUBLIC_EXPERIENCE'
@@ -210,15 +211,35 @@ type AdminMenuGroup = {
 
 const ADMIN_MENU_GROUPS: AdminMenuGroup[] = [
     {
-        label: 'Workspace 설정',
-        description: '현재 Workspace의 기본 정보, 멤버, 발행 상태를 관리합니다.',
+        label: '대시보드',
+        description: '현재 Workspace의 기록, 공개본, 지원 현황을 한눈에 확인합니다.',
         scope: 'WORKSPACE',
         items: [
             {
                 id: 'WORKSPACE_HOME',
                 label: '홈',
-                description: '기록, 공개본, 지원 현황과 Workspace 설정을 한눈에 확인합니다.',
+                description: '기록, 공개본, 지원 현황을 한눈에 확인합니다.',
                 icon: LayoutDashboard,
+            },
+            {
+                id: 'WORKSPACE_ANALYTICS',
+                label: '공개 페이지 통계',
+                description: '현재 Workspace 공개 페이지의 방문 현황을 확인합니다.',
+                icon: BarChart3,
+                workspaceAdminOnly: true,
+            },
+        ],
+    },
+    {
+        label: 'Workspace 설정',
+        description: '현재 Workspace의 기본 정보, 멤버, 보안 동의를 관리합니다.',
+        scope: 'WORKSPACE',
+        items: [
+            {
+                id: 'WORKSPACE_SETTINGS',
+                label: '설정',
+                description: '공개 주소, 이름, 탈퇴, 폐쇄 등 Workspace 기본 설정을 관리합니다.',
+                icon: Settings,
             },
             {
                 id: 'MEMBERS',
@@ -228,11 +249,12 @@ const ADMIN_MENU_GROUPS: AdminMenuGroup[] = [
                 workspaceAdminOnly: true,
             },
             {
-                id: 'WORKSPACE_ANALYTICS',
-                label: '공개 페이지 통계',
-                description: '현재 Workspace 공개 페이지의 방문 현황을 확인합니다.',
-                icon: BarChart3,
-                workspaceAdminOnly: true,
+                id: 'WORKSPACE_SUPPORT_ACCESS',
+                label: '고객 지원 접근 동의',
+                description:
+                    '플랫폼 지원 담당자가 보낸 최소 진단 요청을 소유자가 승인·거절·철회합니다.',
+                icon: ShieldCheck,
+                workspaceOwnerOnly: true,
             },
         ],
     },
@@ -339,21 +361,6 @@ const ADMIN_MENU_GROUPS: AdminMenuGroup[] = [
                 label: '이력서·PDF 템플릿',
                 description: '지원 목적별 이력서와 PDF 출력 구성을 관리합니다.',
                 icon: Printer,
-            },
-        ],
-    },
-    {
-        label: 'Workspace 보안·동의',
-        description: '내 Workspace 데이터에 대한 외부 접근 요청과 보안 동의를 관리합니다.',
-        scope: 'WORKSPACE',
-        items: [
-            {
-                id: 'WORKSPACE_SUPPORT_ACCESS',
-                label: '고객 지원 접근 동의',
-                description:
-                    '플랫폼 지원 담당자가 보낸 최소 진단 요청을 소유자가 승인·거절·철회합니다.',
-                icon: ShieldCheck,
-                workspaceOwnerOnly: true,
             },
         ],
     },
@@ -495,7 +502,6 @@ export function AdminDashboardShell({ workspaceSlug }: { workspaceSlug: string }
     );
     const [activeTab, setActiveTab] = useState<TabId>('WORKSPACE_HOME');
     const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
-    const [isWorkspaceSettingsOpen, setIsWorkspaceSettingsOpen] = useState(false);
     const sidebarCollapsedBeforeMapRef = useRef(false);
     const isJobMapViewRef = useRef(false);
 
@@ -526,6 +532,7 @@ export function AdminDashboardShell({ workspaceSlug }: { workspaceSlug: string }
             const tabInUrl = params.get('tab') as TabId | null;
             const validTabs: TabId[] = [
                 'WORKSPACE_HOME',
+                'WORKSPACE_SETTINGS',
                 'PUBLICATION',
                 'PUBLIC_PROFILE',
                 'PUBLIC_EXPERIENCE',
@@ -786,14 +793,19 @@ export function AdminDashboardShell({ workspaceSlug }: { workspaceSlug: string }
         <main className="flex h-screen flex-col overflow-hidden bg-[#f8fafc] text-slate-800">
             <header className="z-30 flex shrink-0 items-center justify-between border-b border-slate-200/70 bg-white/90 px-4 py-3 shadow-sm backdrop-blur-xl">
                 <div className="flex items-center gap-3">
-                    <div>
+                    <button
+                        type="button"
+                        onClick={() => handleTabChange('WORKSPACE_HOME')}
+                        title="홈으로 이동"
+                        className="-mx-1 -my-0.5 rounded-lg px-1 py-0.5 text-left transition hover:bg-slate-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500"
+                    >
                         <h1 className="text-base font-black text-slate-900">
                             {currentWorkspace?.name ?? '워크스페이스'}
                         </h1>
                         <p className="text-[11px] font-bold text-slate-400">
                             {currentWorkspace?.role ?? 'MEMBER'} · 경력 관리 워크스페이스
                         </p>
-                    </div>
+                    </button>
                 </div>
                 <div className="flex items-center gap-2">
                     {isPlatformOperator && <AiModelFloatingWidget />}
@@ -1213,64 +1225,22 @@ export function AdminDashboardShell({ workspaceSlug }: { workspaceSlug: string }
                             data-admin-scroll-region
                             className="min-h-0 min-w-0 space-y-6 overflow-y-auto overflow-x-hidden pr-1"
                         >
-                            {activeTab === 'WORKSPACE_HOME' && (
-                                <>
-                                    {currentWorkspace && (
-                                        <>
-                                            <WorkspaceHomeDashboard
-                                                workspaceSlug={currentWorkspace.slug}
-                                                workspaceName={currentWorkspace.name}
-                                                workspaceRole={currentWorkspace.role}
-                                                onNavigate={(
-                                                    destination: WorkspaceHomeDestination
-                                                ) => handleTabChange(destination)}
-                                            />
-                                            <section className="overflow-hidden rounded-3xl border border-slate-200 bg-white shadow-sm">
-                                                <button
-                                                    type="button"
-                                                    aria-expanded={isWorkspaceSettingsOpen}
-                                                    onClick={() =>
-                                                        setIsWorkspaceSettingsOpen((open) => !open)
-                                                    }
-                                                    className="flex w-full items-center justify-between gap-4 p-6 text-left transition hover:bg-slate-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-indigo-500"
-                                                >
-                                                    <span>
-                                                        <span className="block text-xs font-black uppercase tracking-[0.14em] text-indigo-600">
-                                                            Workspace settings
-                                                        </span>
-                                                        <strong className="mt-1 block text-lg font-black text-slate-950">
-                                                            주소·이름·탈퇴·폐쇄 설정
-                                                        </strong>
-                                                        <span className="mt-1 block text-sm text-slate-500">
-                                                            자주 사용하지 않는 설정은 기본으로 접어
-                                                            둡니다.
-                                                        </span>
-                                                    </span>
-                                                    <ChevronDown
-                                                        className={`h-5 w-5 shrink-0 text-slate-500 transition-transform ${
-                                                            isWorkspaceSettingsOpen
-                                                                ? 'rotate-180'
-                                                                : ''
-                                                        }`}
-                                                    />
-                                                </button>
-                                                {isWorkspaceSettingsOpen && (
-                                                    <div className="space-y-6 border-t border-slate-200 bg-slate-50/60 p-4 sm:p-6">
-                                                        <WorkspaceSlugSettings
-                                                            workspaceSlug={currentWorkspace.slug}
-                                                            role={currentWorkspace.role}
-                                                        />
-                                                        <WorkspaceLifecycleSettings
-                                                            workspaceSlug={currentWorkspace.slug}
-                                                            workspaceName={currentWorkspace.name}
-                                                            role={currentWorkspace.role}
-                                                        />
-                                                    </div>
-                                                )}
-                                            </section>
-                                        </>
-                                    )}
-                                </>
+                            {activeTab === 'WORKSPACE_HOME' && currentWorkspace && (
+                                <WorkspaceHomeDashboard
+                                    workspaceSlug={currentWorkspace.slug}
+                                    workspaceName={currentWorkspace.name}
+                                    workspaceRole={currentWorkspace.role}
+                                    onNavigate={(destination: WorkspaceHomeDestination) =>
+                                        handleTabChange(destination)
+                                    }
+                                />
+                            )}
+                            {activeTab === 'WORKSPACE_SETTINGS' && currentWorkspace && (
+                                <WorkspaceSettingsPanel
+                                    workspaceSlug={currentWorkspace.slug}
+                                    workspaceName={currentWorkspace.name}
+                                    role={currentWorkspace.role}
+                                />
                             )}
                             {activeTab === 'PUBLICATION' && currentWorkspace && (
                                 <WorkspacePublicationPanel
