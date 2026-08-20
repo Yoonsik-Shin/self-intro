@@ -439,13 +439,7 @@ export function PortfolioManagement({
     };
 
     return (
-        <div
-            className={
-                createOpen
-                    ? 'space-y-6 lg:flex lg:h-full lg:min-h-0 lg:flex-col lg:gap-6 lg:space-y-0 lg:overflow-hidden'
-                    : 'space-y-6'
-            }
-        >
+        <div className="space-y-6 lg:flex lg:h-full lg:min-h-0 lg:flex-col lg:gap-6 lg:space-y-0 lg:overflow-hidden">
             <AdminPageHeader
                 eyebrow="Source Record"
                 title="포트폴리오 사례 관리"
@@ -675,9 +669,9 @@ export function PortfolioManagement({
                     </div>
                 </section>
             ) : (
-                <div className="grid min-h-[44rem] gap-4 lg:grid-cols-[20rem_minmax(0,1fr)]">
+                <div className="grid min-h-[44rem] gap-4 lg:min-h-0 lg:flex-1 lg:grid-cols-[20rem_minmax(0,1fr)]">
                     {/* 원본 목록: 공개 페이지 포함 여부가 아니라 Workspace에 저장된 사례 원본을 탐색한다. */}
-                    <aside className="flex min-h-[34rem] flex-col overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
+                    <aside className="flex min-h-[34rem] flex-col overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm lg:min-h-0">
                         <div className="border-b border-slate-200 p-4">
                             <div className="flex items-center justify-between gap-3">
                                 <p className="text-sm font-black text-slate-900">사례 원본</p>
@@ -790,7 +784,7 @@ export function PortfolioManagement({
 
                     {/* 상세 편집 */}
                     {selectedCaseStudy ? (
-                        <main className="min-w-0 space-y-5 overflow-y-auto rounded-2xl border border-slate-200 bg-white p-4 shadow-sm sm:p-5">
+                        <main className="min-w-0 space-y-5 overflow-y-auto rounded-2xl border border-slate-200 bg-white p-4 shadow-sm sm:p-5 lg:min-h-0">
                             <div className="border-b border-slate-200 pb-5">
                                 <div className="flex items-start justify-between gap-4">
                                     <div className="min-w-0">
@@ -1636,7 +1630,7 @@ export function PortfolioManagement({
                             )}
                         </main>
                     ) : (
-                        <main className="flex min-h-[34rem] min-w-0 items-center justify-center rounded-2xl border border-dashed border-slate-300 bg-white px-6 text-center">
+                        <main className="flex min-h-[34rem] min-w-0 items-center justify-center rounded-2xl border border-dashed border-slate-300 bg-white px-6 text-center lg:min-h-0">
                             <div className="max-w-sm">
                                 <FolderGit2 className="mx-auto h-8 w-8 text-slate-300" />
                                 <h3 className="mt-4 text-base font-black text-slate-800">
