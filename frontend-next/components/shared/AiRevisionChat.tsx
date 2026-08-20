@@ -35,6 +35,7 @@ type AiRevisionChatProps = {
     emptyDescription?: string;
     inputPlaceholder?: string;
     showModelSelector?: boolean;
+    showGenerateButton?: boolean;
 };
 
 /**
@@ -56,6 +57,7 @@ export function AiRevisionChat({
     emptyDescription = '[새 초안 생성] 버튼을 누르면 초안을 작성합니다.',
     inputPlaceholder = '지적사항이나 보완 요청을 입력하세요 (전송 버튼 클릭 시 반영)',
     showModelSelector = true,
+    showGenerateButton = true,
 }: AiRevisionChatProps) {
     const globalAiModel = useAiModelStore((state) => state.modelKey);
     const globalCustomModelName = useAiModelStore((state) => state.customModelName);
@@ -115,27 +117,29 @@ export function AiRevisionChat({
                         </p>
                     </div>
                 </div>
-                <button
-                    type="button"
-                    onClick={() => (isGenerating ? onCancelGenerate() : handleGenerate())}
-                    className={`flex items-center gap-1.5 rounded-md border px-3 py-2 text-xs font-extrabold transition whitespace-nowrap shrink-0 shadow-xs ${
-                        isGenerating
-                            ? 'border-rose-200 bg-rose-50 text-rose-600 hover:bg-rose-100'
-                            : 'border-indigo-200 bg-white text-indigo-600 hover:bg-indigo-50'
-                    }`}
-                >
-                    {isGenerating ? (
-                        <>
-                            <Loader2 className="h-3.5 w-3.5 animate-spin shrink-0 text-rose-600" />
-                            <span>생성 취소</span>
-                        </>
-                    ) : (
-                        <>
-                            <Sparkles className="h-3.5 w-3.5 text-indigo-600 shrink-0" />
-                            <span>{generateButtonLabel}</span>
-                        </>
-                    )}
-                </button>
+                {(showGenerateButton || isGenerating) && (
+                    <button
+                        type="button"
+                        onClick={() => (isGenerating ? onCancelGenerate() : handleGenerate())}
+                        className={`flex items-center gap-1.5 rounded-md border px-3 py-2 text-xs font-extrabold transition whitespace-nowrap shrink-0 shadow-xs ${
+                            isGenerating
+                                ? 'border-rose-200 bg-rose-50 text-rose-600 hover:bg-rose-100'
+                                : 'border-indigo-200 bg-white text-indigo-600 hover:bg-indigo-50'
+                        }`}
+                    >
+                        {isGenerating ? (
+                            <>
+                                <Loader2 className="h-3.5 w-3.5 animate-spin shrink-0 text-rose-600" />
+                                <span>생성 취소</span>
+                            </>
+                        ) : (
+                            <>
+                                <Sparkles className="h-3.5 w-3.5 text-indigo-600 shrink-0" />
+                                <span>{generateButtonLabel}</span>
+                            </>
+                        )}
+                    </button>
+                )}
             </div>
 
             {/* Model Selector Bar */}

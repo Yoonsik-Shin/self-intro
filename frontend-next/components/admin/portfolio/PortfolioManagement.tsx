@@ -57,8 +57,12 @@ const STATUS_LABELS = {
 const SOURCE_PANEL_MIN_WIDTH = 220;
 const SOURCE_PANEL_MAX_WIDTH = 420;
 const SOURCE_PANEL_DEFAULT_WIDTH = 256;
-const AI_SETUP_STEPS = ['작성 방향', '학습 기록', '핵심 역량', '기술', 'AI 대화'] as const;
+const AI_SETUP_STEPS = ['학습 기록', '핵심 역량', '기술', 'AI 대화'] as const;
 const CASE_FLOW_STEPS = ['원본 선택', '기본 정보', ...AI_SETUP_STEPS] as const;
+const FLOW_BACK_BUTTON_CLASS =
+    'inline-flex items-center justify-center gap-1.5 rounded-lg border border-slate-300 bg-white px-4 py-2.5 text-xs font-black text-slate-600 transition-colors hover:border-slate-400 hover:bg-slate-50 hover:text-slate-900';
+const FLOW_NEXT_BUTTON_CLASS =
+    'inline-flex items-center justify-center gap-1.5 rounded-lg bg-slate-900 px-4 py-2.5 text-xs font-black text-white transition-colors hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-40';
 
 function CaseFlowStepper({
     currentStep,
@@ -73,7 +77,7 @@ function CaseFlowStepper({
 }) {
     return (
         <div className="overflow-x-auto">
-            <ol className="grid min-w-[42rem] grid-cols-7 gap-2 px-2 py-3">
+            <ol className="grid min-w-[36rem] grid-cols-6 gap-2 px-2 py-3">
                 {CASE_FLOW_STEPS.map((step, index) => {
                     const canSelect = index >= minimumSelectableStep && index <= maxReachableStep;
                     return (
@@ -141,7 +145,6 @@ export function PortfolioManagement({
     const [createForm, setCreateForm] = useState({ experienceId: '', slug: '', title: '' });
     const [createSourceQuery, setCreateSourceQuery] = useState('');
     const [content, setContent] = useState<PortfolioCaseStudyContent>(EMPTY_CONTENT);
-    const [instruction, setInstruction] = useState('');
     const [studyIds, setStudyIds] = useState<number[]>([]);
     const [skillIds, setSkillIds] = useState<number[]>([]);
     const [competencyIds, setCompetencyIds] = useState<number[]>([]);
@@ -322,7 +325,6 @@ export function PortfolioManagement({
         setStudyIds(latest ? latest.content.sourceStudyIds : []);
         setSelectedRevisionId(latest?.id ?? null);
         if (caseChanged) {
-            setInstruction('');
             setSkillIds([]);
             setCompetencyIds([]);
             setAiSetupStep(latest ? AI_SETUP_STEPS.length - 1 : 0);
@@ -420,7 +422,7 @@ export function PortfolioManagement({
         if (selectedId === null) return;
         const normalizedFeedback = feedbackInstruction?.trim() || '';
         let baseRevisionId = normalizedFeedback ? (selectedRevision?.id ?? null) : null;
-        const generationInstruction = normalizedFeedback || instruction.trim();
+        const generationInstruction = normalizedFeedback;
         if (normalizedFeedback && hasUnsavedChanges) {
             try {
                 const savedManualRevision = await portfolioApi.workspaceSaveRevision(
@@ -772,23 +774,13 @@ export function PortfolioManagement({
                             <div className="mx-auto mt-6 min-h-0 w-full max-w-4xl flex-1 overflow-y-auto pr-1">
                                 {createMode && (
                                     <>
-                                        <div className="flex items-end justify-between gap-4">
-                                            <div>
-                                                <h4 className="text-sm font-black text-slate-900">
-                                                    사례 기본 정보
-                                                </h4>
-                                                <p className="mt-1 text-xs leading-5 text-slate-500">
-                                                    방문자에게 보일 사례 제목을 입력합니다.
-                                                </p>
-                                            </div>
-                                            <button
-                                                type="button"
-                                                onClick={() => setCreateStep(0)}
-                                                className="inline-flex items-center gap-1 text-[11px] font-black text-slate-500 hover:text-slate-900"
-                                            >
-                                                <ArrowLeft className="h-3.5 w-3.5" /> 출발점 다시
-                                                선택
-                                            </button>
+                                        <div>
+                                            <h4 className="text-sm font-black text-slate-900">
+                                                사례 기본 정보
+                                            </h4>
+                                            <p className="mt-1 text-xs leading-5 text-slate-500">
+                                                방문자에게 보일 사례 제목을 입력합니다.
+                                            </p>
                                         </div>
 
                                         {selectedCreateExperience ? (
@@ -836,17 +828,17 @@ export function PortfolioManagement({
                                         )}
 
                                         <div className="mt-8 flex items-center justify-between border-t border-slate-200 pt-4">
-                                            {editingCreatedCaseId ? (
-                                                <span />
-                                            ) : (
-                                                <button
-                                                    type="button"
-                                                    onClick={() => setCreateStep(0)}
-                                                    className="inline-flex items-center gap-1.5 px-2 py-2 text-xs font-black text-slate-500"
-                                                >
-                                                    <ArrowLeft className="h-3.5 w-3.5" /> 이전
-                                                </button>
-                                            )}
+                                            <button
+                                                type="button"
+                                                onClick={() =>
+                                                    editingCreatedCaseId
+                                                        ? setCreateOpen(false)
+                                                        : setCreateStep(0)
+                                                }
+                                                className={FLOW_BACK_BUTTON_CLASS}
+                                            >
+                                                <ArrowLeft className="h-3.5 w-3.5" /> 이전
+                                            </button>
                                             <button
                                                 type="button"
                                                 disabled={
@@ -861,7 +853,7 @@ export function PortfolioManagement({
                                                         ? renameMutation.mutate()
                                                         : createMutation.mutate()
                                                 }
-                                                className="inline-flex items-center justify-center gap-2 rounded-lg bg-slate-900 px-5 py-3 text-sm font-semibold text-white transition-colors hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-40"
+                                                className={FLOW_NEXT_BUTTON_CLASS}
                                             >
                                                 {createMutation.isPending ||
                                                 renameMutation.isPending
@@ -1246,32 +1238,15 @@ export function PortfolioManagement({
                                                         </h4>
                                                         <p className="mt-1 text-xs leading-5 text-slate-500">
                                                             {aiSetupStep === 0
-                                                                ? '선택 사항입니다. 비워두면 연결한 원본과 근거를 중심으로 초안을 구성합니다.'
+                                                                ? '초안의 근거로 사용할 학습 기록을 선택하세요.'
                                                                 : aiSetupStep === 1
-                                                                  ? '초안의 근거로 사용할 학습 기록을 선택하세요.'
-                                                                  : aiSetupStep === 2
-                                                                    ? '이 사례가 보여줄 핵심 역량을 선택하세요.'
-                                                                    : '사례에서 실제로 사용한 기술을 선택하세요.'}
+                                                                  ? '이 사례가 보여줄 핵심 역량을 선택하세요.'
+                                                                  : '사례에서 실제로 사용한 기술을 선택하세요.'}
                                                         </p>
                                                     </div>
 
                                                     <div className="mt-4 min-h-0 flex-1 overflow-y-auto">
                                                         {aiSetupStep === 0 && (
-                                                            <textarea
-                                                                value={instruction}
-                                                                onChange={(event) =>
-                                                                    setInstruction(
-                                                                        event.target.value
-                                                                    )
-                                                                }
-                                                                placeholder="예: 운영 안정성을 높이기 위해 내린 판단과 트레이드오프 중심"
-                                                                rows={5}
-                                                                autoFocus
-                                                                className="w-full resize-none rounded-xl border border-slate-300 bg-white px-4 py-3 text-sm leading-6 outline-none transition focus:border-slate-700 focus:ring-2 focus:ring-slate-200"
-                                                            />
-                                                        )}
-
-                                                        {aiSetupStep === 1 && (
                                                             <div className="flex flex-wrap gap-2">
                                                                 {(studyPage?.content ?? [])
                                                                     .slice(0, 30)
@@ -1312,7 +1287,7 @@ export function PortfolioManagement({
                                                             </div>
                                                         )}
 
-                                                        {aiSetupStep === 2 && (
+                                                        {aiSetupStep === 1 && (
                                                             <div className="flex flex-wrap gap-2">
                                                                 {competencies.map((competency) => (
                                                                     <button
@@ -1351,7 +1326,7 @@ export function PortfolioManagement({
                                                             </div>
                                                         )}
 
-                                                        {aiSetupStep === 3 && (
+                                                        {aiSetupStep === 2 && (
                                                             <div className="flex flex-wrap gap-2">
                                                                 {skills.map((skill) => (
                                                                     <button
@@ -1403,21 +1378,19 @@ export function PortfolioManagement({
                                                                     Math.max(0, current - 1)
                                                                 );
                                                             }}
-                                                            className="inline-flex items-center gap-1.5 px-2 py-2 text-xs font-black text-slate-500 hover:text-slate-900"
+                                                            className={FLOW_BACK_BUTTON_CLASS}
                                                         >
                                                             <ArrowLeft className="h-3.5 w-3.5" />
                                                             이전
                                                         </button>
                                                         <div className="flex items-center gap-3">
-                                                            {aiSetupStep > 0 && (
-                                                                <span className="text-[10px] font-bold text-slate-400">
-                                                                    {aiSetupStep === 1
-                                                                        ? `${studyIds.length}개 선택`
-                                                                        : aiSetupStep === 2
-                                                                          ? `${competencyIds.length}개 선택`
-                                                                          : `${skillIds.length}개 선택`}
-                                                                </span>
-                                                            )}
+                                                            <span className="text-[10px] font-bold text-slate-400">
+                                                                {aiSetupStep === 0
+                                                                    ? `${studyIds.length}개 선택`
+                                                                    : aiSetupStep === 1
+                                                                      ? `${competencyIds.length}개 선택`
+                                                                      : `${skillIds.length}개 선택`}
+                                                            </span>
                                                             <button
                                                                 type="button"
                                                                 onClick={() =>
@@ -1429,9 +1402,9 @@ export function PortfolioManagement({
                                                                         )
                                                                     )
                                                                 }
-                                                                className="inline-flex items-center gap-1.5 rounded-lg bg-slate-900 px-4 py-2.5 text-xs font-black text-white disabled:cursor-not-allowed disabled:opacity-40"
+                                                                className={FLOW_NEXT_BUTTON_CLASS}
                                                             >
-                                                                {aiSetupStep === 3
+                                                                {aiSetupStep === 2
                                                                     ? 'AI 대화 시작'
                                                                     : '다음'}
                                                                 <ArrowRight className="h-3.5 w-3.5" />
@@ -1508,9 +1481,12 @@ export function PortfolioManagement({
                                                                     : '첫 초안 생성'
                                                             }
                                                             emptyTitle="이제 AI와 대화를 시작하세요."
-                                                            emptyDescription="첫 초안을 생성한 뒤 개선 요청을 이어가면 모든 결과가 revision으로 기록됩니다."
-                                                            inputPlaceholder="강조하거나 개선할 방향을 입력하세요"
+                                                            emptyDescription="아래 입력창에 강조할 판단, 문제 해결 관점 등 작성 방향을 대화하듯 입력하세요."
+                                                            inputPlaceholder="이 사례에서 강조할 작성 방향을 입력하세요"
                                                             showModelSelector={false}
+                                                            showGenerateButton={Boolean(
+                                                                detail?.revisions.length
+                                                            )}
                                                         />
                                                     </div>
                                                 </div>
