@@ -77,7 +77,7 @@ export function ReauthenticationControl() {
                 onClick={() => setIsOpen((open) => !open)}
                 aria-expanded={isOpen}
                 title="중요 작업에 사용하는 10분 재인증 상태"
-                className={`flex items-center gap-1.5 rounded-lg border px-3 py-1.5 text-sm font-bold transition ${
+                className={`flex items-center gap-1.5 rounded-md border px-2.5 py-1.5 text-xs font-semibold transition ${
                     isReauthenticated
                         ? 'border-emerald-200 bg-emerald-50 text-emerald-700 hover:bg-emerald-100'
                         : 'border-slate-200 text-slate-600 hover:border-indigo-200 hover:bg-indigo-50 hover:text-indigo-700'
@@ -102,7 +102,7 @@ export function ReauthenticationControl() {
                 <section className="absolute right-0 top-full z-50 mt-2 w-80 overflow-hidden rounded-2xl border border-slate-700 bg-slate-950 text-white shadow-2xl shadow-slate-950/30">
                     <div className="flex items-start justify-between border-b border-slate-800 p-4">
                         <div>
-                            <p className="text-sm font-black">중요 작업 인증</p>
+                            <p className="text-sm font-semibold">중요 작업 인증</p>
                             <p className="mt-1 text-xs leading-5 text-slate-400">
                                 한 번 확인하면 이 계정의 중요 작업에 10분 동안 함께 적용됩니다.
                             </p>
@@ -118,7 +118,7 @@ export function ReauthenticationControl() {
                     </div>
                     {isReauthenticated ? (
                         <div className="p-4">
-                            <p className="flex items-center gap-2 text-sm font-black text-emerald-300">
+                            <p className="flex items-center gap-2 text-sm font-semibold text-emerald-300">
                                 <Check className="h-4 w-4" /> 인증됨 ·{' '}
                                 {formatRemaining(remainingSeconds)} 남음
                             </p>
@@ -132,7 +132,7 @@ export function ReauthenticationControl() {
                                 type="button"
                                 onClick={() => void expireNow()}
                                 disabled={pending}
-                                className="mt-3 flex w-full items-center justify-center gap-2 rounded-xl border border-slate-700 px-4 py-2 text-sm font-black text-slate-200 transition hover:border-slate-500 hover:bg-slate-800 disabled:opacity-50"
+                                className="mt-3 flex w-full items-center justify-center gap-2 rounded-xl border border-slate-700 px-4 py-2 text-sm font-semibold text-slate-200 transition hover:border-slate-500 hover:bg-slate-800 disabled:opacity-50"
                             >
                                 {pending ? (
                                     <LoaderCircle className="h-4 w-4 animate-spin" />
@@ -164,7 +164,7 @@ export function ReauthenticationControl() {
                             <button
                                 type="submit"
                                 disabled={pending || !password}
-                                className="flex w-full items-center justify-center rounded-xl bg-white px-4 py-2 text-sm font-black text-slate-950 transition hover:bg-slate-100 disabled:opacity-50"
+                                className="flex w-full items-center justify-center rounded-xl bg-white px-4 py-2 text-sm font-semibold text-slate-950 transition hover:bg-slate-100 disabled:opacity-50"
                             >
                                 {pending ? (
                                     <LoaderCircle className="h-4 w-4 animate-spin" />

@@ -829,7 +829,7 @@ export function AdminDashboardShell({ workspaceSlug }: { workspaceSlug: string }
 
     return (
         <main className="flex h-screen flex-col overflow-hidden bg-[#f8fafc] text-slate-800">
-            <header className="z-30 flex h-12 shrink-0 items-center justify-between border-b border-slate-200/70 bg-white/90 px-4 shadow-sm backdrop-blur-xl">
+            <header className="z-50 flex h-12 shrink-0 items-center justify-between border-b border-slate-200/70 bg-white/90 px-4 shadow-sm backdrop-blur-xl">
                 <div className="flex items-center gap-3">
                     <button
                         type="button"
@@ -952,7 +952,7 @@ export function AdminDashboardShell({ workspaceSlug }: { workspaceSlug: string }
                                 )}
                             </button>
                             {isStatusPanelOpen && (
-                                <div className="absolute right-0 top-full z-40 mt-2 w-72 rounded-2xl border border-slate-700 bg-slate-950 p-3 text-white shadow-2xl shadow-slate-950/30 ring-1 ring-black/5">
+                                <div className="absolute right-0 top-full z-50 mt-2 w-72 rounded-2xl border border-slate-700 bg-slate-950 p-3 text-white shadow-2xl shadow-slate-950/30 ring-1 ring-black/5">
                                     <div className="mb-2 flex items-center justify-between px-1">
                                         <span className="text-xs font-black text-slate-300">
                                             외부 서비스 상태
