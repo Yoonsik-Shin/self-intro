@@ -1454,8 +1454,8 @@ export function PortfolioManagement({
                                         </section>
                                     )}
 
-                                    {/* 구조화 편집 폼 */}
-                                    <div className="space-y-3">
+                                    {/* AI를 사용할 수 없는 환경의 구조화 수동 편집 폼 */}
+                                    <div hidden={enablePlatformAi} className="space-y-3">
                                         <label className="block text-xs font-bold text-slate-600">
                                             한줄 요약
                                             <input
@@ -1814,7 +1814,10 @@ export function PortfolioManagement({
                                         </div>
                                     </div>
 
-                                    <div className="flex flex-wrap items-center gap-2 border-t border-slate-100 pt-3">
+                                    <div
+                                        hidden={enablePlatformAi}
+                                        className="flex flex-wrap items-center gap-2 border-t border-slate-100 pt-3"
+                                    >
                                         <button
                                             type="button"
                                             onClick={() => saveRevisionMutation.mutate('MANUAL')}
