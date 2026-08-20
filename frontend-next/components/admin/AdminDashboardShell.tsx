@@ -1114,7 +1114,7 @@ export function AdminDashboardShell({ workspaceSlug }: { workspaceSlug: string }
                             </div>
                             <nav
                                 aria-label="Workspace 관리 메뉴"
-                                className={`space-y-5 ${isSidebarCollapsed ? 'pb-3' : 'pr-11'}`}
+                                className={`space-y-5 ${isSidebarCollapsed ? 'pb-3' : 'pr-3'}`}
                             >
                                 {visibleMenuGroups.map((group, groupIndex) => (
                                     <section
@@ -1137,7 +1137,7 @@ export function AdminDashboardShell({ workspaceSlug }: { workspaceSlug: string }
                                                     ? 'max-h-0 opacity-0'
                                                     : groupIndex === 0
                                                       ? 'h-8 max-h-8 pr-9 opacity-100'
-                                                      : 'h-6 max-h-6 opacity-100'
+                                                      : 'h-6 max-h-6 pr-9 opacity-100'
                                             }`}
                                         >
                                             <h2
@@ -1197,7 +1197,7 @@ export function AdminDashboardShell({ workspaceSlug }: { workspaceSlug: string }
                                                                 className={`mb-1 overflow-hidden px-3 text-[9px] font-black tracking-[0.1em] text-slate-500 transition-all duration-300 ${
                                                                     isSidebarCollapsed
                                                                         ? 'max-h-0 opacity-0'
-                                                                        : 'max-h-5 opacity-100'
+                                                                        : 'max-h-5 pr-9 opacity-100'
                                                                 }`}
                                                             >
                                                                 {item.operatorSection}
@@ -1213,7 +1213,7 @@ export function AdminDashboardShell({ workspaceSlug }: { workspaceSlug: string }
                                                             className={`flex items-center rounded-xl text-sm font-bold transition-all duration-300 ease-in-out ${
                                                                 isSidebarCollapsed
                                                                     ? 'mx-auto h-10 w-10 justify-center'
-                                                                    : 'w-full gap-2.5 px-3 py-2.5 text-left'
+                                                                    : 'w-full gap-2.5 py-2.5 pl-3 pr-11 text-left'
                                                             } ${
                                                                 isActive
                                                                     ? group.requiresPlatformOperator
@@ -1230,7 +1230,7 @@ export function AdminDashboardShell({ workspaceSlug }: { workspaceSlug: string }
                                                         >
                                                             <Icon className="h-4 w-4 shrink-0" />
                                                             <span
-                                                                className={`overflow-hidden whitespace-nowrap transition-all duration-300 ease-in-out ${
+                                                                className={`overflow-hidden text-ellipsis whitespace-nowrap transition-all duration-300 ease-in-out ${
                                                                     isSidebarCollapsed
                                                                         ? 'max-w-0 opacity-0'
                                                                         : 'max-w-[160px] opacity-100'
