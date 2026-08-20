@@ -1091,27 +1091,21 @@ export function AdminDashboardShell({ workspaceSlug }: { workspaceSlug: string }
                         <aside
                             className={`relative isolate col-start-1 row-start-1 min-h-0 min-w-0 overflow-x-hidden overflow-y-auto overscroll-contain transition-all duration-300 ease-in-out [scrollbar-width:none] [&::-webkit-scrollbar]:hidden ${isSidebarCollapsed ? 'rounded-2xl border border-slate-200 bg-white shadow-sm' : ''}`}
                         >
-                            <div
-                                className={
-                                    isSidebarCollapsed
-                                        ? 'sticky top-0 z-30 mb-2 flex h-14 items-start justify-center rounded-t-[15px] border-b border-slate-100 bg-white px-2 pt-3'
-                                        : 'sticky top-0 z-30 ml-auto -mb-8 h-8 w-8 rounded-md bg-[#f8fafc]/95 backdrop-blur-sm'
-                                }
-                            >
-                                <button
-                                    type="button"
-                                    onClick={() => setIsSidebarCollapsed((collapsed) => !collapsed)}
-                                    title={isSidebarCollapsed ? '메뉴 펼치기' : '메뉴 접기'}
-                                    aria-expanded={!isSidebarCollapsed}
-                                    className="z-20 flex h-8 w-8 shrink-0 items-center justify-center rounded-md text-slate-400 transition-colors hover:bg-slate-200/70 hover:text-slate-900 focus:outline-none focus-visible:ring-2 focus-visible:ring-slate-400 focus-visible:ring-offset-1"
-                                >
-                                    {isSidebarCollapsed ? (
+                            {isSidebarCollapsed && (
+                                <div className="sticky top-0 z-30 mb-2 flex h-14 items-start justify-center rounded-t-[15px] border-b border-slate-100 bg-white px-2 pt-3">
+                                    <button
+                                        type="button"
+                                        onClick={() =>
+                                            setIsSidebarCollapsed((collapsed) => !collapsed)
+                                        }
+                                        title="메뉴 펼치기"
+                                        aria-expanded={false}
+                                        className="z-20 flex h-8 w-8 shrink-0 items-center justify-center rounded-md text-slate-400 transition-colors hover:bg-slate-200/70 hover:text-slate-900 focus:outline-none focus-visible:ring-2 focus-visible:ring-slate-400 focus-visible:ring-offset-1"
+                                    >
                                         <ChevronRight className="h-4 w-4" />
-                                    ) : (
-                                        <ChevronLeft className="h-4 w-4" />
-                                    )}
-                                </button>
-                            </div>
+                                    </button>
+                                </div>
+                            )}
                             <nav
                                 aria-label="Workspace 관리 메뉴"
                                 className={`space-y-5 ${isSidebarCollapsed ? 'pb-3' : 'pr-3'}`}
@@ -1136,8 +1130,8 @@ export function AdminDashboardShell({ workspaceSlug }: { workspaceSlug: string }
                                                 isSidebarCollapsed
                                                     ? 'max-h-0 opacity-0'
                                                     : groupIndex === 0
-                                                      ? 'h-8 max-h-8 pr-9 opacity-100'
-                                                      : 'h-6 max-h-6 pr-9 opacity-100'
+                                                      ? 'h-8 max-h-8 opacity-100'
+                                                      : 'h-6 max-h-6 opacity-100'
                                             }`}
                                         >
                                             <h2
@@ -1197,7 +1191,7 @@ export function AdminDashboardShell({ workspaceSlug }: { workspaceSlug: string }
                                                                 className={`mb-1 overflow-hidden px-3 text-[9px] font-black tracking-[0.1em] text-slate-500 transition-all duration-300 ${
                                                                     isSidebarCollapsed
                                                                         ? 'max-h-0 opacity-0'
-                                                                        : 'max-h-5 pr-9 opacity-100'
+                                                                        : 'max-h-5 opacity-100'
                                                                 }`}
                                                             >
                                                                 {item.operatorSection}
@@ -1213,7 +1207,7 @@ export function AdminDashboardShell({ workspaceSlug }: { workspaceSlug: string }
                                                             className={`flex items-center rounded-xl text-sm font-bold transition-all duration-300 ease-in-out ${
                                                                 isSidebarCollapsed
                                                                     ? 'mx-auto h-10 w-10 justify-center'
-                                                                    : 'w-full gap-2.5 py-2.5 pl-3 pr-11 text-left'
+                                                                    : 'w-full gap-2.5 px-3 py-2.5 text-left'
                                                             } ${
                                                                 isActive
                                                                     ? group.requiresPlatformOperator
@@ -1230,10 +1224,10 @@ export function AdminDashboardShell({ workspaceSlug }: { workspaceSlug: string }
                                                         >
                                                             <Icon className="h-4 w-4 shrink-0" />
                                                             <span
-                                                                className={`overflow-hidden text-ellipsis whitespace-nowrap transition-all duration-300 ease-in-out ${
+                                                                className={`whitespace-nowrap transition-all duration-300 ease-in-out ${
                                                                     isSidebarCollapsed
-                                                                        ? 'max-w-0 opacity-0'
-                                                                        : 'max-w-[160px] opacity-100'
+                                                                        ? 'max-w-0 overflow-hidden opacity-0'
+                                                                        : 'shrink-0 opacity-100'
                                                                 }`}
                                                             >
                                                                 {item.label}
@@ -1247,6 +1241,17 @@ export function AdminDashboardShell({ workspaceSlug }: { workspaceSlug: string }
                                 ))}
                             </nav>
                         </aside>
+                        {!isSidebarCollapsed && (
+                            <button
+                                type="button"
+                                onClick={() => setIsSidebarCollapsed(true)}
+                                title="메뉴 접기"
+                                aria-expanded={true}
+                                className="z-30 col-start-1 row-start-1 flex h-8 w-6 translate-x-full items-center justify-center justify-self-end rounded-md text-slate-400 transition-colors hover:bg-slate-200/70 hover:text-slate-900 focus:outline-none focus-visible:ring-2 focus-visible:ring-slate-400 focus-visible:ring-offset-1"
+                            >
+                                <ChevronLeft className="h-4 w-4" />
+                            </button>
+                        )}
                         {!isSidebarCollapsed && (
                             <div
                                 role="separator"
