@@ -7,6 +7,7 @@ import {
     ArrowRight,
     BriefcaseBusiness,
     CheckCircle2,
+    CircleHelp,
     FileText,
     FolderGit2,
     GripVertical,
@@ -58,6 +59,12 @@ const SOURCE_PANEL_MIN_WIDTH = 220;
 const SOURCE_PANEL_MAX_WIDTH = 420;
 const SOURCE_PANEL_DEFAULT_WIDTH = 256;
 const AI_SETUP_STEPS = ['학습 기록', '핵심 역량', '기술', 'AI 대화'] as const;
+const AI_SETUP_STEP_DESCRIPTIONS = [
+    '초안의 근거로 사용할 학습 기록을 선택하세요.',
+    '이 사례가 보여줄 핵심 역량을 선택하세요.',
+    '사례에서 실제로 사용한 기술을 선택하세요.',
+    '선택한 근거를 바탕으로 AI와 대화하며 초안을 완성하세요.',
+] as const;
 const CASE_FLOW_STEPS = ['원본 선택', '기본 정보', ...AI_SETUP_STEPS] as const;
 const FLOW_BACK_BUTTON_CLASS =
     'inline-flex items-center justify-center gap-1.5 rounded-lg border border-slate-300 bg-white px-4 py-2.5 text-xs font-semibold text-slate-600 transition-colors hover:border-slate-400 hover:bg-slate-50 hover:text-slate-900';
@@ -1399,19 +1406,33 @@ export function PortfolioManagement({
                                             {aiSetupStep < AI_SETUP_STEPS.length - 1 ? (
                                                 <div className="flex min-h-0 flex-1 flex-col">
                                                     <div className="shrink-0 px-2 pt-5 sm:px-3">
-                                                        <h4 className="text-xl font-semibold tracking-tight text-slate-950">
-                                                            {AI_SETUP_STEPS[aiSetupStep]}
-                                                        </h4>
-                                                        <p className="mt-1 text-xs leading-5 text-slate-500">
-                                                            {aiSetupStep === 0
-                                                                ? '초안의 근거로 사용할 학습 기록을 선택하세요.'
-                                                                : aiSetupStep === 1
-                                                                  ? '이 사례가 보여줄 핵심 역량을 선택하세요.'
-                                                                  : '사례에서 실제로 사용한 기술을 선택하세요.'}
-                                                        </p>
+                                                        <div className="flex items-center gap-1.5">
+                                                            <h4 className="text-xl font-semibold tracking-tight text-slate-950">
+                                                                {AI_SETUP_STEPS[aiSetupStep]}
+                                                            </h4>
+                                                            <span className="group/help relative inline-flex shrink-0">
+                                                                <button
+                                                                    type="button"
+                                                                    aria-label={`${AI_SETUP_STEPS[aiSetupStep]} 설명`}
+                                                                    className="grid h-5 w-5 place-items-center rounded-full text-slate-400 transition-colors hover:bg-slate-200 hover:text-slate-800 focus-visible:bg-slate-200 focus-visible:text-slate-800 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-300"
+                                                                >
+                                                                    <CircleHelp className="h-3.5 w-3.5" />
+                                                                </button>
+                                                                <span
+                                                                    role="tooltip"
+                                                                    className="pointer-events-none absolute left-0 top-full z-50 mt-2 w-72 max-w-[70vw] translate-y-1 rounded-lg bg-slate-900 px-3 py-2.5 text-left text-xs font-medium leading-5 text-white opacity-0 shadow-lg transition group-hover/help:translate-y-0 group-hover/help:opacity-100 group-focus-within/help:translate-y-0 group-focus-within/help:opacity-100"
+                                                                >
+                                                                    {
+                                                                        AI_SETUP_STEP_DESCRIPTIONS[
+                                                                            aiSetupStep
+                                                                        ]
+                                                                    }
+                                                                </span>
+                                                            </span>
+                                                        </div>
                                                     </div>
 
-                                                    <div className="mt-4 min-h-0 flex-1 overflow-hidden px-2 sm:px-3">
+                                                    <div className="mt-3 min-h-0 flex-1 overflow-hidden px-2 sm:px-3">
                                                         {aiSetupStep === 0 && (
                                                             <EvidencePicker
                                                                 key="studies"
