@@ -61,9 +61,8 @@ public class PublicPageCompositionController {
     }
 
     /**
-     * 저장하지 않은 편집 중인 초안을 그대로 계산해서 보여준다(디비에 쓰지 않음). 요청에 담기지
-     * 않은 쪽(null)은 이미 저장된 초안을 그대로 사용한다 — 왼쪽에서 프로필만 만지는 중이면
-     * 경험 구성은 저장된 값을 유지한 채 프로필만 실시간으로 반영해서 보여준다.
+     * 저장하지 않은 편집 중인 초안을 그대로 계산해서 보여준다(디비에 쓰지 않음). 요청에 담기지 않은 쪽(null)은 이미 저장된 초안을 그대로 사용한다 — 왼쪽에서
+     * 프로필만 만지는 중이면 경험 구성은 저장된 값을 유지한 채 프로필만 실시간으로 반영해서 보여준다.
      */
     @PostMapping("/preview/introduction")
     public IntroductionResponse previewIntroductionLive(
@@ -73,7 +72,9 @@ public class PublicPageCompositionController {
         WorkspaceMember member = readMember(authentication, workspaceSlug);
         Long workspaceId = member.getWorkspace().getId();
         PublicProfileDraft profileDraft =
-                request.profile() != null ? request.profile() : compositionService.profile(workspaceId);
+                request.profile() != null
+                        ? request.profile()
+                        : compositionService.profile(workspaceId);
         PublicExperienceDraft experienceDraft =
                 request.experience() != null
                         ? request.experience()

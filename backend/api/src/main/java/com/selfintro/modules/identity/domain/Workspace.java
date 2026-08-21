@@ -88,6 +88,11 @@ public class Workspace {
         this.updatedAt = LocalDateTime.now();
     }
 
+    public void changeType(WorkspaceType type) {
+        this.type = type;
+        this.updatedAt = LocalDateTime.now();
+    }
+
     public void close(Long requestedByUserId, LocalDateTime now, LocalDateTime purgeAfter) {
         if (status != WorkspaceStatus.ACTIVE) {
             throw new IllegalStateException("활성 Workspace만 폐쇄할 수 있습니다.");

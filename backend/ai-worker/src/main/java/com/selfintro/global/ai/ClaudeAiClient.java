@@ -34,14 +34,24 @@ public class ClaudeAiClient {
      * 파싱은 호출부(AiJsonSupport 등)의 관대한 파서가 처리한다.
      */
     public String generateJson(String systemPrompt, String userPrompt, String modelName) {
+        return generateJsonWithApiKey(systemPrompt, userPrompt, modelName, apiKey);
+    }
+
+    public String generateJsonWithApiKey(
+            String systemPrompt, String userPrompt, String modelName, String requestApiKey) {
         String jsonSystemPrompt =
                 systemPrompt
                         + "\n\n반드시 JSON 객체 하나만 응답하세요. 설명 문장이나 ```json 같은 코드펜스 없이 순수 JSON만 출력하세요.";
-        return generate(jsonSystemPrompt, userPrompt, modelName);
+        return generateWithApiKey(jsonSystemPrompt, userPrompt, modelName, requestApiKey);
     }
 
     public String generate(String systemPrompt, String userPrompt, String modelName) {
-        if (!isConfigured()) {
+        return generateWithApiKey(systemPrompt, userPrompt, modelName, apiKey);
+    }
+
+    public String generateWithApiKey(
+            String systemPrompt, String userPrompt, String modelName, String requestApiKey) {
+        if (requestApiKey == null || requestApiKey.isBlank()) {
             throw new IllegalArgumentException("ANTHROPIC_API_KEY 가 환경변수/k8s 시크릿에 설정되지 않았습니다.");
         }
 
@@ -63,7 +73,7 @@ public class ClaudeAiClient {
             HttpRequest request =
                     HttpRequest.newBuilder()
                             .uri(URI.create("https://api.anthropic.com/v1/messages"))
-                            .header("x-api-key", apiKey)
+                            .header("x-api-key", requestApiKey)
                             .header("anthropic-version", "2023-06-01")
                             .header("Content-Type", "application/json")
                             .timeout(Duration.ofSeconds(60))
@@ -75,10 +85,18 @@ public class ClaudeAiClient {
 
             if (response.statusCode() != 200) {
                 throw new RuntimeException(
-                        "Anthropic API Error (" + response.statusCode() + "): " + response.body());
+                        "Anthropic API 요청 실패 (status=" + response.statusCode() + ")");
             }
 
             ClaudeResponse resBody = objectMapper.readValue(response.body(), ClaudeResponse.class);
+            if (resBody.usage != null) {
+                ProviderUsageContext.record(
+                        "ANTHROPIC",
+                        targetModel,
+                        resBody.usage.inputTokens,
+                        resBody.usage.cacheReadInputTokens,
+                        resBody.usage.outputTokens);
+            }
             if (resBody.content != null) {
                 for (ClaudeContentBlock block : resBody.content) {
                     if (block.text != null && !block.text.isBlank()) {
@@ -86,10 +104,10 @@ public class ClaudeAiClient {
                     }
                 }
             }
-            throw new RuntimeException("Anthropic API 반환 결과가 비어 있습니다: " + response.body());
+            throw new RuntimeException("Anthropic API가 빈 결과를 반환했습니다.");
         } catch (Exception e) {
             if (e instanceof RuntimeException) throw (RuntimeException) e;
-            throw new RuntimeException("Claude AI 호출 중 오류 발생: " + e.getMessage(), e);
+            throw new RuntimeException("Anthropic 호출 중 내부 오류가 발생했습니다.", e);
         }
     }
 
@@ -109,6 +127,18 @@ public class ClaudeAiClient {
 
     private static class ClaudeResponse {
         public List<ClaudeContentBlock> content;
+        public ClaudeUsage usage;
+    }
+
+    private static class ClaudeUsage {
+        @JsonProperty("input_tokens")
+        public long inputTokens;
+
+        @JsonProperty("cache_read_input_tokens")
+        public long cacheReadInputTokens;
+
+        @JsonProperty("output_tokens")
+        public long outputTokens;
     }
 
     private static class ClaudeContentBlock {

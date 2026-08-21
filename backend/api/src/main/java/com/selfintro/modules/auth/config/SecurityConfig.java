@@ -84,6 +84,7 @@ public class SecurityConfig {
                                                 "/api/workspaces/*/visits",
                                                 // Ko-fi 서버가 보내는 외부 webhook은 CSRF 토큰을 가질 수 없다
                                                 "/api/donations/kofi/webhook",
+                                                "/api/billing/webhooks/toss",
                                                 // Worker HTTP 포트는 API가 서버 간 호출에만 사용한다.
                                                 "/internal/**"))
                 .cors(cors -> cors.configurationSource(corsConfigurationSource))
@@ -163,9 +164,13 @@ public class SecurityConfig {
                                                 "/api/workspaces/*/slug-resolution",
                                                 "/api/workspaces/*/settings/slug",
                                                 "/api/workspaces/*/settings/name",
+                                                "/api/workspaces/*/settings/type",
                                                 "/api/workspaces/*/lifecycle",
                                                 "/api/workspaces/*/members/manage",
                                                 "/api/workspaces/*/members/manage/**",
+                                                "/api/workspaces/*/billing/**",
+                                                "/api/workspaces/*/ai-provider/**",
+                                                "/api/workspaces/*/ai-provider",
                                                 "/api/workspaces/*/members/leave",
                                                 "/api/workspaces/*/visits/manage",
                                                 "/api/workspaces/*/visits/manage/**")
@@ -202,6 +207,9 @@ public class SecurityConfig {
                                         .permitAll()
                                         .requestMatchers(
                                                 HttpMethod.POST, "/api/donations/kofi/webhook")
+                                        .permitAll()
+                                        .requestMatchers(
+                                                HttpMethod.POST, "/api/billing/webhooks/toss")
                                         .permitAll()
                                         .requestMatchers(HttpMethod.POST, "/api/auth/login")
                                         .permitAll()

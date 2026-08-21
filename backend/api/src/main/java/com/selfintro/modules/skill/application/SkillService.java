@@ -182,7 +182,9 @@ public class SkillService {
     }
 
     public List<SkillProposalResponse> getWorkspaceProposals(Long workspaceId) {
-        return skillProposalRepository.findAllByWorkspaceIdOrderByCreatedAtDesc(workspaceId).stream()
+        return skillProposalRepository
+                .findAllByWorkspaceIdOrderByCreatedAtDesc(workspaceId)
+                .stream()
                 .map(SkillProposalResponse::from)
                 .toList();
     }
@@ -194,7 +196,9 @@ public class SkillService {
                 .map(
                         proposal -> {
                             Workspace workspace =
-                                    workspaceRepository.findById(proposal.getWorkspaceId()).orElse(null);
+                                    workspaceRepository
+                                            .findById(proposal.getWorkspaceId())
+                                            .orElse(null);
                             return SkillProposalResponse.from(
                                     proposal,
                                     workspace == null ? null : workspace.getName(),

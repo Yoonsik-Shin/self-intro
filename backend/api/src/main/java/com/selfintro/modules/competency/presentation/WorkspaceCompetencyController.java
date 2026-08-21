@@ -33,8 +33,7 @@ public class WorkspaceCompetencyController {
 
     @PostMapping
     public CompetencyResponse create(
-            @CurrentWorkspace Long workspaceId,
-            @Valid @RequestBody CompetencyRequest request) {
+            @CurrentWorkspace Long workspaceId, @Valid @RequestBody CompetencyRequest request) {
         return competencyService.create(workspaceId, request);
     }
 
@@ -47,17 +46,14 @@ public class WorkspaceCompetencyController {
     }
 
     @DeleteMapping("/{id}")
-    public ResponseEntity<Void> delete(
-            @CurrentWorkspace Long workspaceId,
-            @PathVariable Long id) {
+    public ResponseEntity<Void> delete(@CurrentWorkspace Long workspaceId, @PathVariable Long id) {
         competencyService.delete(workspaceId, id);
         return ResponseEntity.noContent().build();
     }
 
     @PostMapping("/reorder")
     public List<CompetencyResponse> reorder(
-            @CurrentWorkspace Long workspaceId,
-            @RequestBody List<Long> ids) {
+            @CurrentWorkspace Long workspaceId, @RequestBody List<Long> ids) {
         return competencyService.reorder(workspaceId, ids);
     }
 }

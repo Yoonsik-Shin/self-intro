@@ -31,8 +31,7 @@ public class WorkspaceJobScreenshotController {
 
     @DeleteMapping("/{uploadId}")
     public ResponseEntity<Void> cancel(
-            @CurrentWorkspace Long workspaceId,
-            @PathVariable String uploadId) {
+            @CurrentWorkspace Long workspaceId, @PathVariable String uploadId) {
         uploadService.cancel(workspaceId, uploadId);
         return ResponseEntity.noContent().build();
     }

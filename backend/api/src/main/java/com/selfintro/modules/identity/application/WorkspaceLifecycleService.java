@@ -8,6 +8,7 @@ import com.selfintro.modules.identity.domain.WorkspaceMembershipInvitationReposi
 import com.selfintro.modules.identity.domain.WorkspaceRepository;
 import com.selfintro.modules.identity.domain.WorkspaceRole;
 import com.selfintro.modules.identity.domain.WorkspaceStatus;
+import com.selfintro.modules.identity.domain.WorkspaceType;
 import java.time.Duration;
 import java.time.LocalDateTime;
 import lombok.RequiredArgsConstructor;
@@ -40,6 +41,27 @@ public class WorkspaceLifecycleService {
         String name = validateName(rawName);
         workspace.rename(name);
         return WorkspaceView.from(workspace);
+    }
+
+    @Transactional(readOnly = true)
+    public WorkspaceTypeView type(WorkspaceMember actor) {
+        Workspace workspace =
+                workspaceRepository
+                        .findById(actor.getWorkspace().getId())
+                        .filter(candidate -> candidate.getStatus() == WorkspaceStatus.ACTIVE)
+                        .orElseThrow(this::notFound);
+        return new WorkspaceTypeView(workspace.getId(), workspace.getType());
+    }
+
+    @Transactional
+    public WorkspaceTypeView changeType(WorkspaceMember actor, WorkspaceType type) {
+        Workspace workspace = lock(actor.getWorkspace().getId());
+        WorkspaceMember lockedActor = activeMember(workspace.getId(), actor.getUser().getId());
+        if (lockedActor.getRole() != WorkspaceRole.OWNER) {
+            throw notFound();
+        }
+        workspace.changeType(type);
+        return new WorkspaceTypeView(workspace.getId(), workspace.getType());
     }
 
     @Transactional
@@ -121,6 +143,8 @@ public class WorkspaceLifecycleService {
     }
 
     public record LeaveView(Long workspaceId, Long memberId) {}
+
+    public record WorkspaceTypeView(Long workspaceId, WorkspaceType type) {}
 
     public record ClosureView(
             Long workspaceId, LocalDateTime deletedAt, LocalDateTime purgeAfter) {}

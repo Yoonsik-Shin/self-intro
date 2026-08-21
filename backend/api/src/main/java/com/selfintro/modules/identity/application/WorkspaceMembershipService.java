@@ -1,5 +1,7 @@
 package com.selfintro.modules.identity.application;
 
+import com.selfintro.modules.billing.application.WorkspaceOwnershipBillingGuard;
+import com.selfintro.modules.billing.application.WorkspacePlanEntitlementService;
 import com.selfintro.modules.identity.domain.*;
 import java.security.SecureRandom;
 import java.time.LocalDateTime;
@@ -24,6 +26,8 @@ public class WorkspaceMembershipService {
     private final AppUserRepository userRepository;
     private final RegistrationSecretHasher secretHasher;
     private final WorkspaceMembershipInvitationEmailSender emailSender;
+    private final WorkspacePlanEntitlementService planEntitlementService;
+    private final WorkspaceOwnershipBillingGuard ownershipBillingGuard;
 
     @Value(
             "${app.workspace-invitation.accept-base-url:http://localhost:3000/workspace-invitations}")
@@ -55,6 +59,7 @@ public class WorkspaceMembershipService {
         if (validForHours < 1 || validForHours > 168) {
             throw badRequest("초대 유효기간은 1시간~7일이어야 합니다.");
         }
+        planEntitlementService.requireInvitationCapacity(workspace.getId(), LocalDateTime.now());
         String email = canonicalEmail(rawEmail);
         AppUser recipient =
                 userRepository
@@ -134,6 +139,7 @@ public class WorkspaceMembershipService {
                 || !invitation.getRecipientEmailCanonical().equals(user.getEmailCanonical())) {
             throw notFound();
         }
+        planEntitlementService.requireAcceptanceCapacity(workspace.getId(), now);
         WorkspaceMember membership;
         var existingMembership =
                 memberRepository.findByWorkspaceIdAndUserId(workspace.getId(), user.getId());
@@ -223,6 +229,7 @@ public class WorkspaceMembershipService {
                 != 1) {
             throw conflict("Workspace OWNER 상태를 확인할 수 없습니다.");
         }
+        ownershipBillingGuard.suspendAutomaticSecrets(workspace.getId());
         lockedActor.changeRole(WorkspaceRole.ADMIN);
         memberRepository.flush();
         target.changeRole(WorkspaceRole.OWNER);

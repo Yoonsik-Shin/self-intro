@@ -12,8 +12,7 @@ public record ProfileRequest(
         @NotBlank @Size(max = 500) String bio,
         @Size(max = 120) String coreStackSummary,
         @Size(max = 160) String statusBadgeText,
-        @Size(max = 255)
-                @Pattern(regexp = "^$|^https?://.+", message = "올바른 URL 형식이 아닙니다")
+        @Size(max = 255) @Pattern(regexp = "^$|^https?://.+", message = "올바른 URL 형식이 아닙니다")
                 String githubUrl,
         @Email @Size(max = 120) String email,
         @Size(max = 30)

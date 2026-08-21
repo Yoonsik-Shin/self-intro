@@ -16,6 +16,8 @@ spec:
       labels:
         app.kubernetes.io/name: self-intro-backend-worker
     spec:
+      serviceAccountName: self-intro-worker
+      automountServiceAccountToken: true
       imagePullSecrets:
         - name: ocir-pull-secret
       containers:

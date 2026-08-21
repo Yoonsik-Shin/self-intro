@@ -32,18 +32,21 @@ public class NvidiaNimClient {
     private final String model;
     private final int maxOutputTokens;
     private final boolean jsonResponseFormat;
+    private final AiPromptPolicy promptPolicy;
 
     public NvidiaNimClient(
             ChatClient.Builder chatClientBuilder,
             @Value("${app.ai.api-key:}") String apiKey,
             @Value("${app.ai.model:nvidia/nemotron-3-super-120b-a12b}") String model,
             @Value("${app.ai.max-output-tokens:8192}") int maxOutputTokens,
-            @Value("${app.ai.json-response-format:false}") boolean jsonResponseFormat) {
+            @Value("${app.ai.json-response-format:false}") boolean jsonResponseFormat,
+            AiPromptPolicy promptPolicy) {
         this.chatClient = chatClientBuilder.build();
         this.apiKey = apiKey;
         this.model = model;
         this.maxOutputTokens = maxOutputTokens;
         this.jsonResponseFormat = jsonResponseFormat;
+        this.promptPolicy = promptPolicy;
     }
 
     public String generate(String systemPrompt, String userPrompt) {
@@ -56,13 +59,14 @@ public class NvidiaNimClient {
      */
     public String generate(String systemPrompt, String userPrompt, int maxOutputTokensOverride) {
         ensureAvailable();
+        var prepared = promptPolicy.prepare(systemPrompt, userPrompt);
         return executeWithRetry(
                 () -> {
                     String content =
                             chatClient
                                     .prompt()
-                                    .system(systemPrompt)
-                                    .user(userPrompt)
+                                    .system(prepared.systemPrompt())
+                                    .user(prepared.userPrompt())
                                     .options(buildOptions(model, maxOutputTokensOverride))
                                     .call()
                                     .content();
@@ -105,13 +109,14 @@ public class NvidiaNimClient {
             Duration timeout,
             boolean forceJsonResponse) {
         ensureAvailable();
+        var prepared = promptPolicy.prepare(systemPrompt, userPrompt);
         return executeWithTimeout(
                 () -> {
                     ChatResponse chatResponse =
                             chatClient
                                     .prompt()
-                                    .system(systemPrompt)
-                                    .user(userPrompt)
+                                    .system(prepared.systemPrompt())
+                                    .user(prepared.userPrompt())
                                     .options(
                                             buildOptions(
                                                     model,
@@ -154,6 +159,7 @@ public class NvidiaNimClient {
     public String generateWithImages(
             String systemPrompt, String userPrompt, String model, List<ImagePart> images) {
         ensureAvailable();
+        var prepared = promptPolicy.prepare(systemPrompt, userPrompt);
         try {
             Media[] media =
                     images.stream()
@@ -166,8 +172,8 @@ public class NvidiaNimClient {
             String content =
                     chatClient
                             .prompt()
-                            .system(systemPrompt)
-                            .user(u -> u.text(userPrompt).media(media))
+                            .system(prepared.systemPrompt())
+                            .user(u -> u.text(prepared.userPrompt()).media(media))
                             .options(buildOptions(model))
                             .call()
                             .content();
@@ -187,6 +193,7 @@ public class NvidiaNimClient {
             int maxOutputTokensOverride,
             Duration timeout) {
         ensureAvailable();
+        var prepared = promptPolicy.prepare(systemPrompt, userPrompt);
         return executeWithTimeout(
                 () -> {
                     Media[] media =
@@ -200,8 +207,8 @@ public class NvidiaNimClient {
                     String content =
                             chatClient
                                     .prompt()
-                                    .system(withThinkingOff(systemPrompt))
-                                    .user(u -> u.text(userPrompt).media(media))
+                                    .system(withThinkingOff(prepared.systemPrompt()))
+                                    .user(u -> u.text(prepared.userPrompt()).media(media))
                                     .options(buildOptions(model, maxOutputTokensOverride))
                                     .call()
                                     .content();
@@ -215,12 +222,13 @@ public class NvidiaNimClient {
     public String generateStreaming(
             String systemPrompt, String userPrompt, Consumer<String> onToken) {
         ensureAvailable();
+        var prepared = promptPolicy.prepare(systemPrompt, userPrompt);
         try {
             StringBuilder content = new StringBuilder();
             chatClient
                     .prompt()
-                    .system(systemPrompt)
-                    .user(userPrompt)
+                    .system(prepared.systemPrompt())
+                    .user(prepared.userPrompt())
                     .options(buildOptions())
                     .stream()
                     .content()

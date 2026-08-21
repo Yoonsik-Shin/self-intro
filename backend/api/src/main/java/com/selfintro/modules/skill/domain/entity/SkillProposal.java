@@ -15,8 +15,8 @@ import lombok.Getter;
 import lombok.NoArgsConstructor;
 
 /**
- * Workspace 사용자가 공통 카탈로그에 없는 기술을 제안한 기록이다. 승인되기 전까지는 {@code skill}
- * 테이블에 어떤 흔적도 남기지 않는다 — 그 테이블은 BFF가 캐싱하는 원본이라 검토 전/반려 항목이 섞이면 안 된다.
+ * Workspace 사용자가 공통 카탈로그에 없는 기술을 제안한 기록이다. 승인되기 전까지는 {@code skill} 테이블에 어떤 흔적도 남기지 않는다 — 그 테이블은
+ * BFF가 캐싱하는 원본이라 검토 전/반려 항목이 섞이면 안 된다.
  */
 @Getter
 @Entity

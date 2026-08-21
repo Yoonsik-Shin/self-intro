@@ -22,13 +22,28 @@ import org.springframework.web.server.ResponseStatusException;
 @Transactional(readOnly = true)
 public class PublicPageCompositionService {
 
+    private static final List<String> COMPOSITION_TABLES =
+            List.of(
+                    "workspace_public_page_draft",
+                    "workspace_public_profile_config",
+                    "workspace_public_skill_selection",
+                    "workspace_public_competency_selection",
+                    "workspace_public_experience_selection",
+                    "workspace_public_experience_detail_selection",
+                    "workspace_public_experience_placement",
+                    "workspace_public_portfolio_selection",
+                    "workspace_public_study_selection",
+                    "workspace_public_taxonomy_selection");
+
     private final JdbcTemplate jdbcTemplate;
     private final SecurityAuditService securityAuditService;
 
     public boolean available() {
         try {
-            jdbcTemplate.queryForObject(
-                    "SELECT COUNT(*) FROM workspace_public_page_draft WHERE 1=0", Integer.class);
+            for (String table : COMPOSITION_TABLES) {
+                jdbcTemplate.queryForObject(
+                        "SELECT COUNT(*) FROM " + table + " WHERE 1=0", Integer.class);
+            }
             return true;
         } catch (DataAccessException exception) {
             return false;

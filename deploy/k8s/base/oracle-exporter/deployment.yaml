@@ -37,10 +37,10 @@ spec:
           resources:
             requests:
               cpu: 25m
-              memory: 64Mi
+              memory: 96Mi
             limits:
               cpu: 100m
-              memory: 128Mi
+              memory: 256Mi
       volumes:
         # exporter 전용으로 새로 발급한 wallet. worker가 쓰는 기존 wallet의
         # PEM 암호를 알 수 없어(다운로드 시점에만 존재, 어디에도 기록 안 됨)

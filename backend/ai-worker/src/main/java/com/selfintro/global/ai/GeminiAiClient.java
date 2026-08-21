@@ -6,9 +6,11 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import io.micrometer.core.instrument.MeterRegistry;
 import io.micrometer.core.instrument.Timer;
 import java.net.URI;
+import java.net.URLEncoder;
 import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
+import java.nio.charset.StandardCharsets;
 import java.time.Duration;
 import java.util.List;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -44,7 +46,12 @@ public class GeminiAiClient {
     }
 
     public String generate(String systemPrompt, String userPrompt, String modelName) {
-        return generate(systemPrompt, userPrompt, modelName, false);
+        return generate(systemPrompt, userPrompt, modelName, false, apiKey);
+    }
+
+    public String generateWithApiKey(
+            String systemPrompt, String userPrompt, String modelName, String requestApiKey) {
+        return generate(systemPrompt, userPrompt, modelName, false, requestApiKey);
     }
 
     /**
@@ -52,12 +59,21 @@ public class GeminiAiClient {
      * 옵션을 켜서 구조화 JSON 응답을 강제한다.
      */
     public String generateJson(String systemPrompt, String userPrompt, String modelName) {
-        return generate(systemPrompt, userPrompt, modelName, true);
+        return generate(systemPrompt, userPrompt, modelName, true, apiKey);
+    }
+
+    public String generateJsonWithApiKey(
+            String systemPrompt, String userPrompt, String modelName, String requestApiKey) {
+        return generate(systemPrompt, userPrompt, modelName, true, requestApiKey);
     }
 
     private String generate(
-            String systemPrompt, String userPrompt, String modelName, boolean forceJsonResponse) {
-        if (!isConfigured()) {
+            String systemPrompt,
+            String userPrompt,
+            String modelName,
+            boolean forceJsonResponse,
+            String requestApiKey) {
+        if (requestApiKey == null || requestApiKey.isBlank()) {
             throw new IllegalArgumentException("GEMINI_API_KEY 가 환경변수/k8s 시크릿에 설정되지 않았습니다.");
         }
 
@@ -82,7 +98,7 @@ public class GeminiAiClient {
                     "https://generativelanguage.googleapis.com/v1beta/models/"
                             + targetModel
                             + ":generateContent?key="
-                            + apiKey;
+                            + URLEncoder.encode(requestApiKey, StandardCharsets.UTF_8);
 
             HttpRequest request =
                     HttpRequest.newBuilder()
@@ -107,7 +123,7 @@ public class GeminiAiClient {
                             .increment();
                 }
                 throw new RuntimeException(
-                        "Gemini API Error (" + response.statusCode() + "): " + response.body());
+                        "Gemini API 요청 실패 (status=" + response.statusCode() + ")");
             }
 
             if (meterRegistry != null) {
@@ -127,6 +143,14 @@ public class GeminiAiClient {
             }
 
             GeminiResponse resBody = objectMapper.readValue(response.body(), GeminiResponse.class);
+            if (resBody.usageMetadata != null) {
+                ProviderUsageContext.record(
+                        "GEMINI",
+                        targetModel,
+                        resBody.usageMetadata.promptTokenCount,
+                        resBody.usageMetadata.cachedContentTokenCount,
+                        resBody.usageMetadata.candidatesTokenCount);
+            }
             if (resBody.candidates != null && !resBody.candidates.isEmpty()) {
                 GeminiCandidate candidate = resBody.candidates.get(0);
                 if (candidate.content != null && candidate.content.parts != null) {
@@ -137,10 +161,10 @@ public class GeminiAiClient {
                     }
                 }
             }
-            throw new RuntimeException("Gemini API 반환 결과가 비어 있습니다: " + response.body());
+            throw new RuntimeException("Gemini API가 빈 결과를 반환했습니다.");
         } catch (Exception e) {
             if (e instanceof RuntimeException) throw (RuntimeException) e;
-            throw new RuntimeException("Gemini AI 호출 중 오류 발생: " + e.getMessage(), e);
+            throw new RuntimeException("Gemini 호출 중 내부 오류가 발생했습니다.", e);
         }
     }
 
@@ -157,6 +181,15 @@ public class GeminiAiClient {
 
     private static class GeminiResponse {
         public List<GeminiCandidate> candidates;
+
+        @JsonProperty("usageMetadata")
+        public GeminiUsageMetadata usageMetadata;
+    }
+
+    private static class GeminiUsageMetadata {
+        public long promptTokenCount;
+        public long candidatesTokenCount;
+        public long cachedContentTokenCount;
     }
 
     private static class GeminiCandidate {

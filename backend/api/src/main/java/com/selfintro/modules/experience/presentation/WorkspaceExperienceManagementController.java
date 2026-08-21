@@ -42,8 +42,7 @@ public class WorkspaceExperienceManagementController {
 
     @PostMapping
     public ExperienceResponse create(
-            @CurrentWorkspace Long workspaceId,
-            @Valid @RequestBody ExperienceRequest request) {
+            @CurrentWorkspace Long workspaceId, @Valid @RequestBody ExperienceRequest request) {
         return experienceService.create(workspaceId, request);
     }
 
@@ -56,17 +55,14 @@ public class WorkspaceExperienceManagementController {
     }
 
     @DeleteMapping("/{id}")
-    public ResponseEntity<Void> delete(
-            @CurrentWorkspace Long workspaceId,
-            @PathVariable Long id) {
+    public ResponseEntity<Void> delete(@CurrentWorkspace Long workspaceId, @PathVariable Long id) {
         experienceService.delete(workspaceId, id);
         return ResponseEntity.noContent().build();
     }
 
     @PostMapping("/reorder")
     public List<ExperienceResponse> reorder(
-            @CurrentWorkspace Long workspaceId,
-            @RequestBody List<Long> ids) {
+            @CurrentWorkspace Long workspaceId, @RequestBody List<Long> ids) {
         return experienceService.reorder(workspaceId, ids);
     }
 }

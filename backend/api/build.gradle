@@ -39,6 +39,10 @@ dependencies {
     api 'org.flywaydb:flyway-core'
     api 'software.amazon.awssdk:s3'
     api 'software.amazon.awssdk:url-connection-client'
+    api 'com.oracle.oci.sdk:oci-java-sdk-vault:3.91.1'
+    api 'com.oracle.oci.sdk:oci-java-sdk-secrets:3.91.1'
+    api 'com.oracle.oci.sdk:oci-java-sdk-common-httpclient-jersey3:3.91.1'
+    api 'com.oracle.oci.sdk:oci-java-sdk-addons-oke-workload-identity:3.91.1'
     api 'com.querydsl:querydsl-jpa:5.1.0:jakarta'
     api 'com.oracle.nosql.sdk:nosqldriver:5.4.15'
     
@@ -61,6 +65,8 @@ dependencies {
 
     testImplementation 'org.springframework.boot:spring-boot-starter-test'
     testImplementation 'org.springframework.security:spring-security-test'
+    testImplementation 'org.testcontainers:junit-jupiter'
+    testImplementation 'org.testcontainers:mysql'
     testRuntimeOnly 'org.junit.platform:junit-platform-launcher'
 }
 

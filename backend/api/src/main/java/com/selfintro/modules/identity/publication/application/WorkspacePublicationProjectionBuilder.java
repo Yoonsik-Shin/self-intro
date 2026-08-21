@@ -58,6 +58,10 @@ public class WorkspacePublicationProjectionBuilder {
     private final PublicPageCompositionService compositionService;
 
     public IntroductionResponse introduction(Long workspaceId, IntroductionChannel channel) {
+        if (!compositionService.available()) {
+            return introduction(
+                    legacyProfileSnapshot(workspaceId), legacyExperienceSnapshot(workspaceId));
+        }
         return introduction(
                 workspaceId,
                 channel,
@@ -73,6 +77,11 @@ public class WorkspacePublicationProjectionBuilder {
             PublicExperienceDraft experienceDraft) {
         PublicProfileSnapshot profile = profileSnapshot(workspaceId, profileDraft);
         PublicExperienceSnapshot experience = experienceSnapshot(workspaceId, experienceDraft);
+        return introduction(profile, experience);
+    }
+
+    private IntroductionResponse introduction(
+            PublicProfileSnapshot profile, PublicExperienceSnapshot experience) {
         return new IntroductionResponse(
                 profile.profile(),
                 experience.experiences(),
@@ -144,7 +153,8 @@ public class WorkspacePublicationProjectionBuilder {
         return experienceSnapshot(workspaceId, compositionService.experience(workspaceId));
     }
 
-    public PublicExperienceSnapshot experienceSnapshot(Long workspaceId, PublicExperienceDraft draft) {
+    public PublicExperienceSnapshot experienceSnapshot(
+            Long workspaceId, PublicExperienceDraft draft) {
         if (!compositionService.available()) {
             return legacyExperienceSnapshot(workspaceId);
         }

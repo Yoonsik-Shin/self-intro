@@ -38,13 +38,13 @@ public class RegistrationService {
     @Value("${app.registration.email.token-valid-for:30m}")
     private Duration verificationTokenValidFor;
 
-    @Value("${app.registration.policy.terms-version:2026-08-12-draft}")
+    @Value("${app.registration.policy.terms-version:2026-08-22}")
     private String termsVersion;
 
-    @Value("${app.registration.policy.privacy-version:2026-08-12-draft}")
+    @Value("${app.registration.policy.privacy-version:2026-08-22}")
     private String privacyVersion;
 
-    @Value("${app.registration.policy.marketing-version:2026-08-12-draft}")
+    @Value("${app.registration.policy.marketing-version:2026-08-22}")
     private String marketingVersion;
 
     @Transactional

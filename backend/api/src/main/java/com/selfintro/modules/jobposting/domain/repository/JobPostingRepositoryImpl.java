@@ -38,8 +38,7 @@ public class JobPostingRepositoryImpl implements JobPostingRepositoryCustom {
 
         // 1. 공통 카탈로그 노출 조건 (isSharedCatalogEligible)
         where.and(jobPosting.ownerWorkspaceId.isNull());
-        where.and(
-                jobPosting.permissionReviewStatus.eq(JobPostingPermissionReviewStatus.APPROVED));
+        where.and(jobPosting.permissionReviewStatus.eq(JobPostingPermissionReviewStatus.APPROVED));
         where.and(jobPosting.permissionBasis.in(SHAREABLE_BASES));
         where.and(jobPosting.permissionEvidenceReference.isNotNull());
         where.and(jobPosting.permissionEvidenceReference.trim().ne(""));
@@ -50,10 +49,7 @@ public class JobPostingRepositoryImpl implements JobPostingRepositoryCustom {
         where.and(jobPosting.permissionScopeNote.isNotNull());
         where.and(jobPosting.permissionScopeNote.trim().ne(""));
         where.and(
-                jobPosting
-                        .permissionExpiresAt
-                        .isNull()
-                        .or(jobPosting.permissionExpiresAt.gt(now)));
+                jobPosting.permissionExpiresAt.isNull().or(jobPosting.permissionExpiresAt.gt(now)));
 
         // 2. 키워드 검색 조건
         where.and(keywordContains(keyword));
@@ -72,19 +68,14 @@ public class JobPostingRepositoryImpl implements JobPostingRepositoryCustom {
 
         // 4. Count 쿼리 최적화
         JPAQuery<Long> countQuery =
-                queryFactory
-                        .select(jobPosting.id.countDistinct())
-                        .from(jobPosting)
-                        .where(where);
+                queryFactory.select(jobPosting.id.countDistinct()).from(jobPosting).where(where);
 
         return PageableExecutionUtils.getPage(content, pageable, countQuery::fetchOne);
     }
 
     @Override
     public Page<JobPosting> findAdminPostings(
-            String keyword,
-            JobPostingPermissionReviewStatus reviewStatus,
-            Pageable pageable) {
+            String keyword, JobPostingPermissionReviewStatus reviewStatus, Pageable pageable) {
         BooleanBuilder where = new BooleanBuilder();
         where.and(jobPosting.ownerWorkspaceId.isNull());
         where.and(jobPosting.status.ne(JobPostingStatus.EXPIRED));
@@ -105,10 +96,7 @@ public class JobPostingRepositoryImpl implements JobPostingRepositoryCustom {
         List<JobPosting> content = query.fetch();
 
         JPAQuery<Long> countQuery =
-                queryFactory
-                        .select(jobPosting.id.countDistinct())
-                        .from(jobPosting)
-                        .where(where);
+                queryFactory.select(jobPosting.id.countDistinct()).from(jobPosting).where(where);
 
         return PageableExecutionUtils.getPage(content, pageable, countQuery::fetchOne);
     }

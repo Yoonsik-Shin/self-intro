@@ -4,11 +4,14 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.RETURNS_DEEP_STUBS;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 import com.selfintro.global.worker.AiWorkerClient;
+import com.selfintro.modules.aiusage.application.AiExecutionService;
+import com.selfintro.modules.identity.domain.WorkspaceMember;
 import com.selfintro.modules.jobposting.application.WorkspaceJobScreenshotUploadService;
 import com.selfintro.modules.jobposting.application.WorkspaceJobScreenshotUploadService.ClaimedUpload;
 import com.selfintro.modules.jobposting.presentation.dto.JobApplicationImageParseRequest;
@@ -16,6 +19,7 @@ import com.selfintro.modules.jobposting.presentation.dto.JobApplicationUrlParseR
 import com.selfintro.modules.jobposting.presentation.dto.JobApplicationUrlParseResponse;
 import com.selfintro.modules.jobposting.presentation.dto.WorkspaceJobScreenshotParseRequest;
 import java.util.List;
+import java.util.function.Supplier;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
@@ -23,14 +27,23 @@ class WorkspaceJobApplicationAiProxyControllerTest {
 
     private AiWorkerClient aiWorkerClient;
     private WorkspaceJobScreenshotUploadService screenshotService;
+    private AiExecutionService aiExecutionService;
+    private WorkspaceMember member;
     private WorkspaceJobApplicationAiProxyController controller;
 
     @BeforeEach
     void setUp() {
         aiWorkerClient = mock(AiWorkerClient.class);
         screenshotService = mock(WorkspaceJobScreenshotUploadService.class);
+        aiExecutionService = mock(AiExecutionService.class);
+        member = mock(WorkspaceMember.class, RETURNS_DEEP_STUBS);
+        when(member.getWorkspace().getId()).thenReturn(42L);
+        when(member.getUser().getId()).thenReturn(7L);
+        when(aiExecutionService.execute(any(), any()))
+                .thenAnswer(invocation -> ((Supplier<?>) invocation.getArgument(1)).get());
         controller =
-                new WorkspaceJobApplicationAiProxyController(aiWorkerClient, screenshotService);
+                new WorkspaceJobApplicationAiProxyController(
+                        aiWorkerClient, aiExecutionService, screenshotService);
     }
 
     @Test
@@ -62,7 +75,7 @@ class WorkspaceJobApplicationAiProxyControllerTest {
                         eq(JobApplicationUrlParseResponse.class)))
                 .thenReturn(expected);
 
-        JobApplicationUrlParseResponse response = controller.parseUrl(42L, request);
+        JobApplicationUrlParseResponse response = controller.parseUrl(member, null, request);
 
         assertThat(response).isEqualTo(expected);
     }
@@ -100,7 +113,7 @@ class WorkspaceJobApplicationAiProxyControllerTest {
 
         JobApplicationUrlParseResponse response =
                 controller.parseScreenshots(
-                        42L, new WorkspaceJobScreenshotParseRequest(List.of("ticket-1")));
+                        member, null, new WorkspaceJobScreenshotParseRequest(List.of("ticket-1")));
 
         assertThat(response).isEqualTo(expected);
         verify(screenshotService).deleteClaimed(42L, List.of(upload));
@@ -121,7 +134,8 @@ class WorkspaceJobApplicationAiProxyControllerTest {
         assertThatThrownBy(
                         () ->
                                 controller.parseScreenshots(
-                                        42L,
+                                        member,
+                                        null,
                                         new WorkspaceJobScreenshotParseRequest(
                                                 List.of("ticket-1"))))
                 .isInstanceOf(IllegalStateException.class);

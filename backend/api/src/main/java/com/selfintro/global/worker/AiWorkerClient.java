@@ -38,6 +38,7 @@ public class AiWorkerClient {
     }
 
     public <T> T get(String path, Class<T> responseType) {
+        AiWorkerUsageContext.clear();
         try {
             HttpRequest request =
                     workerRequest(path)
@@ -51,20 +52,20 @@ public class AiWorkerClient {
                             request, HttpResponse.BodyHandlers.ofString(StandardCharsets.UTF_8));
             if (response.statusCode() >= 400) {
                 throw new ResponseStatusException(
-                        HttpStatus.valueOf(response.statusCode()), response.body());
+                        HttpStatus.valueOf(response.statusCode()), "Worker 요청을 처리하지 못했습니다.");
             }
+            AiWorkerUsageContext.capture(response.headers());
             return objectMapper.readValue(response.body(), responseType);
         } catch (ResponseStatusException e) {
             throw e;
         } catch (Exception e) {
-            log.error("Failed to call worker GET {}", path, e);
-            throw new ResponseStatusException(
-                    HttpStatus.INTERNAL_SERVER_ERROR,
-                    "Worker service call failed: " + e.getMessage());
+            log.warn("Worker GET failed for path {} with {}", path, e.getClass().getSimpleName());
+            throw new ResponseStatusException(HttpStatus.BAD_GATEWAY, "AI Worker 연결에 실패했습니다.");
         }
     }
 
     public <T> T post(String path, Object requestBody, Class<T> responseType) {
+        AiWorkerUsageContext.clear();
         try {
             String json = requestBody != null ? objectMapper.writeValueAsString(requestBody) : "";
             HttpRequest request =
@@ -80,8 +81,9 @@ public class AiWorkerClient {
                             request, HttpResponse.BodyHandlers.ofString(StandardCharsets.UTF_8));
             if (response.statusCode() >= 400) {
                 throw new ResponseStatusException(
-                        HttpStatus.valueOf(response.statusCode()), response.body());
+                        HttpStatus.valueOf(response.statusCode()), "Worker 요청을 처리하지 못했습니다.");
             }
+            AiWorkerUsageContext.capture(response.headers());
             if (responseType == Void.class || response.body().isBlank()) {
                 return null;
             }
@@ -89,14 +91,13 @@ public class AiWorkerClient {
         } catch (ResponseStatusException e) {
             throw e;
         } catch (Exception e) {
-            log.error("Failed to call worker POST {}", path, e);
-            throw new ResponseStatusException(
-                    HttpStatus.INTERNAL_SERVER_ERROR,
-                    "Worker service call failed: " + e.getMessage());
+            log.warn("Worker POST failed for path {} with {}", path, e.getClass().getSimpleName());
+            throw new ResponseStatusException(HttpStatus.BAD_GATEWAY, "AI Worker 연결에 실패했습니다.");
         }
     }
 
     public void pipePost(String path, Object requestBody, OutputStream outputStream) {
+        AiWorkerUsageContext.clear();
         try {
             String json = requestBody != null ? objectMapper.writeValueAsString(requestBody) : "";
             HttpRequest request =
@@ -111,7 +112,8 @@ public class AiWorkerClient {
                     httpClient.send(request, HttpResponse.BodyHandlers.ofInputStream());
             if (response.statusCode() >= 400) {
                 log.warn("Worker SSE returned non-OK status: {}", response.statusCode());
-                return;
+                throw new ResponseStatusException(
+                        HttpStatus.valueOf(response.statusCode()), "Worker 스트리밍 요청을 처리하지 못했습니다.");
             }
 
             try (InputStream in = response.body()) {
@@ -122,8 +124,11 @@ public class AiWorkerClient {
                     outputStream.flush();
                 }
             }
+        } catch (ResponseStatusException e) {
+            throw e;
         } catch (Exception e) {
-            log.warn("Error piping SSE stream from worker path {}: {}", path, e.getMessage());
+            log.warn("Worker SSE failed for path {} with {}", path, e.getClass().getSimpleName());
+            throw new ResponseStatusException(HttpStatus.BAD_GATEWAY, "AI Worker 스트리밍 연결에 실패했습니다.");
         }
     }
 
