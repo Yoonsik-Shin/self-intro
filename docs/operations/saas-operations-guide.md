@@ -3063,3 +3063,40 @@ lockfile 수정 커밋을 release 브랜치에 push하면 GitGuardian과 release
 확인은 병합·배포 완료를 뜻하지 않는다. 현재 운영 상태는 여전히 미배포이고, 사용자 승인 없이 `main`
 병합이나 운영 rollout을 실행하지 않는다. 정식 유료 서비스는 사업자·PG·법률, OCI Vault, 환불 원장,
 외부 AI 처리 계약과 암호화 gate가 남아 있어 현재 활성화할 수 없다.
+
+### 15.49 비공개 베타 운영 배포 및 안정화 검증
+
+2026-08-22 PR #3을 `main`에 병합했다. 병합 commit은
+`b7280f7245877e9d6b7e1ee72736708699266ed5`이며 다음 GitHub Actions 운영 workflow가 모두 성공했다.
+
+1. Workspace Purge Release Gate `32510747867`: 성공
+2. Deploy API `32510747862`: 성공
+3. Deploy Worker `32510747861`: 성공
+4. Frontend CI/CD Pipeline `32510747863`: 성공
+
+각 배포 workflow는 이미지 tag `b7280f7`을 빌드한 뒤 GitOps manifest를 갱신했다. 최종 GitOps revision은
+`decba4dc1ae6daf5c55e758e08d67c80a883f7eb`이다. Frontend Application은 자동으로 최신 revision을
+반영했지만 Backend Application은 Argo CD repository cache 때문에 병합 revision에 잠시 머물렀다.
+`argocd.argoproj.io/refresh=hard` annotation으로 강제 새로고침한 뒤 Backend와 Frontend 모두 최신
+revision에서 `Synced/Healthy`가 됐다.
+
+운영 rollout과 안정화 후 실제 상태는 다음과 같다.
+
+| 구성요소 | 운영 이미지 | Ready/Updated/Available | 재시작 |
+| --- | --- | --- | ---: |
+| API | `backend:b7280f7` | `1/1/1` | 0 |
+| Worker | `backend-worker:b7280f7` | `1/1/1` | 0 |
+| Frontend | `frontend:b7280f7` | `1/1/1` | 0 |
+
+외부 smoke test에서는 `https://unbrdn.me/`, API health, readiness, 공개 Workspace 화면과
+`/api/bff/workspaces/w-199d6de326de71385a98/introduction?channel=WEB`가 모두 HTTP 200을 반환했다.
+소개 API는 profile, experiences, coreProjects, skills, competencies 구조를 정상 반환했다. 안정화 대기 후
+Pod, Argo CD와 외부 endpoint를 다시 조회했을 때도 같은 상태가 유지됐고, 새 API와 Worker 로그에는
+`ERROR` 또는 `FATAL`이 없었다.
+
+롤링 교체 중 단일 노드의 최대 Pod 수 때문에 새 Pod scheduling이 잠시 지연됐고 애플리케이션 기동 중
+readiness/liveness 실패 이벤트가 발생했으나, 최종 Pod는 모두 Ready이며 재시작은 0이다. API에는 MySQL
+integer display width 폐기 예정 경고가 남지만 이번 배포 차단 오류는 아니다. GitHub Actions에는 Node.js 20
+action runtime과 `setup-java@v4` 폐기 예정 annotation이 있으므로 후속 유지보수에서 action version을
+갱신한다. 운영 가입 확인·계정 복구 메일의 실제 수신 및 링크 host 검증과 Tempo·Oracle exporter의 24시간
+재시작 관찰은 배포 후 운영 확인 항목으로 계속 추적한다.

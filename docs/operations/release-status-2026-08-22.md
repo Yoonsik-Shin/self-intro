@@ -1,8 +1,8 @@
 # 2026-08-22 비공개 베타와 정식 서비스 출시 기준
 
 - 기준일: 2026-08-22
-- 대상 브랜치: `release/private-beta-20260822`
-- 배포 상태: **비공개 베타 배포 후보 검증 완료, 아직 `main` 미병합·운영 미배포**
+- 대상 브랜치: `main`
+- 배포 상태: **비공개 베타 운영 배포 및 1차 안정화 검증 완료**
 
 이 문서는 2026-08-22까지 완료한 작업을 비공개 베타와 정식 유료 서비스 관점으로 분리한 최신 상태
 기준이다. 제품 정책은 ADR, 반복 가능한 운영 절차는 운영 가이드, 실제 출시 차단 조건은 출시 전
@@ -40,12 +40,12 @@
 | Email 수신 | Cloudflare Email Routing으로 `support`, `privacy`, `billing` 문의를 운영자 수신함에 전달 | 사용 가능 |
 | Email 발신 | OCI Email Delivery 도메인, SPF, DKIM, DMARC, 승인 발신자와 SMTP 자격증명 구성 | 로컬 실제 발송 검증 완료 |
 | Email 인증 | Gmail 원본에서 SPF `PASS`, DKIM `PASS`, DMARC `PASS` 확인 | DNS·SMTP 경로 검증 완료 |
-| 운영 Secret | `backend-mail-secret` SealedSecret과 Deployment secret 참조 구성 | Git에는 암호문만 저장, 운영 적용 전 |
-| 가입·복구 메일 | production manifest에서 가입 확인·계정 복구 메일 flag 활성화 | 배포 후 운영 smoke 필요 |
+| 운영 Secret | `backend-mail-secret` SealedSecret과 Deployment secret 참조 구성 | 운영 적용 완료, Git에는 암호문만 저장 |
+| 가입·복구 메일 | production manifest에서 가입 확인·계정 복구 메일 flag 활성화 | 운영 적용 완료, 실제 수신 smoke 필요 |
 | 비공개 베타 UI | 실제 가격, 카드, 구독, point pack, 좌석 결제, BYOK 입력을 숨기고 `베타 기간 무료` 표시 | 배포 후보에 반영 |
 | 결제·AI 차단 | 결제·갱신·정산·외부 AI 생성·AI point 차감 flag를 비활성화 | 서버와 UI 이중 차단 |
 | 정책 | 이용약관·개인정보·마케팅 동의 version을 `2026-08-22`로 일치 | 비공개 베타 기준 확정 |
-| 메모리 안정화 | Tempo와 Oracle exporter의 메모리 request/limit 보강 | 배포 후 24시간 관찰 필요 |
+| 메모리 안정화 | Tempo와 Oracle exporter의 메모리 request/limit 보강 | 운영 적용 완료, 24시간 관찰 중 |
 | 복구·릴리스 gate | backend, Worker, frontend, manifest, recovery evidence 자동 검사 | PR 필수 검사 통과 |
 | 보안 검사 | OCI OCID 공개 형식 문자열의 GitGuardian 오탐을 확인하고 안전한 상수 표현으로 수정 | 최종 검사 통과 |
 | 프런트 재현성 | npm 10 기준 lockfile을 동기화하고 CI `npm ci` 실패를 해결 | 최종 빌드 통과 |
@@ -77,8 +77,8 @@ OCI Vault BYOK, Workspace DEK, Argon2id와 WORM 감사는 아래 정식 출시 g
 
 ### 3.3 현재 릴리스 증거
 
-PR [#3](https://github.com/Yoonsik-Shin/self-intro/pull/3)의 HEAD는
-`c48fd88ef817fd1f140e7f3eb3fae02dbe3a5c63`이며 2026-08-22 확인 결과는 다음과 같다.
+PR [#3](https://github.com/Yoonsik-Shin/self-intro/pull/3)은
+`b7280f7245877e9d6b7e1ee72736708699266ed5`로 `main`에 병합됐으며 2026-08-22 배포 결과는 다음과 같다.
 
 | 검사 | 결과 |
 | --- | --- |
@@ -87,10 +87,18 @@ PR [#3](https://github.com/Yoonsik-Shin/self-intro/pull/3)의 HEAD는
 | Release Readiness `verify-release-candidate` | 성공 |
 | GitHub mergeability | `MERGEABLE` |
 | GitHub merge state | `CLEAN` |
+| Workspace Purge Release Gate `32510747867` | 성공 |
+| Deploy API `32510747862` | 성공 |
+| Deploy Worker `32510747861` | 성공 |
+| Frontend CI/CD Pipeline `32510747863` | 성공 |
+| Backend·Frontend Argo CD | `Synced/Healthy` |
+| API·Worker·Frontend 이미지 | 모두 `b7280f7` |
+| Pod 상태 | 모두 Ready, 재시작 0 |
+| 외부 health·readiness·공개 Workspace route | 모두 HTTP 200 |
 
-따라서 **비공개 베타 배포 전 준비도는 100%**다. 이는 병합·배포를 실행할 수 있다는 뜻이며 이미 운영에
-배포됐다는 뜻은 아니다. 현재 남은 실행은 사용자의 배포 승인, PR 병합, GitOps rollout 확인과 운영
-smoke test다.
+따라서 **비공개 베타 배포 준비도와 운영 배포 완료도는 100%**다. 운영 가입 확인·계정 복구 메일의 실제
+수신 및 링크 host 검증과 24시간 인프라 관찰은 배포 후 운영 확인으로 계속 수행한다. 이 두 항목은 현재
+앱 rollout, health와 공개 route가 정상임을 뒤집는 배포 차단 조건은 아니다.
 
 ### 3.4 배포 직후 필수 확인
 
@@ -153,14 +161,15 @@ smoke test다.
 
 | 순서 | 작업 | 담당 | 현재 상태 |
 | ---: | --- | --- | --- |
-| 1 | PR #3 병합 승인 | 사용자 | 승인 대기 |
-| 2 | `main` 병합 및 배포 workflow 실행 | Codex 또는 사용자 | 1번 승인 후 가능 |
-| 3 | GitOps sync, Pod, health, 실제 route 확인 | Codex | 배포 후 수행 |
-| 4 | 운영 가입·복구 메일과 인증 헤더 확인 | 사용자 수신 확인 + Codex 로그 확인 | 배포 후 수행 |
-| 5 | 24시간 restart·OOM·trace·scrape 관찰 | Codex | 배포 후 수행 |
-| 6 | 비공개 베타 초대와 피드백 운영 | 사용자 | 1~5 완료 후 시작 |
+| 1 | PR #3 병합 승인 | 사용자 | 완료 |
+| 2 | `main` 병합 및 배포 workflow 실행 | Codex | 완료 |
+| 3 | GitOps sync, Pod, health, 실제 route 확인 | Codex | 완료 |
+| 4 | 운영 가입·복구 메일과 인증 헤더 확인 | 사용자 수신 확인 + Codex 로그 확인 | 후속 운영 smoke |
+| 5 | 24시간 restart·OOM·trace·scrape 관찰 | Codex | 관찰 시작 |
+| 6 | 비공개 베타 초대와 피드백 운영 | 사용자 | 시작 가능 |
 | 7 | 사업자·PG·법률·AI Provider 계약 준비 | 사용자 | 정식 출시 전 필수 |
 | 8 | Vault·결제·환불·암호화 production gate 완성 | Codex | 외부 정보·계약 준비와 병행 |
 
-현재 다음 단계는 **사용자의 PR #3 병합 및 비공개 베타 배포 승인**이다. 승인 전에는 Codex가 임의로
-`main`에 병합하거나 운영 rollout을 시작하지 않는다.
+현재 비공개 베타는 **배포 가능하며 이미 운영 배포와 1차 안정화 검증까지 완료**했다. 다음 단계는
+사용자가 실제 초대 계정으로 가입 확인·계정 복구 메일을 각각 받아 링크 host와 인증 헤더를 확인하는
+운영 smoke이고, Codex는 24시간 restart·OOM·trace·scrape 상태를 후속 점검한다.
