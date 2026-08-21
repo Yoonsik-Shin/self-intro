@@ -3028,3 +3028,21 @@ OCID가 아니라 입력값이 OCI Vault Secret 참조인지 검사하기 위한
 브랜치에 보안 수정 커밋을 추가한 뒤 GitGuardian 및 전체 PR 검사를 재확인한다. 과거 커밋의 탐지가
 계속 남는 경우 실제 비밀이 아님을 근거로 false positive 처리하며, 암호문이나 커밋 이력을 임의로
 재작성하지 않는다.
+
+### 15.38 PR release gate 재검증
+
+2026-08-22 GitGuardian incident `#36471809`는 실제 자격 증명이 아닌 OCI Vault Secret OCID의 공개
+형식 접두사임을 확인하고 `Ignored · Not a secret (false positive)`로 처리했다. 과거 커밋은 재작성하지
+않으며 이후 검사에서는 분리된 상수 표현을 사용한다.
+
+같은 PR의 `verify-release-candidate`는 Node.js 22 환경의 `npm ci`에서 `@emnapi/core@1.11.3`과
+`@emnapi/runtime@1.11.3`이 lockfile에 없다는 오류로 실패했다. CI와 동일 계열인 npm 10으로
+`package-lock.json`을 다시 동기화한 뒤 다음 검증을 통과했다.
+
+1. `npx --yes npm@10 ci`: 성공, 681 packages 설치 및 취약점 0건
+2. `npm run lint`: 성공
+3. `npm run format:check`: 성공
+4. `npm run build`: 성공, production build 23개 static page 생성
+
+lockfile 수정 커밋을 release 브랜치에 push하면 GitGuardian과 release-readiness를 새 head에서 다시
+실행한다. 모든 필수 검사가 성공하기 전에는 `main`에 병합하거나 운영 rollout을 시작하지 않는다.
