@@ -10,6 +10,7 @@ export * from './image';
 export * from './auth';
 export * from './invitation';
 export * from './bff';
+export * from './billing';
 export * from './competency';
 export * from './donation';
 export * from './visitor';

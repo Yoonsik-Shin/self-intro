@@ -7,6 +7,7 @@ import { WorkspaceAddressSettings } from './WorkspaceAddressSettings';
 import { WorkspaceRenameSettings } from './WorkspaceRenameSettings';
 import { WorkspaceLeaveSettings } from './WorkspaceLeaveSettings';
 import { WorkspaceCloseSettings } from './WorkspaceCloseSettings';
+import { WorkspaceTypeSettings } from './WorkspaceTypeSettings';
 
 type Props = {
     workspaceSlug: string;
@@ -30,6 +31,7 @@ export function WorkspaceSettingsPanel({ workspaceSlug, workspaceName, role }: P
                 workspaceName={workspaceName}
                 role={role}
             />
+            <WorkspaceTypeSettings workspaceSlug={workspaceSlug} role={role} />
             <WorkspaceLeaveSettings workspaceSlug={workspaceSlug} role={role} />
             <WorkspaceCloseSettings
                 workspaceSlug={workspaceSlug}

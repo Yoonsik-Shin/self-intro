@@ -13,6 +13,7 @@ export type WorkspaceSlugSettings = {
 };
 
 export type WorkspaceRole = 'OWNER' | 'ADMIN' | 'EDITOR' | 'VIEWER';
+export type WorkspaceType = 'PERSONAL' | 'ORGANIZATION';
 
 export type WorkspaceMember = {
     id: number;
@@ -72,6 +73,15 @@ export const workspaceApi = {
         request<{ workspaceId: number; slug: string; name: string }>(
             `/api/workspaces/${encodeURIComponent(workspaceSlug)}/settings/name`,
             { method: 'PUT', body: JSON.stringify({ name }) }
+        ),
+    type: (workspaceSlug: string) =>
+        request<{ workspaceId: number; type: WorkspaceType }>(
+            `/api/workspaces/${encodeURIComponent(workspaceSlug)}/settings/type`
+        ),
+    changeType: (workspaceSlug: string, type: WorkspaceType) =>
+        request<{ workspaceId: number; type: WorkspaceType }>(
+            `/api/workspaces/${encodeURIComponent(workspaceSlug)}/settings/type`,
+            { method: 'PUT', body: JSON.stringify({ type }) }
         ),
     leave: (workspaceSlug: string) =>
         request<void>(`/api/workspaces/${encodeURIComponent(workspaceSlug)}/members/leave`, {

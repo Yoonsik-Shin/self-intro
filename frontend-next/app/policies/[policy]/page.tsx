@@ -1,9 +1,20 @@
+import type { Metadata } from 'next';
 import Link from 'next/link';
 import { notFound } from 'next/navigation';
 import { isRegistrationPolicyKey, REGISTRATION_POLICIES } from '@/lib/registrationPolicies';
 
 export function generateStaticParams() {
     return [{ policy: 'terms' }, { policy: 'privacy' }, { policy: 'marketing' }];
+}
+
+export async function generateMetadata({
+    params,
+}: {
+    params: Promise<{ policy: string }>;
+}): Promise<Metadata> {
+    const { policy: policyKey } = await params;
+    if (!isRegistrationPolicyKey(policyKey)) return { title: '정책 | Self-Intro' };
+    return { title: `${REGISTRATION_POLICIES[policyKey].title} | Self-Intro` };
 }
 
 export default async function RegistrationPolicyPage({
@@ -30,9 +41,9 @@ export default async function RegistrationPolicyPage({
                         {policy.required ? '필수' : '선택'}
                     </span>
                 </div>
-                <div className="mt-5 rounded-md border border-amber-300 bg-amber-50 p-4 text-sm font-bold leading-6 text-amber-950">
-                    로컬 비공개 베타용 정책 초안입니다. 정식 배포 전 “운영 전 확정 필요” 항목을 실제
-                    운영 정보로 교체하고 법률 검토가 필요합니다.
+                <div className="mt-5 rounded-md border border-slate-300 bg-slate-50 p-4 text-sm font-bold leading-6 text-slate-700">
+                    이 문서는 Self-Intro 비공개 베타에 적용됩니다. 유료 공개 서비스 전환 시
+                    결제·사업자 정보와 외부 처리 현황을 반영한 개정 내용을 다시 안내합니다.
                 </div>
                 <p className="mt-5 text-sm leading-6 text-slate-600">{policy.summary}</p>
                 <p className="mt-2 text-xs font-bold text-slate-500">버전: {policy.version}</p>

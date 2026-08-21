@@ -39,6 +39,12 @@ const nextConfig: NextConfig = {
         // 명시적으로 고정한다. Next dev가 바인드 마운트 환경에서 이 값을 누락하면
         // 클라이언트 요청이 상대 경로(/api/*)로 3000번 Next 서버에 들어가 404가 난다.
         NEXT_PUBLIC_API_BASE_URL: process.env.NEXT_PUBLIC_API_BASE_URL ?? '',
+        NEXT_PUBLIC_TOSS_PAYMENTS_API_LOG_URL:
+            process.env.NEXT_PUBLIC_TOSS_PAYMENTS_API_LOG_URL ?? '',
+        NEXT_PUBLIC_EXAMPLE_WORKSPACE_SLUG:
+            process.env.NEXT_PUBLIC_EXAMPLE_WORKSPACE_SLUG ?? 'w-199d6de326de71385a98',
+        // 명시적으로 PAID를 주입하기 전에는 가격과 결제 진입점을 공개하지 않는다.
+        NEXT_PUBLIC_RELEASE_CHANNEL: process.env.NEXT_PUBLIC_RELEASE_CHANNEL ?? 'PRIVATE_BETA',
     },
     webpack(config, { dev }) {
         // Docker Desktop의 익명 .next 볼륨에서 webpack filesystem cache가 장기간

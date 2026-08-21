@@ -397,7 +397,6 @@ export function StudyListClient({
                         search={search}
                         activeSection={activeSection}
                         activeTaxonomyNodeId={activeTaxonomyNodeId}
-                        taxonomyNodesById={taxonomyNodesById}
                     />
                 )}
 

@@ -1,6 +1,12 @@
 'use client';
 
 import { ApiError } from './errors';
+import {
+    AI_PROCESSING_CONSENT_REQUIRED_EVENT,
+    AI_PROCESSING_POLICY_VERSION,
+    getAiProcessingConsentVersion,
+    isWorkspaceAiProcessingPath,
+} from '@/lib/aiProcessingConsent';
 export { ApiError } from './errors';
 
 // 브라우저 전용 fetch 래퍼. document.cookie(CSRF 토큰)를 읽으므로 서버 컴포넌트에서
@@ -27,6 +33,7 @@ export async function request<T>(path: string, init: RequestInit = {}): Promise<
             headers['X-XSRF-TOKEN'] = csrfToken;
         }
     }
+    applyAiProcessingConsent(path, method, headers);
 
     const response = await fetch(`${API_BASE_URL}${path}`, {
         ...init,
@@ -74,6 +81,7 @@ export async function requestEventStream<TEvent>(
     if (csrfToken) {
         headers['X-XSRF-TOKEN'] = csrfToken;
     }
+    applyAiProcessingConsent(path, 'POST', headers);
 
     const response = await fetch(`${API_BASE_URL}${path}`, {
         method: 'POST',
@@ -112,4 +120,14 @@ export async function requestEventStream<TEvent>(
         }
     }
     if (buffer.trim()) emit(buffer);
+}
+
+function applyAiProcessingConsent(path: string, method: string, headers: Record<string, string>) {
+    if (method === 'GET' || !isWorkspaceAiProcessingPath(path)) return;
+    const version = getAiProcessingConsentVersion();
+    if (version !== AI_PROCESSING_POLICY_VERSION) {
+        window.dispatchEvent(new CustomEvent(AI_PROCESSING_CONSENT_REQUIRED_EVENT));
+        throw new ApiError(428, 'AI 처리 경로와 전송 범위를 확인한 뒤 다시 실행해 주세요.');
+    }
+    headers['X-AI-Processing-Consent'] = version;
 }

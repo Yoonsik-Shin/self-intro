@@ -2,6 +2,7 @@ import type { Metadata } from 'next';
 import { permanentRedirect } from 'next/navigation';
 import { IntroPageClient } from '@/components/intro/IntroPageClient';
 import { SiteHeader } from '@/components/nav/SiteHeader';
+import { WorkspacePlatformAttribution } from '@/components/nav/WorkspacePlatformAttribution';
 import { DonationWidget } from '@/components/donation/DonationWidget';
 import { PreviewModeBanner } from '@/components/nav/PreviewModeBanner';
 import { GlobalPrintModal } from '@/components/print/GlobalPrintModal';
@@ -36,11 +37,12 @@ export default async function WorkspacePublicPage({ params }: WorkspacePageProps
     }
     const introData = await getWorkspaceIntroduction(workspaceSlug);
     return (
-        <main className="min-h-screen bg-[#f8fafc] pb-6 text-slate-800">
+        <main className="min-h-screen bg-[#f8fafc] text-slate-800">
             <SiteHeader />
             <DonationWidget />
             <PreviewModeBanner />
             <IntroPageClient introData={introData} workspaceSlug={workspaceSlug} />
+            <WorkspacePlatformAttribution />
             <GlobalPrintModal workspaceSlug={workspaceSlug} />
         </main>
     );

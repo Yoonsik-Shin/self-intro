@@ -1,0 +1,10 @@
+const DEFAULT_EXAMPLE_WORKSPACE_SLUG = 'w-199d6de326de71385a98';
+
+export const EXAMPLE_WORKSPACE_SLUG =
+    process.env.NEXT_PUBLIC_EXAMPLE_WORKSPACE_SLUG?.trim() || DEFAULT_EXAMPLE_WORKSPACE_SLUG;
+
+export const EXAMPLE_WORKSPACE_HREF = `/workspace/${encodeURIComponent(EXAMPLE_WORKSPACE_SLUG)}`;
+
+export const PLATFORM_EXAMPLE_WORKSPACE_HREF = `${EXAMPLE_WORKSPACE_HREF}?from=platform`;
+
+export const ORGANIZATION_EXAMPLE_HREF = '/examples/organization';
