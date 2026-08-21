@@ -27,10 +27,16 @@ public class AiProcessingConsentService {
 
     @Transactional
     public AiProcessingRoute requireOrRecord(AiExecutionCommand command) {
+        return requireOrRecord(command, enforcementEnabled);
+    }
+
+    @Transactional
+    public AiProcessingRoute requireOrRecord(
+            AiExecutionCommand command, boolean requireAcknowledgement) {
         AiProcessingRoute route = loadRoute(command.workspaceId());
         String acknowledged = command.acknowledgedConsentVersion();
         if (acknowledged == null || acknowledged.isBlank()) {
-            if (enforcementEnabled) {
+            if (requireAcknowledgement) {
                 throw new ResponseStatusException(
                         HttpStatus.PRECONDITION_REQUIRED, "AI 처리 경로와 전송 범위를 확인하고 동의해 주세요.");
             }

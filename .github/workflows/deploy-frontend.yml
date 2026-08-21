@@ -63,6 +63,7 @@ jobs:
             NEXT_PUBLIC_TOSS_PAYMENTS_API_LOG_URL=${{ vars.TOSS_PAYMENTS_API_LOG_URL }}
             NEXT_PUBLIC_RELEASE_CHANNEL=PRIVATE_BETA
             NEXT_PUBLIC_EXAMPLE_WORKSPACE_SLUG=${{ vars.EXAMPLE_WORKSPACE_SLUG || 'w-199d6de326de71385a98' }}
+            NEXT_PUBLIC_PLATFORM_OWNER_PREVIEW_WORKSPACE_SLUGS=w-199d6de326de71385a98
           tags: |
             yny.ocir.io/axrywc89b6lf/self-intro/frontend:${{ steps.vars.outputs.sha_short }}
             yny.ocir.io/axrywc89b6lf/self-intro/frontend:latest

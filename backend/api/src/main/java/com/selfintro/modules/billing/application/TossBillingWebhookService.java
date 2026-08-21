@@ -3,7 +3,9 @@ package com.selfintro.modules.billing.application;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.selfintro.modules.billing.application.BillingStateStore.Charge;
+import com.selfintro.modules.identity.application.PlatformOwnerPreviewPolicy;
 import lombok.RequiredArgsConstructor;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.web.server.ResponseStatusException;
@@ -15,6 +17,10 @@ public class TossBillingWebhookService {
     private final ObjectMapper objectMapper;
     private final BillingStateStore stateStore;
     private final BillingProviderPort billingProvider;
+    private final PlatformOwnerPreviewPolicy previewPolicy;
+
+    @Value("${app.billing.enabled:false}")
+    private boolean billingEnabled;
 
     public void receive(JsonNode payload) {
         String eventType = text(payload, "eventType");
@@ -35,6 +41,10 @@ public class TossBillingWebhookService {
             // Reject random public webhook probes before making an outbound Provider request.
             // orderId is a 128-bit random internal identifier and is verified again below.
             Charge charge = stateStore.chargeByOrderId(orderId);
+            if (!billingEnabled && !previewPolicy.isWorkspaceAllowed(charge.workspaceId())) {
+                throw new ResponseStatusException(
+                        HttpStatus.SERVICE_UNAVAILABLE, "비공개 베타 결제 대상 Workspace가 아닙니다.");
+            }
             BillingProviderPort.ApprovedPayment verified = billingProvider.query(paymentKey);
             if (!verified.orderId().equals(charge.orderId())) {
                 throw new ResponseStatusException(HttpStatus.CONFLICT, "결제 주문 검증에 실패했습니다.");

@@ -1,6 +1,8 @@
 package com.selfintro.modules.billing.application;
 
 import com.selfintro.modules.billing.application.BillingStateStore.Charge;
+import com.selfintro.modules.identity.application.PlatformOwnerPreviewPolicy;
+import java.util.List;
 import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.scheduling.annotation.Scheduled;
@@ -12,6 +14,7 @@ public class BillingReconciliationService {
 
     private final BillingStateStore stateStore;
     private final BillingProviderPort billingProvider;
+    private final PlatformOwnerPreviewPolicy previewPolicy;
 
     @Value("${app.billing.reconciliation-enabled:false}")
     private boolean reconciliationEnabled;
@@ -20,10 +23,15 @@ public class BillingReconciliationService {
             cron = "${app.billing.reconciliation-cron:0 */5 * * * *}",
             zone = "${app.billing.time-zone:Asia/Seoul}")
     public void reconcileUnknownCharges() {
-        if (!reconciliationEnabled) {
+        List<Long> previewWorkspaceIds = previewPolicy.allowedWorkspaceIds();
+        if (!reconciliationEnabled && previewWorkspaceIds.isEmpty()) {
             return;
         }
-        for (Charge charge : stateStore.reconciliationCandidates(25)) {
+        List<Charge> candidates =
+                reconciliationEnabled
+                        ? stateStore.reconciliationCandidates(25)
+                        : stateStore.reconciliationCandidates(25, previewWorkspaceIds);
+        for (Charge charge : candidates) {
             try {
                 BillingProviderPort.ApprovedPayment payment =
                         billingProvider.queryOrder(charge.orderId());

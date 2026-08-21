@@ -47,6 +47,27 @@ public class AiUsageLedgerService {
             String sessionKey,
             boolean refinement,
             int estimatedPoints) {
+        return reserve(
+                workspaceId,
+                actorUserId,
+                feature,
+                operationCode,
+                sessionKey,
+                refinement,
+                estimatedPoints,
+                enforcementEnabled);
+    }
+
+    @Transactional
+    public AiUsageReservation reserve(
+            Long workspaceId,
+            Long actorUserId,
+            AiFeature feature,
+            String operationCode,
+            String sessionKey,
+            boolean refinement,
+            int estimatedPoints,
+            boolean enforceUsage) {
         requirePositive(workspaceId, "workspaceId");
         requirePositive(actorUserId, "actorUserId");
         Objects.requireNonNull(feature, "feature");
@@ -62,11 +83,11 @@ public class AiUsageLedgerService {
         int pointsToReserve =
                 PLATFORM_MANAGED.equals(subscription.credentialMode()) ? estimatedPoints : 0;
         boolean freeBenefit =
-                enforcementEnabled
+                enforceUsage
                         && "FREE".equals(subscription.planCode())
                         && claimFreeBenefit(
                                 workspaceId, actorUserId, feature, sessionKey, refinement);
-        if (enforcementEnabled
+        if (enforceUsage
                 && "FREE".equals(subscription.planCode())
                 && !freeBenefit
                 && (pointsToReserve == 0 || pointsToReserve > availablePoints(workspaceId))) {
@@ -74,11 +95,11 @@ public class AiUsageLedgerService {
                     HttpStatus.PAYMENT_REQUIRED,
                     "이번 달 무료 AI 세션을 모두 사용했습니다. 다음 달, 유료 플랜 또는 구매 point로 이용해 주세요.");
         }
-        if (enforcementEnabled && !freeBenefit && pointsToReserve > availablePoints(workspaceId)) {
+        if (enforceUsage && !freeBenefit && pointsToReserve > availablePoints(workspaceId)) {
             throw new ResponseStatusException(
                     HttpStatus.PAYMENT_REQUIRED, "AI point가 부족합니다. 새 작업을 시작할 수 없습니다.");
         }
-        int persistedReservation = enforcementEnabled && !freeBenefit ? pointsToReserve : 0;
+        int persistedReservation = enforceUsage && !freeBenefit ? pointsToReserve : 0;
 
         UUID publicId = UUID.randomUUID();
         LocalDateTime now = LocalDateTime.now();
@@ -142,6 +163,7 @@ public class AiUsageLedgerService {
                 sessionKey,
                 estimatedPoints,
                 persistedReservation,
+                enforceUsage,
                 evidencePolicyVersion,
                 consentPolicyVersion);
     }
@@ -164,7 +186,7 @@ public class AiUsageLedgerService {
         Objects.requireNonNull(result, "result");
         int actualPoints =
                 reservation.reservedPoints() == 0 ? 0 : Math.max(0, result.actualPoints());
-        if (enforcementEnabled) {
+        if (reservation.enforcementEnabled()) {
             settleDifference(reservation, actualPoints);
         }
         LocalDateTime now = LocalDateTime.now();
@@ -182,8 +204,8 @@ public class AiUsageLedgerService {
                         result.provider(),
                         result.model(),
                         result.region(),
-                        enforcementEnabled ? "CHARGED" : "SHADOW_ONLY",
-                        enforcementEnabled ? actualPoints : 0,
+                        reservation.enforcementEnabled() ? "CHARGED" : "SHADOW_ONLY",
+                        reservation.enforcementEnabled() ? actualPoints : 0,
                         nullableToken(result.inputTokens()),
                         nullableToken(result.cachedInputTokens()),
                         nullableToken(result.outputTokens()),
@@ -202,7 +224,7 @@ public class AiUsageLedgerService {
     public void release(
             AiUsageReservation reservation, String failureCode, boolean platformBurden) {
         requireCode(failureCode, "failureCode");
-        if (enforcementEnabled && reservation.reservedPoints() > 0) {
+        if (reservation.enforcementEnabled() && reservation.reservedPoints() > 0) {
             releaseAllReservations(reservation);
         }
         LocalDateTime now = LocalDateTime.now();

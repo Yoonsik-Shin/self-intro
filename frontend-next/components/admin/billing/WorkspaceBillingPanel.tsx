@@ -7,7 +7,9 @@ import { AdminPageHeader } from '@/components/admin/common/AdminPageHeader';
 import { WorkspaceBillingManagement } from './WorkspaceBillingManagement';
 import { PricingPlanCards } from '@/components/pricing/PricingPlanCards';
 import { AiPointUsageGuide } from '@/components/pricing/AiPointUsageGuide';
+import { isPlatformOwnerPreview } from '@/lib/privateBetaPreview';
 import { IS_PRIVATE_BETA } from '@/lib/publicRelease';
+import { useAuthStore } from '@/store/useAuthStore';
 
 const FEATURE_LABEL: Record<string, string> = {
     EXPERIENCE: '경험 정리',
@@ -19,6 +21,9 @@ const FEATURE_LABEL: Record<string, string> = {
 };
 
 export function WorkspaceBillingPanel({ workspaceSlug }: { workspaceSlug: string }) {
+    const me = useAuthStore((state) => state.me);
+    const sandboxPreview = isPlatformOwnerPreview(me, workspaceSlug);
+    const hidePaidPricing = IS_PRIVATE_BETA && !sandboxPreview;
     const overview = useQuery({
         queryKey: ['workspace', workspaceSlug, 'billing-overview'],
         queryFn: () => billingApi.overview(workspaceSlug),
@@ -79,7 +84,7 @@ export function WorkspaceBillingPanel({ workspaceSlug }: { workspaceSlug: string
                             label="멤버"
                             value={`${data.activeMembers} / ${data.includedMembers}명`}
                             detail={
-                                IS_PRIVATE_BETA
+                                hidePaidPricing
                                     ? '베타 기간에는 추가 좌석을 결제하지 않습니다.'
                                     : `초과 좌석은 월 ${formatKrw(data.extraSeatMonthlyKrw)}`
                             }
@@ -91,7 +96,7 @@ export function WorkspaceBillingPanel({ workspaceSlug }: { workspaceSlug: string
                             <Detail
                                 label="월 결제"
                                 value={
-                                    IS_PRIVATE_BETA
+                                    hidePaidPricing
                                         ? '베타 기간 결제 없음'
                                         : formatKrw(data.monthlyPriceKrw)
                                 }
@@ -99,7 +104,7 @@ export function WorkspaceBillingPanel({ workspaceSlug }: { workspaceSlug: string
                             <Detail
                                 label="연 결제"
                                 value={
-                                    IS_PRIVATE_BETA
+                                    hidePaidPricing
                                         ? '베타 기간 결제 없음'
                                         : formatKrw(data.annualPriceKrw)
                                 }
@@ -122,12 +127,16 @@ export function WorkspaceBillingPanel({ workspaceSlug }: { workspaceSlug: string
                         <div className="mb-4">
                             <h2 className="font-bold text-slate-950">플랜 비교</h2>
                             <p className="mt-1 text-xs leading-5 text-slate-500">
-                                {IS_PRIVATE_BETA
+                                {hidePaidPricing
                                     ? '정식 출시를 준비 중인 플랜별 혜택과 AI 제공량을 비교합니다.'
                                     : '가격, 포함 Workspace·멤버와 월 AI 제공량을 비교합니다.'}
                             </p>
                         </div>
-                        <PricingPlanCards currentPlanCode={data.planCode} dashboard />
+                        <PricingPlanCards
+                            currentPlanCode={data.planCode}
+                            dashboard
+                            revealPrivateBetaPricing={sandboxPreview}
+                        />
                     </section>
                 </>
             )}

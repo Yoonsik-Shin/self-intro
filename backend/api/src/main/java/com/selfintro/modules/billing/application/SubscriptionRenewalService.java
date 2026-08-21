@@ -3,7 +3,9 @@ package com.selfintro.modules.billing.application;
 import com.selfintro.modules.billing.application.BillingStateStore.Charge;
 import com.selfintro.modules.billing.application.BillingStateStore.PaymentMethod;
 import com.selfintro.modules.billing.application.BillingStateStore.RenewalCandidate;
+import com.selfintro.modules.identity.application.PlatformOwnerPreviewPolicy;
 import java.time.format.DateTimeFormatter;
+import java.util.List;
 import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.scheduling.annotation.Scheduled;
@@ -15,6 +17,7 @@ public class SubscriptionRenewalService {
 
     private final BillingStateStore stateStore;
     private final BillingProviderPort billingProvider;
+    private final PlatformOwnerPreviewPolicy previewPolicy;
 
     @Value("${app.billing.renewal-enabled:false}")
     private boolean renewalEnabled;
@@ -23,11 +26,16 @@ public class SubscriptionRenewalService {
             cron = "${app.billing.renewal-cron:0 */10 * * * *}",
             zone = "${app.billing.time-zone:Asia/Seoul}")
     public void renewDueSubscriptions() {
-        if (!renewalEnabled) {
+        List<Long> previewWorkspaceIds = previewPolicy.allowedWorkspaceIds();
+        if (!renewalEnabled && previewWorkspaceIds.isEmpty()) {
             return;
         }
-        stateStore.downgradeExpiredGracePeriods();
-        for (RenewalCandidate renewal : stateStore.claimDueRenewals(10)) {
+        stateStore.downgradeExpiredGracePeriods(renewalEnabled ? null : previewWorkspaceIds);
+        List<RenewalCandidate> candidates =
+                renewalEnabled
+                        ? stateStore.claimDueRenewals(10)
+                        : stateStore.claimDueRenewals(10, previewWorkspaceIds);
+        for (RenewalCandidate renewal : candidates) {
             renew(renewal);
         }
     }

@@ -12,6 +12,7 @@ resources:
   - sealed-ai-secret.yaml
   - sealed-storage-secret.yaml
   - sealed-mail-secret.yaml
+  - sealed-billing-secret.yaml
   - sealed-kofi-secret.yaml
 
 images:
@@ -72,6 +73,10 @@ configMapGenerator:
       - REGISTRATION_MARKETING_VERSION=2026-08-22
       # 외부 AI 처리 조건을 확정하고 별도 동의를 받기 전까지 비공개 베타에서는 호출 자체를 차단한다.
       - AI_GENERATION_ENABLED=false
+      # 비공개 베타 예외는 정확히 PLATFORM_OWNER + 아래 Workspace 조합에만 적용한다.
+      # 전역 AI/결제 gate는 계속 false로 유지한다.
+      - PLATFORM_OWNER_PREVIEW_ENABLED=true
+      - PLATFORM_OWNER_PREVIEW_WORKSPACE_SLUGS=w-199d6de326de71385a98
       # API의 읽기 전용 Vector inventory client. 삭제 RPC는 노출하지 않는다.
       - GRPC_WORKER_HOST=static://self-intro-backend-worker:9090
       - WORKER_BASE_URL=http://self-intro-backend-worker:8081
@@ -88,8 +93,15 @@ configMapGenerator:
       - WORKSPACE_PURGE_CACHE_DELETE_ENABLED=false
       - MAINTENANCE_MODE=false
       - WORKSPACE_RESTORE_RECONCILIATION_ENABLED=false
-      # OCI Vault/토스 운영 계약과 staging 검증이 끝날 때까지 결제·AI 과금은 fail closed한다.
-      - SECRET_PROVIDER=none
+      # BASIC_CLUSTER에는 OKE workload identity가 없어 단일 노드의 instance principal을
+      # OCI Vault에 연결한다. 노드 교체 시 운영 가이드의 dynamic group 갱신 절차를 따른다.
+      - SECRET_PROVIDER=oci-vault
+      - SECRET_PROVIDER_OCI_AUTH_MODE=instance-principal
+      - SECRET_PROVIDER_OCI_REGION=ap-chuncheon-1
+      - SECRET_PROVIDER_OCI_COMPARTMENT_ID=ocid1.compartment.oc1..aaaaaaaanhpqywyoflasclz3rayfhzudhwuf5nts23nkj5kj2swadwoohtoa
+      - SECRET_PROVIDER_OCI_VAULT_ID=ocid1.vault.oc1.ap-chuncheon-1.gjvirh2laaau4.ab4w4ljrckxg3yhgifsvw43myu34h2vrldhi4xetcm76yfo2z3ljybqdwb6a
+      - SECRET_PROVIDER_OCI_KEY_ID=ocid1.key.oc1.ap-chuncheon-1.gjvirh2laaau4.ab4w4ljrorrxfw4ahvrxlwcm5f5hiiagmj7sfzb6v5qkzdz2tcjbdaro74ua
+      - SECRET_PROVIDER_OCI_RECOVERY_DAYS=7
       - BILLING_ENABLED=false
       - BILLING_RENEWAL_ENABLED=false
       - BILLING_RECONCILIATION_ENABLED=false

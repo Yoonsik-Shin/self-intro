@@ -7,6 +7,7 @@ import { billingApi, type BillingCharge } from '@/lib/api';
 import { useRecentReauthentication } from '@/hooks/useRecentReauthentication';
 import { useAuthStore } from '@/store/useAuthStore';
 import { loadTossPayments } from '@/lib/tossPayments';
+import { isPlatformOwnerPreview } from '@/lib/privateBetaPreview';
 import { IS_PUBLIC_BILLING_AVAILABLE } from '@/lib/publicRelease';
 
 type PurchaseConfirmation = {
@@ -37,10 +38,12 @@ export function WorkspaceBillingManagement({
     const { isReauthenticated } = useRecentReauthentication();
     const workspace = me?.workspaces.find((candidate) => candidate.slug === workspaceSlug);
     const isOwner = workspace?.role === 'OWNER';
+    const billingAvailable =
+        IS_PUBLIC_BILLING_AVAILABLE || isPlatformOwnerPreview(me, workspaceSlug);
     const byok = useQuery({
         queryKey: ['workspace', workspaceSlug, 'byok'],
         queryFn: () => billingApi.byokStatus(workspaceSlug),
-        enabled: Boolean(workspace) && IS_PUBLIC_BILLING_AVAILABLE,
+        enabled: Boolean(workspace) && billingAvailable,
     });
     const [provider, setProvider] = useState('OPENAI');
     const [apiKey, setApiKey] = useState('');
@@ -134,11 +137,11 @@ export function WorkspaceBillingManagement({
             <section className="rounded-xl border border-slate-200 bg-white p-5">
                 <h2 className="font-bold text-slate-950">구독·결제 관리</h2>
                 <p className="mt-1 text-xs leading-5 text-slate-500">
-                    {IS_PUBLIC_BILLING_AVAILABLE
+                    {billingAvailable
                         ? 'OWNER의 MFA와 최근 비밀번호 확인이 필요합니다. 무료 체험 자동전환과 AI 자동충전은 없습니다. 표시 금액은 모두 부가세가 포함된 최종 결제금액입니다.'
                         : '비공개 베타에서는 카드 등록, 구독, AI point와 추가 좌석 결제를 받지 않습니다. 정식 출시 전에 가격과 결제 조건을 별도로 안내합니다.'}
                 </p>
-                {IS_PUBLIC_BILLING_AVAILABLE ? (
+                {billingAvailable ? (
                     <>
                         <div className="mt-4 grid gap-2 sm:grid-cols-2">
                             <Action
@@ -333,7 +336,7 @@ export function WorkspaceBillingManagement({
 
             <section className="rounded-xl border border-slate-200 bg-white p-5">
                 <h2 className="font-bold text-slate-950">BYOK</h2>
-                {IS_PUBLIC_BILLING_AVAILABLE ? (
+                {billingAvailable ? (
                     <>
                         <p className="mt-1 text-xs leading-5 text-slate-500">
                             키 원문은 Secret Manager에만 저장합니다. 실패 시 플랫폼 키로 자동

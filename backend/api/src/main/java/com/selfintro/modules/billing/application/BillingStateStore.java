@@ -328,6 +328,33 @@ public class BillingStateStore {
                 boundedLimit);
     }
 
+    public List<Charge> reconciliationCandidates(int limit, List<Long> workspaceIds) {
+        if (workspaceIds == null || workspaceIds.isEmpty()) {
+            return List.of();
+        }
+        int boundedLimit = Math.max(1, Math.min(limit, 100));
+        return workspaceIds.stream()
+                .flatMap(
+                        workspaceId ->
+                                jdbcTemplate
+                                        .query(
+                                                """
+                                                SELECT id, workspace_id, charge_type, product_code, billing_cycle,
+                                                       points_to_grant, amount_krw, order_id, idempotency_key, status
+                                                  FROM billing_charge
+                                                 WHERE status = 'RECONCILIATION_REQUIRED'
+                                                   AND workspace_id = ?
+                                                 ORDER BY updated_at ASC, id ASC
+                                                 LIMIT ?
+                                                """,
+                                                (resultSet, rowNum) -> mapCharge(resultSet),
+                                                workspaceId,
+                                                boundedLimit)
+                                        .stream())
+                .limit(boundedLimit)
+                .toList();
+    }
+
     public Charge chargeByOrderId(String orderId) {
         return jdbcTemplate
                 .query(
@@ -465,6 +492,63 @@ public class BillingStateStore {
     }
 
     @Transactional
+    public List<RenewalCandidate> claimDueRenewals(int limit, List<Long> workspaceIds) {
+        if (workspaceIds == null || workspaceIds.isEmpty()) {
+            return List.of();
+        }
+        int boundedLimit = Math.max(1, Math.min(limit, 25));
+        List<RenewalCandidate> candidates =
+                workspaceIds.stream()
+                        .flatMap(
+                                workspaceId ->
+                                        jdbcTemplate
+                                                .query(
+                                                        """
+                                                        SELECT s.id, s.workspace_id, s.plan_code, s.billing_cycle,
+                                                               CASE WHEN s.billing_cycle = 'ANNUAL'
+                                                                    THEN s.price_annual_krw ELSE s.price_monthly_krw END,
+                                                               s.current_period_end
+                                                          FROM workspace_subscription s
+                                                         WHERE s.workspace_id = ?
+                                                           AND s.status IN ('ACTIVE', 'PAST_DUE', 'GRACE_PERIOD')
+                                                           AND s.plan_code <> 'FREE' AND s.cancel_at_period_end = 0
+                                                           AND s.current_period_end <= CURRENT_TIMESTAMP(6)
+                                                           AND (s.renewal_lease_until IS NULL
+                                                                OR s.renewal_lease_until < CURRENT_TIMESTAMP(6))
+                                                         ORDER BY s.current_period_end ASC, s.id ASC
+                                                         LIMIT ?
+                                                         FOR UPDATE
+                                                        """,
+                                                        (resultSet, rowNum) ->
+                                                                new RenewalCandidate(
+                                                                        resultSet.getLong(1),
+                                                                        resultSet.getLong(2),
+                                                                        resultSet.getString(3),
+                                                                        resultSet.getString(4),
+                                                                        resultSet.getInt(5),
+                                                                        resultSet
+                                                                                .getTimestamp(6)
+                                                                                .toLocalDateTime()),
+                                                        workspaceId,
+                                                        boundedLimit)
+                                                .stream())
+                        .limit(boundedLimit)
+                        .toList();
+        LocalDateTime leaseUntil = LocalDateTime.now().plusMinutes(10);
+        candidates.forEach(
+                candidate ->
+                        jdbcTemplate.update(
+                                """
+                                UPDATE workspace_subscription
+                                   SET renewal_lease_until = ?, updated_at = CURRENT_TIMESTAMP(6)
+                                 WHERE id = ?
+                                """,
+                                leaseUntil,
+                                candidate.subscriptionId()));
+        return candidates;
+    }
+
+    @Transactional
     public void markRenewalAttemptFailed(Long subscriptionId) {
         jdbcTemplate.update(
                 """
@@ -516,6 +600,39 @@ public class BillingStateStore {
                  WHERE status = 'CANCEL_AT_PERIOD_END'
                    AND current_period_end <= CURRENT_TIMESTAMP(6)
                 """);
+    }
+
+    @Transactional
+    public void downgradeExpiredGracePeriods(List<Long> workspaceIds) {
+        if (workspaceIds == null) {
+            downgradeExpiredGracePeriods();
+            return;
+        }
+        for (Long workspaceId : workspaceIds) {
+            jdbcTemplate.update(
+                    """
+                    UPDATE workspace_subscription
+                       SET plan_code = 'FREE', price_monthly_krw = 0, price_annual_krw = 0,
+                           status = 'CANCELED', billing_cycle = NULL, payment_method_id = NULL,
+                           cancel_at_period_end = 0, renewal_failure_count = 0,
+                           renewal_lease_until = NULL, updated_at = CURRENT_TIMESTAMP(6),
+                           version = version + 1
+                     WHERE workspace_id = ? AND status = 'GRACE_PERIOD'
+                       AND grace_period_ends_at <= CURRENT_TIMESTAMP(6)
+                    """,
+                    workspaceId);
+            jdbcTemplate.update(
+                    """
+                    UPDATE workspace_subscription
+                       SET plan_code = 'FREE', price_monthly_krw = 0, price_annual_krw = 0,
+                           status = 'CANCELED', billing_cycle = NULL, payment_method_id = NULL,
+                           renewal_failure_count = 0, renewal_lease_until = NULL,
+                           updated_at = CURRENT_TIMESTAMP(6), version = version + 1
+                     WHERE workspace_id = ? AND status = 'CANCEL_AT_PERIOD_END'
+                       AND current_period_end <= CURRENT_TIMESTAMP(6)
+                    """,
+                    workspaceId);
+        }
     }
 
     public SeatQuote seatQuote(Long workspaceId) {

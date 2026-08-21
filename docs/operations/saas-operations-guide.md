@@ -15,16 +15,18 @@
 - Backup·복구 정책과 실행 gate: [Disaster recovery policy](disaster-recovery-policy.md)
 - 전환 작업 체크포인트: [SaaS 전환 작업 체크포인트](saas-transition-checkpoint.md)
 - DB 테이블 소유권·정리 기준: [Database table inventory](database-table-inventory.md)
-- 운영 배포 상태: **미배포**
+- 운영 배포 상태: **비공개 베타 운영 중**
 
 이 문서는 현재 구현된 동작, 로컬 검증 방법, 운영 반영 전 준비사항을 운영자 관점에서 설명한다.
 설계 원칙은 ADR을, 실제 실행 절차는 이 문서를 기준으로 한다.
 
 ADR-007과 ADR-008은 2026-08-21 제품·보안 정책 기준선이다. V8~V10과 애플리케이션 코드에는 구독·AI
 usage/point 원장, 결제 경계, Evidence Packet envelope, 중앙 Provider Router, AI 처리 동의와 BYOK Secret
-Manager reference가 구현됐다. 다만 `BILLING_ENABLED`, `BILLING_RENEWAL_ENABLED`,
-`BILLING_RECONCILIATION_ENABLED`, `AI_USAGE_ENFORCEMENT_ENABLED`는 기본 `false`이며 운영 배포도 하지
-않았다. Workspace DEK, Argon2id 전환과 WORM 감사는 여전히 미구현이므로 현재 기능으로 간주하지 않는다.
+Manager reference가 구현됐다. 운영의 전역 `BILLING_ENABLED`, `BILLING_RENEWAL_ENABLED`,
+`BILLING_RECONCILIATION_ENABLED`, `AI_USAGE_ENFORCEMENT_ENABLED`는 계속 `false`다. 단,
+`PLATFORM_OWNER`이면서 명시적으로 허용한 테스트 Workspace인 경우에만 서버와 화면이 결제·AI·BYOK
+preview를 연다. Workspace DEK, Argon2id 전환과 WORM 감사는 후속 보안 강화 항목이며 현재 기능으로
+간주하지 않는다.
 법정 보존기간은 ADR-008의 승인 기본값을 사용하되 정식 출시 전 법률·세무·PG 검토 결과가 더 엄격하면
 그 기준을 우선한다.
 
@@ -41,9 +43,10 @@ Manager reference가 구현됐다. 다만 `BILLING_ENABLED`, `BILLING_RENEWAL_EN
 모두 준비된 release candidate에서만 프런트 값을 `PAID`로 변경한다. 이 값은 `NEXT_PUBLIC_*`이므로
 Pod 런타임 환경변수 변경이 아니라 새 프런트 이미지를 빌드해야 반영된다.
 
-`SECRET_PROVIDER=none`인 동안에는 BYOK 저장·회전·폐기 화면도 노출하지 않는다. 비공개
-베타 화면에는 OCI Vault 검증 이후 제공한다는 안내만 표시한다. 이는 사용자가 입력한 Provider
-키가 저장되지 않거나 잘못 처리되는 것처럼 보이는 실패 경로를 막기 위한 운영 gate다.
+운영 API는 `SECRET_PROVIDER=oci-vault`와 instance principal을 사용한다. BYOK 저장·회전·폐기 화면은
+일반 베타 사용자에게 노출하지 않고, `PLATFORM_OWNER`과 허용된 테스트 Workspace의 결합 조건에서만
+노출한다. Worker에는 결제 Secret과 Toss 자격 증명을 주입하지 않는다. 이는 일반 사용자의 Provider
+키나 결제가 preview 경로로 유입되는 것을 막기 위한 운영 gate다.
 
 운영 Email Delivery는 `backend-mail-secret`의 `SPRING_MAIL_USERNAME`,
 `SPRING_MAIL_PASSWORD`를 사용한다. 비공개 베타 배포 manifest는 회원가입 확인과 계정 복구
@@ -3100,3 +3103,38 @@ integer display width 폐기 예정 경고가 남지만 이번 배포 차단 오
 action runtime과 `setup-java@v4` 폐기 예정 annotation이 있으므로 후속 유지보수에서 action version을
 갱신한다. 운영 가입 확인·계정 복구 메일의 실제 수신 및 링크 host 검증과 Tempo·Oracle exporter의 24시간
 재시작 관찰은 배포 후 운영 확인 항목으로 계속 추적한다.
+
+### 15.50 PLATFORM_OWNER 지정 Workspace 결제·AI preview
+
+비공개 베타의 일반 사용자 gate를 유지한 채 운영자가 실제 결제·AI·BYOK 경로를 검증할 수 있도록 다음
+결합 조건을 추가했다.
+
+1. 로그인 사용자가 `PLATFORM_OWNER` 역할을 보유한다.
+2. 요청 Workspace slug가 `PLATFORM_OWNER_PREVIEW_WORKSPACE_SLUGS`의 정확한 allowlist 항목이다.
+3. 운영 배포에서는 `PLATFORM_OWNER_PREVIEW_ENABLED=true`이고, 현재 허용된 slug는
+   `w-199d6de326de71385a98` 하나다.
+
+역할이나 Workspace 조건 중 하나라도 맞지 않으면 서버가 fail-closed로 거절한다. 전역 결제·갱신·정합성·AI
+usage flag는 계속 `false`이므로 다른 Workspace와 일반 베타 사용자에게 예외가 전파되지 않는다. 프런트도
+빌드 시점 allowlist와 플랫폼 역할을 함께 확인하며, 화면을 우회해 API를 직접 호출해도 서버 정책이 다시
+검증한다.
+
+AI preview에서도 처리 동의, point reservation·commit·release와 사용량 enforcement를 생략하지 않는다.
+BYOK는 Workspace에 저장된 OCI Vault reference만 사용하고 플랫폼 키로 암묵적으로 fallback하지 않는다.
+운영 API는 OCI Vault의 instance principal로 Secret을 처리한다. 현재 OKE가 BASIC_CLUSTER이므로
+`self-intro-oke-vault-nodes` 동적 그룹은 현재 운영 노드의 정확한 instance OCID만 허용하고,
+`self-intro-private-beta-vault-policy`가 `self-intro` 컴파트먼트의 Secret 사용 권한만 부여한다. 노드가
+교체되면 새 instance OCID로 동적 그룹 규칙을 갱신한 뒤 API rollout을 진행해야 한다. 준비 과정에서 만든
+미사용 `self-intro-vault-runtime` 사용자와 `self-intro-vault-clients` 그룹은 자격 증명·구성원이 없음을
+확인하고 삭제했다.
+
+Toss 자격 증명은 테스트 키만 담은 `backend-billing-secret` SealedSecret으로 GitOps에 저장한다. 평문은
+Git에 저장하지 않으며 Secret은 API Deployment에만 주입한다. preview 결제는 Toss sandbox 요청만
+생성하며 실제 카드 청구나 운영 MID 활성화를 의미하지 않는다. Webhook, 갱신 scheduler, 정합성 처리도
+allowlist에 포함된 Workspace만 선택한다.
+
+구현 검증은 `PlatformOwnerPreviewPolicyTest`, `AiExecutionServiceTest`,
+`WorkspaceBillingMutationServiceTest`, `TossBillingWebhookServiceTest`로 역할·slug 결합 조건, AI point
+enforcement, consent, 비허용 Workspace 차단을 확인한다. 전체 backend, frontend production build와
+Kubernetes render를 통과한 commit만 `main`에 반영하고, 이후 GitHub Actions, GitOps revision, Argo CD,
+Pod Ready/restart, 외부 health·readiness와 오류 로그를 다시 확인한다.

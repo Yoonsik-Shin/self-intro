@@ -8,6 +8,8 @@ import com.selfintro.modules.aiusage.application.AiUsageLedgerService;
 import com.selfintro.modules.billing.application.BillingStateStore.Charge;
 import com.selfintro.modules.billing.application.BillingStateStore.PaymentMethod;
 import com.selfintro.modules.billing.presentation.dto.BillingChargeResponse;
+import com.selfintro.modules.billing.presentation.dto.BillingCheckoutContextResponse;
+import com.selfintro.modules.identity.application.PlatformOwnerPreviewPolicy;
 import com.selfintro.modules.identity.domain.AppUser;
 import com.selfintro.modules.identity.domain.Workspace;
 import com.selfintro.modules.identity.domain.WorkspaceMember;
@@ -28,6 +30,7 @@ class WorkspaceBillingMutationServiceTest {
     @Mock private BillingProviderPort provider;
     @Mock private SecurityAuditService auditService;
     @Mock private AiUsageLedgerService usageLedgerService;
+    @Mock private PlatformOwnerPreviewPolicy previewPolicy;
     @Mock private WorkspaceMember actor;
     @Mock private Workspace workspace;
     @Mock private AppUser user;
@@ -38,7 +41,7 @@ class WorkspaceBillingMutationServiceTest {
     void setUp() {
         service =
                 new WorkspaceBillingMutationService(
-                        stateStore, provider, auditService, usageLedgerService);
+                        stateStore, provider, auditService, usageLedgerService, previewPolicy);
         ReflectionTestUtils.setField(service, "billingEnabled", true);
         when(actor.getRole()).thenReturn(WorkspaceRole.OWNER);
         when(actor.getWorkspace()).thenReturn(workspace);
@@ -176,5 +179,20 @@ class WorkspaceBillingMutationServiceTest {
 
         assertThat(response.points()).isEqualTo(10_000);
         assertThat(response.status()).isEqualTo("APPROVED");
+    }
+
+    @Test
+    void platformOwnerPreviewExposesSandboxCheckoutWhileGlobalBillingIsDisabled() {
+        ReflectionTestUtils.setField(service, "billingEnabled", false);
+        ReflectionTestUtils.setField(service, "tossClientKey", "test_ck_preview");
+        when(previewPolicy.isAllowed(11L, 7L)).thenReturn(true);
+        when(stateStore.ensureCustomer(7L))
+                .thenReturn(new BillingStateStore.BillingCustomer(9L, 7L, "customer-key"));
+
+        BillingCheckoutContextResponse response = service.checkoutContext(actor);
+
+        assertThat(response.enabled()).isTrue();
+        assertThat(response.clientKey()).isEqualTo("test_ck_preview");
+        verify(usageLedgerService).ensureWorkspaceDefaults(7L);
     }
 }

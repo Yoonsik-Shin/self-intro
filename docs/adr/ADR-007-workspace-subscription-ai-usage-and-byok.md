@@ -1,14 +1,16 @@
 # ADR-007: Workspace 구독·AI 사용량 과금과 BYOK 경계
 
-- 상태: Accepted (정책 확정, 구현 전)
+- 상태: Accepted (정책 확정, 애플리케이션 경계 구현 완료)
 - 기준일: 2026-08-20
 - 적용 범위: Workspace 유형, 구독·결제, AI 사용량, Provider key 관리
 - 관련 문서: [ADR-001](./ADR-001-saas-security-multitenancy.md),
   [ADR-002](./ADR-002-registration-and-workspace-onboarding.md),
   [ADR-004](./ADR-004-output-composition-and-revisions.md),
   [ADR-006](./ADR-006-private-data-plane-and-public-projection.md)
-- 구현 상태: 이 ADR의 제품 정책은 확정했지만 Subscription, Billing, AI point, BYOK 기능은 아직
-  구현·배포하지 않았다.
+- 구현 상태: Subscription, Billing, AI point, BYOK의 Workspace 권한·원장·Secret reference·no-fallback
+  경계는 구현됐다. 비공개 베타에서는 전역 flag를 닫고, `PLATFORM_OWNER`와 명시적으로 허용한 테스트
+  Workspace가 동시에 일치할 때만 Toss 샌드박스와 BYOK 외부 호출을 허용한다. 일반 베타 사용자와 다른
+  Workspace에는 이 예외가 적용되지 않으며, 라이브 결제는 사업자·PG 계약과 운영 키 검증 전까지 열지 않는다.
 
 ## 배경
 

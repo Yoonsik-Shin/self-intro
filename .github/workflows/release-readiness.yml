@@ -56,22 +56,29 @@ jobs:
             exit 1
           fi
 
-      - name: Verify production billing remains fail closed
+      - name: Verify private beta gates and owner preview
         run: |
           if ! grep -F 'NEXT_PUBLIC_RELEASE_CHANNEL=PRIVATE_BETA' \
             .github/workflows/deploy-frontend.yml; then
             echo '::error::frontend private beta billing gate is missing.'
             exit 1
           fi
+          if ! grep -F 'NEXT_PUBLIC_PLATFORM_OWNER_PREVIEW_WORKSPACE_SLUGS=w-199d6de326de71385a98' \
+            .github/workflows/deploy-frontend.yml; then
+            echo '::error::frontend platform owner preview allowlist is missing.'
+            exit 1
+          fi
           manifest="$(mktemp)"
           kubectl kustomize deploy/k8s/overlays/prod/backend >"$manifest"
           for expected in \
-            'SECRET_PROVIDER: none' \
+            'SECRET_PROVIDER: oci-vault' \
             'BILLING_ENABLED: "false"' \
             'BILLING_RENEWAL_ENABLED: "false"' \
             'BILLING_RECONCILIATION_ENABLED: "false"' \
             'AI_GENERATION_ENABLED: "false"' \
             'AI_USAGE_ENFORCEMENT_ENABLED: "false"' \
+            'PLATFORM_OWNER_PREVIEW_ENABLED: "true"' \
+            'PLATFORM_OWNER_PREVIEW_WORKSPACE_SLUGS: w-199d6de326de71385a98' \
             'REGISTRATION_EMAIL_ENABLED: "true"' \
             'ACCOUNT_RECOVERY_EMAIL_ENABLED: "true"' \
             'REGISTRATION_TERMS_VERSION: "2026-08-22"' \
@@ -84,6 +91,14 @@ jobs:
           done
           if ! grep -F -- 'name: backend-mail-secret' "$manifest"; then
             echo '::error::production mail secret reference is missing: backend-mail-secret'
+            exit 1
+          fi
+          if ! grep -F -- 'name: backend-billing-secret' "$manifest"; then
+            echo '::error::API billing sandbox secret reference is missing: backend-billing-secret'
+            exit 1
+          fi
+          if [ "$(grep -cF -- 'name: backend-billing-secret' "$manifest")" -ne 1 ]; then
+            echo '::error::billing sandbox secret must be mounted only by the API deployment.'
             exit 1
           fi
           for secret_key in SPRING_MAIL_USERNAME SPRING_MAIL_PASSWORD; do

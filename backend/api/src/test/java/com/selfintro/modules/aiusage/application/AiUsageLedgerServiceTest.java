@@ -34,6 +34,7 @@ class AiUsageLedgerServiceTest {
                         "session-key",
                         100,
                         0,
+                        true,
                         "2026-08-21",
                         "2026-08-21");
 

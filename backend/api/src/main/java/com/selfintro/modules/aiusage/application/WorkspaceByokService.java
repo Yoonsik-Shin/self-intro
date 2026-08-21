@@ -2,6 +2,7 @@ package com.selfintro.modules.aiusage.application;
 
 import com.selfintro.global.secret.SecretProvider;
 import com.selfintro.modules.aiusage.presentation.dto.WorkspaceByokStatusResponse;
+import com.selfintro.modules.identity.application.PlatformOwnerPreviewPolicy;
 import com.selfintro.modules.identity.domain.WorkspaceMember;
 import com.selfintro.modules.identity.domain.WorkspaceRole;
 import com.selfintro.modules.securityaudit.application.SecurityAuditService;
@@ -15,6 +16,7 @@ import java.util.List;
 import java.util.Locale;
 import java.util.UUID;
 import lombok.RequiredArgsConstructor;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.HttpStatus;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Service;
@@ -30,6 +32,10 @@ public class WorkspaceByokService {
     private final JdbcTemplate jdbcTemplate;
     private final SecretProvider secretProvider;
     private final SecurityAuditService auditService;
+    private final PlatformOwnerPreviewPolicy previewPolicy;
+
+    @Value("${app.ai.byok-enabled:false}")
+    private boolean byokEnabled;
 
     public WorkspaceByokStatusResponse status(Long workspaceId) {
         List<WorkspaceByokStatusResponse> rows =
@@ -65,6 +71,7 @@ public class WorkspaceByokService {
     @Transactional
     public WorkspaceByokStatusResponse configure(
             WorkspaceMember actor, String rawProvider, String apiKey) {
+        requireEnabled(actor);
         requireOwnerAndMfa(actor);
         String provider = normalizeProvider(rawProvider);
         if (apiKey == null || apiKey.isBlank() || apiKey.length() > 500) {
@@ -149,6 +156,7 @@ public class WorkspaceByokService {
 
     @Transactional
     public WorkspaceByokStatusResponse revoke(WorkspaceMember actor) {
+        requireEnabled(actor);
         requireOwnerAndMfa(actor);
         Long workspaceId = actor.getWorkspace().getId();
         List<String> references =
@@ -190,6 +198,7 @@ public class WorkspaceByokService {
 
     @Transactional
     public WorkspaceByokStatusResponse usePlatformManaged(WorkspaceMember actor) {
+        requireEnabled(actor);
         requireOwnerAndMfa(actor);
         Long workspaceId = actor.getWorkspace().getId();
         jdbcTemplate.update(
@@ -215,6 +224,15 @@ public class WorkspaceByokService {
         if (!actor.getUser().isMfaEnabled()) {
             throw new ResponseStatusException(
                     HttpStatus.PRECONDITION_REQUIRED, "BYOK 관리 전에 MFA를 등록해 주세요.");
+        }
+    }
+
+    private void requireEnabled(WorkspaceMember actor) {
+        if (!byokEnabled
+                && !previewPolicy.isAllowed(
+                        actor.getUser().getId(), actor.getWorkspace().getId())) {
+            throw new ResponseStatusException(
+                    HttpStatus.SERVICE_UNAVAILABLE, "비공개 베타에서는 BYOK 기능을 제공하지 않습니다.");
         }
     }
 

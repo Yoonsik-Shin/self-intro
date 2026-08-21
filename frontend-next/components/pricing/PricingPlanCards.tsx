@@ -11,13 +11,16 @@ import { IS_PRIVATE_BETA } from '@/lib/publicRelease';
 export function PricingPlanCards({
     currentPlanCode,
     dashboard = false,
+    revealPrivateBetaPricing = false,
 }: {
     currentPlanCode?: PricingPlanCode;
     dashboard?: boolean;
+    revealPrivateBetaPricing?: boolean;
 }) {
+    const hidePaidPricing = IS_PRIVATE_BETA && !revealPrivateBetaPricing;
     return (
         <div className="space-y-4">
-            {IS_PRIVATE_BETA && (
+            {hidePaidPricing && (
                 <div className="rounded-xl border border-amber-200 bg-amber-50 px-4 py-3">
                     <p className="text-sm font-black text-amber-950">초대형 비공개 베타</p>
                     <p className="mt-1 text-xs leading-5 text-amber-900">
@@ -64,12 +67,12 @@ export function PricingPlanCards({
                                     </p>
                                 </div>
                                 {(current ||
-                                    (IS_PRIVATE_BETA && plan.code !== 'FREE') ||
-                                    (!IS_PRIVATE_BETA && !currentPlanCode && plan.recommended)) && (
+                                    (hidePaidPricing && plan.code !== 'FREE') ||
+                                    (!hidePaidPricing && !currentPlanCode && plan.recommended)) && (
                                     <span className="shrink-0 rounded-full bg-slate-950 px-2.5 py-1 text-[10px] font-black text-white">
                                         {current
                                             ? '현재 플랜'
-                                            : IS_PRIVATE_BETA
+                                            : hidePaidPricing
                                               ? '출시 예정'
                                               : '추천'}
                                     </span>
@@ -77,7 +80,7 @@ export function PricingPlanCards({
                             </div>
 
                             <div className="mt-5 border-y border-slate-200 py-4">
-                                {IS_PRIVATE_BETA ? (
+                                {hidePaidPricing ? (
                                     <>
                                         <strong className="text-2xl font-black tracking-tight text-slate-950">
                                             {plan.code === 'FREE'
@@ -156,7 +159,7 @@ export function PricingPlanCards({
                             <div className="flex flex-wrap items-baseline justify-between gap-2">
                                 <h3 className="font-black text-slate-950">{addon.name}</h3>
                                 <strong className="text-sm text-slate-900">
-                                    {IS_PRIVATE_BETA ? '정식 출시 예정' : addon.price}
+                                    {hidePaidPricing ? '정식 출시 예정' : addon.price}
                                 </strong>
                             </div>
                             <p className="mt-2 text-xs leading-5 text-slate-600">

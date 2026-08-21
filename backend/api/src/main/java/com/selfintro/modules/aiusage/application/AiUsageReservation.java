@@ -12,5 +12,6 @@ public record AiUsageReservation(
         String sessionKey,
         int estimatedPoints,
         int reservedPoints,
+        boolean enforcementEnabled,
         String evidencePolicyVersion,
         String consentPolicyVersion) {}

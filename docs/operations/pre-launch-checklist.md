@@ -3,7 +3,9 @@
 기준일: 2026-08-22
 
 이 문서는 코드로 자동화할 수 없는 외부 계약·클라우드·법률 설정과 최종 검증 순서를 정리한다.
-운영 flag는 아래 단계가 끝날 때까지 `false`로 유지한다.
+정식 서비스의 전역 운영 flag는 아래 단계가 끝날 때까지 `false`로 유지한다. 비공개 베타에서는
+`PLATFORM_OWNER`와 명시적 Workspace allowlist가 모두 일치하는 운영 검증 요청만 별도 preview policy로
+허용한다.
 
 최신 상태와 비공개 베타·정식 유료 출시의 범위 차이는
 [2026-08-22 비공개 베타와 정식 서비스 출시 기준](release-status-2026-08-22.md)을 먼저 본다.
@@ -12,8 +14,9 @@
 
 | 출시 유형 | 준비도 | 판단 |
 | --- | ---: | --- |
-| 초대형 무료 비공개 베타 | 100% | PR #3 필수 검사 통과, 병합·배포 승인 대기 |
-| 정식 유료 서비스 | 70% | 사업자·PG·법률·Vault·환불·AI·암호화 운영 gate 미완료로 배포 불가 |
+| 초대형 무료 비공개 베타 | 100% | 운영 배포와 1차 안정화 완료, 지정 Workspace preview는 별도 배포 검증 중 |
+| 정식 유료 서비스 코드·인프라 | 100% | 계약 없이 검증 가능한 애플리케이션·Vault·샌드박스 경계 완료 |
+| 정식 유료 서비스 공개 활성화 | 외부 준비 대기 | 사업자·PG 라이브 계약·법률/세무 검토·Provider 처리 조건 확정 전에는 불가 |
 
 비공개 베타에서는 결제와 외부 AI를 서버·UI에서 차단하므로 아래 사업자·PG·환불 항목은 베타 배포의
 차단 조건이 아니다. 그러나 정식 유료 전환 전에는 하나도 생략할 수 없다.
@@ -144,18 +147,22 @@ Allow any-user to read secret-bundles in compartment <secret-compartment> where 
 
 ### 3.4 운영 구성값 반영
 
-`deploy/k8s/overlays/prod/backend/kustomization.yaml`의 `backend-config`에 다음 non-secret 값을 추가한다.
+현재 production은 BASIC_CLUSTER이므로 정확한 OKE node instance를 dynamic group으로 제한하고
+`instance-principal`을 사용한다. enhanced cluster로 전환하면 아래 workload identity 예시로 교체한다.
+현재 `backend-config`의 non-secret 값은 다음과 같다.
 
 ```text
 SECRET_PROVIDER_OCI_REGION=ap-chuncheon-1
-SECRET_PROVIDER_OCI_AUTH_MODE=oke-workload-identity
+SECRET_PROVIDER_OCI_AUTH_MODE=instance-principal
 SECRET_PROVIDER_OCI_COMPARTMENT_ID=<compartment-ocid>
 SECRET_PROVIDER_OCI_VAULT_ID=<vault-ocid>
 SECRET_PROVIDER_OCI_KEY_ID=<key-ocid>
 SECRET_PROVIDER_OCI_RECOVERY_DAYS=7
 ```
 
-이 단계에서는 `SECRET_PROVIDER=none`을 유지한다. stage smoke test 직전에만 `oci-vault`로 바꾼다.
+2026-08-22 지정 Workspace preview를 위해 API는 `SECRET_PROVIDER=oci-vault`를 사용한다. dynamic group은
+현재 API가 실행되는 정확한 node instance OCID만 포함하며, 해당 node 교체 전후에 membership을 갱신한다.
+Worker에는 Toss secret을 주입하지 않는다.
 
 ## 4. stage 데이터베이스와 결제 smoke test
 
@@ -205,9 +212,10 @@ SECRET_PROVIDER_OCI_RECOVERY_DAYS=7
 
 한 번에 모두 켜지 않는다.
 
-비공개 베타에서는 프런트 이미지를 `NEXT_PUBLIC_RELEASE_CHANNEL=PRIVATE_BETA`로 빌드하고 아래 결제
-flag를 모두 `false`로 유지한다. `PAID` 전환은 약관·PG·환불 준비를 마친 정식 유료 출시 작업에서만
-수행하며, 환경값만 바꾸지 말고 새 프런트 이미지와 release-readiness 결과를 함께 검증한다.
+비공개 베타에서는 프런트 이미지를 `NEXT_PUBLIC_RELEASE_CHANNEL=PRIVATE_BETA`로 빌드하고 전역 결제·AI
+flag를 모두 `false`로 유지한다. 단, `PLATFORM_OWNER_PREVIEW_ENABLED=true`와 정확한
+`PLATFORM_OWNER_PREVIEW_WORKSPACE_SLUGS`가 일치하면 해당 Workspace에서만 Toss 샌드박스와 BYOK를
+허용한다. `PAID` 전환은 약관·PG·환불 준비를 마친 정식 유료 출시 작업에서만 수행한다.
 
 1. stage에서 `SECRET_PROVIDER=oci-vault`만 켜고 카드 등록/BYOK 저장·조회·폐기를 확인한다.
 2. `BILLING_ENABLED=true`로 최초 결제만 연다. 갱신 scheduler는 계속 끈다.
@@ -227,9 +235,11 @@ flag를 모두 `false`로 유지한다. `PAID` 전환은 약관·PG·환불 준�
 - 프런트는 `NEXT_PUBLIC_RELEASE_CHANNEL=PRIVATE_BETA`로 빌드한다. 이 모드에서는 구체적인 가격을 흐림
   처리하지 않고 `베타 기간 무료`, `정식 출시 예정`으로 표시하며 결제·카드·좌석·AI point 구매 버튼과
   BYOK 입력란을 노출하지 않는다.
-- API·Worker의 `SECRET_PROVIDER=none`, `BILLING_ENABLED=false`,
+- API의 `SECRET_PROVIDER=oci-vault`, API·Worker의 `BILLING_ENABLED=false`,
   `BILLING_RECONCILIATION_ENABLED=false`, `BILLING_RENEWAL_ENABLED=false`,
-  `AI_GENERATION_ENABLED=false`, `AI_USAGE_ENFORCEMENT_ENABLED=false`를 유지한다.
+  `AI_GENERATION_ENABLED=false`, `AI_USAGE_ENFORCEMENT_ENABLED=false`를 유지한다. preview policy는
+  `PLATFORM_OWNER`와 지정 Workspace에만 이 전역 차단의 제한적 예외를 적용하고, AI usage 예약·정산은
+  preview 요청에서도 항상 강제한다.
 - OCI Email Delivery용 `backend-mail-secret` SealedSecret과 배포 참조를 확인하고
   `REGISTRATION_EMAIL_ENABLED=true`, `ACCOUNT_RECOVERY_EMAIL_ENABLED=true`인 렌더링 결과를 검증한다.
 - 2026-08-21 운영 확인에서 Tempo가 51회 재시작 후 최근에도 `OOMKilled`됐고 Oracle exporter도
@@ -239,7 +249,8 @@ flag를 모두 `false`로 유지한다. `PAID` 전환은 약관·PG·환불 준�
 - 비공개 베타라도 실제 개인정보 처리방침·이용약관·운영자 문의처는 초안 상태로 두지 않는다. 유료 결제
   계약·사업자 정보·환불 자동화는 결제 기능이 닫힌 베타의 차단 조건에서는 제외할 수 있지만, 유료 전환
   전에 반드시 1~4절을 완료한다.
-- 비공개 베타에서는 `AI_GENERATION_ENABLED=false`로 외부 AI 호출 자체를 차단한다. AI를 제공한다면 실제 Provider별 처리 항목, 목적,
+- 일반 비공개 베타에서는 `AI_GENERATION_ENABLED=false`로 외부 AI 호출 자체를 차단한다. 지정 운영자
+  preview에서만 BYOK 경로를 사용한다. AI를 일반 사용자에게 제공한다면 실제 Provider별 처리 항목, 목적,
   처리 국가·region, 국외 이전 시점과 방법, 보유·삭제 기간, 동의 거부 시 영향을 확인해 정책과 호출 직전
   동의 화면에 반영한다. 현재 운영 구성 후보인 NVIDIA NIM의 정확한 처리 지역·보유기간을 계약·공식
   문서에서 확인하지 못했다면 AI 기능을 열지 않는다.

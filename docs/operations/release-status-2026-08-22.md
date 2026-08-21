@@ -42,17 +42,18 @@
 | Email 인증 | Gmail 원본에서 SPF `PASS`, DKIM `PASS`, DMARC `PASS` 확인 | DNS·SMTP 경로 검증 완료 |
 | 운영 Secret | `backend-mail-secret` SealedSecret과 Deployment secret 참조 구성 | 운영 적용 완료, Git에는 암호문만 저장 |
 | 가입·복구 메일 | production manifest에서 가입 확인·계정 복구 메일 flag 활성화 | 운영 적용 완료, 실제 수신 smoke 필요 |
-| 비공개 베타 UI | 실제 가격, 카드, 구독, point pack, 좌석 결제, BYOK 입력을 숨기고 `베타 기간 무료` 표시 | 배포 후보에 반영 |
-| 결제·AI 차단 | 결제·갱신·정산·외부 AI 생성·AI point 차감 flag를 비활성화 | 서버와 UI 이중 차단 |
+| 비공개 베타 UI | 일반 사용자는 실제 가격·결제·BYOK를 숨기고 `베타 기간 무료` 표시 | 운영 적용 완료 |
+| 운영자 preview | `PLATFORM_OWNER`와 지정 Workspace가 모두 일치할 때만 Toss 샌드박스·BYOK 노출 | 배포 검증 중 |
+| 결제·AI 차단 | 전역 flag는 비활성화하고 preview 요청만 서버·UI에서 정확히 예외 처리 | 일반 사용자 fail closed |
 | 정책 | 이용약관·개인정보·마케팅 동의 version을 `2026-08-22`로 일치 | 비공개 베타 기준 확정 |
 | 메모리 안정화 | Tempo와 Oracle exporter의 메모리 request/limit 보강 | 운영 적용 완료, 24시간 관찰 중 |
 | 복구·릴리스 gate | backend, Worker, frontend, manifest, recovery evidence 자동 검사 | PR 필수 검사 통과 |
 | 보안 검사 | OCI OCID 공개 형식 문자열의 GitGuardian 오탐을 확인하고 안전한 상수 표현으로 수정 | 최종 검사 통과 |
 | 프런트 재현성 | npm 10 기준 lockfile을 동기화하고 CI `npm ci` 실패를 해결 | 최종 빌드 통과 |
 
-구현 또는 정책 문서가 존재한다는 사실만으로 운영 활성화를 의미하지 않는다. 특히 Toss 결제, 외부 AI,
-OCI Vault BYOK, Workspace DEK, Argon2id와 WORM 감사는 아래 정식 출시 gate를 통과하기 전에는 운영 기능으로
-표현하지 않는다.
+구현 또는 정책 문서가 존재한다는 사실만으로 정식 운영 활성화를 의미하지 않는다. Toss 테스트 결제와
+OCI Vault BYOK는 지정 운영자 preview에만 사용한다. Workspace DEK, 내부 mTLS와 WORM 감사는 후속 보안
+강화 항목이며 완료된 것으로 표현하지 않는다.
 
 ## 3. 비공개 베타 출시 기준
 
@@ -66,14 +67,18 @@ OCI Vault BYOK, Workspace DEK, Argon2id와 WORM 감사는 아래 정식 출시 g
 
 ### 3.2 제공하지 않는 범위
 
-- 카드 등록, 월·연 구독, point pack, 추가 좌석 결제와 자동 갱신
+- 일반 테스터의 카드 등록, 월·연 구독, point pack, 추가 좌석 결제와 자동 갱신
 - 실제 금액 노출과 유료 플랜으로의 자동 전환
-- 플랫폼 key 또는 BYOK를 이용한 외부 AI 호출
+- 일반 테스터의 플랫폼 key 또는 BYOK 외부 AI 호출
 - 자동 환불 또는 운영자 환불 mutation
 - 정식 서비스 수준의 SLA 또는 무중단 제공 보장
 
 베타 중 생성한 계정이 정식 출시 때 자동으로 유료 전환되거나 청구되지 않는다. 정식 출시 후 결제를
 도입할 때는 가격·결제 주기·해지·환불 조건을 다시 표시하고 사용자의 명시적 승인을 받아야 한다.
+
+운영자는 지정 테스트 Workspace에서만 Toss 샌드박스와 BYOK를 검증할 수 있다. Toss 테스트 거래는 실제
+매출이 아니며, allowlist에 없는 Workspace 또는 `PLATFORM_OWNER`가 아닌 계정은 같은 API를 호출해도
+fail closed된다.
 
 ### 3.3 현재 릴리스 증거
 
@@ -142,20 +147,22 @@ PR [#3](https://github.com/Yoonsik-Shin/self-intro/pull/3)은
 - 외부 AI Provider별 처리 국가·region·보유기간과 계약 근거 확정
 - 운영 비용·요율·부가세·증빙 발급 절차 확정
 
-#### 코드·인프라에서 완료해야 하는 작업
+#### 계약 없이 완료한 코드·인프라
 
-- OCI Vault와 실제 workload identity를 stage·production에 연결하고 BYOK 저장·회전·폐기 rehearsal
-- stage에서 V8~V10 migration과 결제·Webhook 멱등성 전체 smoke test
-- 최초 결제, 갱신, 실패, 해지, point pack, 좌석, 취소와 환불 시나리오 검증
-- 환불액 산정, point 회수, 운영자 승인과 Provider 취소를 하나의 immutable 감사 원장으로 연결
-- 실제 AI token·원가를 2~4주 계측하고 provider price·환율·point 환산 version 확정
-- 외부 AI 처리 동의, Provider Router, BYOK와 교차 Workspace 격리를 stage에서 검증
-- Workspace DEK, Argon2id 전환과 WORM 감사의 구현·migration·복구 rehearsal
-- paid release에서만 backend flag와 `NEXT_PUBLIC_RELEASE_CHANNEL=PAID`를 단계적으로 활성화
+- OCI Vault, AES key, exact-node instance principal, BYOK 저장·조회·회전·폐기 경계
+- Subscription·Billing·AI point 원장, Toss webhook 멱등성, 갱신·정합성·취소 adapter와 테스트
+- 외부 AI 처리 동의, Provider Router, BYOK no-fallback과 교차 Workspace 격리
+- `PLATFORM_OWNER`와 정확한 Workspace allowlist의 서버·UI 이중 preview gate
+- API 전용 Toss SealedSecret과 Worker secret 비주입
 
-정식 유료 서비스 준비도는 현재 **70%**다. 상품·환불·BYOK 정책과 주요 애플리케이션 경계는 마련됐지만,
-사업자·PG·법률·외부 AI 계약과 운영 Secret·환불·암호화 검증이 남아 있으므로 **현재 유료 서비스로는 배포
-불가**다. 상세 실행 순서와 완료 증거는 [출시 전 체크리스트](pre-launch-checklist.md)에 기록한다.
+Workspace DEK, 내부 mTLS와 WORM 감사는 ADR-008의 후속 보안 강화 항목이다. 이는 현재 유료 기능 코드의
+완성도를 낮춰 표시하기 위한 항목이 아니라 별도 보안 roadmap이며, 실제 도입 시 migration·복구 rehearsal을
+거쳐야 한다.
+
+계약 없이 준비 가능한 정식 유료 서비스 코드·인프라는 **100%**다. 다만 사업자등록, PG 라이브 계약·심사,
+법률·세무 검토, 외부 AI 처리 조건과 운영 요율 확정은 코드로 대체할 수 없으므로 **현재 일반 사용자 대상
+유료 서비스 활성화는 불가**하다. 상세 실행 순서와 완료 증거는 [출시 전 체크리스트](pre-launch-checklist.md)에
+기록한다.
 
 ## 5. 다음 실행과 책임 구분
 
@@ -168,7 +175,7 @@ PR [#3](https://github.com/Yoonsik-Shin/self-intro/pull/3)은
 | 5 | 24시간 restart·OOM·trace·scrape 관찰 | Codex | 관찰 시작 |
 | 6 | 비공개 베타 초대와 피드백 운영 | 사용자 | 시작 가능 |
 | 7 | 사업자·PG·법률·AI Provider 계약 준비 | 사용자 | 정식 출시 전 필수 |
-| 8 | Vault·결제·환불·암호화 production gate 완성 | Codex | 외부 정보·계약 준비와 병행 |
+| 8 | Vault·샌드박스·BYOK 지정 Workspace preview | Codex | 구현·검증·배포 진행 중 |
 
 현재 비공개 베타는 **배포 가능하며 이미 운영 배포와 1차 안정화 검증까지 완료**했다. 다음 단계는
 사용자가 실제 초대 계정으로 가입 확인·계정 복구 메일을 각각 받아 링크 host와 인증 헤더를 확인하는

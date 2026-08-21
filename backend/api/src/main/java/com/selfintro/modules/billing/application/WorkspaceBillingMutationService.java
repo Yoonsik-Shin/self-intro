@@ -8,6 +8,7 @@ import com.selfintro.modules.billing.application.BillingStateStore.SeatQuote;
 import com.selfintro.modules.billing.presentation.dto.BillingChargeResponse;
 import com.selfintro.modules.billing.presentation.dto.BillingCheckoutContextResponse;
 import com.selfintro.modules.billing.presentation.dto.BillingPaymentMethodResponse;
+import com.selfintro.modules.identity.application.PlatformOwnerPreviewPolicy;
 import com.selfintro.modules.identity.domain.WorkspaceMember;
 import com.selfintro.modules.identity.domain.WorkspaceRole;
 import com.selfintro.modules.securityaudit.application.SecurityAuditService;
@@ -26,6 +27,7 @@ public class WorkspaceBillingMutationService {
     private final BillingProviderPort billingProvider;
     private final SecurityAuditService auditService;
     private final AiUsageLedgerService usageLedgerService;
+    private final PlatformOwnerPreviewPolicy previewPolicy;
 
     @Value("${app.billing.enabled:false}")
     private boolean billingEnabled;
@@ -38,12 +40,12 @@ public class WorkspaceBillingMutationService {
         ensureWorkspaceDefaults(actor);
         BillingCustomer customer = stateStore.ensureCustomer(actor.getWorkspace().getId());
         return new BillingCheckoutContextResponse(
-                billingEnabled, "TOSS", tossClientKey, customer.customerKey());
+                isEnabledFor(actor), "TOSS", tossClientKey, customer.customerKey());
     }
 
     public BillingPaymentMethodResponse registerPaymentMethod(
             WorkspaceMember actor, String authKey, String customerKey) {
-        requireEnabled();
+        requireEnabled(actor);
         requireOwnerAndMfa(actor);
         ensureWorkspaceDefaults(actor);
         BillingCustomer customer = stateStore.ensureCustomer(actor.getWorkspace().getId());
@@ -79,7 +81,7 @@ public class WorkspaceBillingMutationService {
 
     public BillingChargeResponse purchaseSubscription(
             WorkspaceMember actor, String planCode, String billingCycle, String idempotencyKey) {
-        requireEnabled();
+        requireEnabled(actor);
         requireOwnerAndMfa(actor);
         ensureWorkspaceDefaults(actor);
         String normalizedPlan = planCode.toUpperCase(Locale.ROOT);
@@ -100,7 +102,7 @@ public class WorkspaceBillingMutationService {
     }
 
     public BillingChargeResponse purchasePointPack(WorkspaceMember actor, String idempotencyKey) {
-        requireEnabled();
+        requireEnabled(actor);
         requireOwnerAndMfa(actor);
         ensureWorkspaceDefaults(actor);
         Charge charge =
@@ -118,7 +120,7 @@ public class WorkspaceBillingMutationService {
     }
 
     public BillingChargeResponse purchaseSeat(WorkspaceMember actor, String idempotencyKey) {
-        requireEnabled();
+        requireEnabled(actor);
         requireOwnerAndMfa(actor);
         ensureWorkspaceDefaults(actor);
         SeatQuote quote = stateStore.seatQuote(actor.getWorkspace().getId());
@@ -137,6 +139,7 @@ public class WorkspaceBillingMutationService {
     }
 
     public void cancelSubscription(WorkspaceMember actor) {
+        requireEnabled(actor);
         requireOwnerAndMfa(actor);
         stateStore.scheduleCancellation(actor.getWorkspace().getId());
         auditService.recordWorkspaceAction(
@@ -146,6 +149,7 @@ public class WorkspaceBillingMutationService {
     }
 
     public void resumeSubscription(WorkspaceMember actor) {
+        requireEnabled(actor);
         requireOwnerAndMfa(actor);
         stateStore.resumeSubscription(actor.getWorkspace().getId());
         auditService.recordWorkspaceAction(
@@ -202,11 +206,16 @@ public class WorkspaceBillingMutationService {
         usageLedgerService.ensureWorkspaceDefaults(actor.getWorkspace().getId());
     }
 
-    private void requireEnabled() {
-        if (!billingEnabled) {
+    private void requireEnabled(WorkspaceMember actor) {
+        if (!isEnabledFor(actor)) {
             throw new ResponseStatusException(
                     HttpStatus.SERVICE_UNAVAILABLE, "결제 기능은 아직 활성화되지 않았습니다.");
         }
+    }
+
+    private boolean isEnabledFor(WorkspaceMember actor) {
+        return billingEnabled
+                || previewPolicy.isAllowed(actor.getUser().getId(), actor.getWorkspace().getId());
     }
 
     private static int subscriptionAmount(String planCode, String billingCycle) {

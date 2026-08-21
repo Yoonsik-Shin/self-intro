@@ -50,6 +50,7 @@ import {
     CreditCard,
 } from 'lucide-react';
 import { systemStatusApi } from '@/lib/api';
+import { isPlatformOwnerPreview } from '@/lib/privateBetaPreview';
 import { IS_PRIVATE_BETA } from '@/lib/publicRelease';
 import { useAuthStore } from '@/store/useAuthStore';
 import { AiModelFloatingWidget } from './AiModelFloatingWidget';
@@ -464,6 +465,8 @@ export function AdminDashboardShell({ workspaceSlug }: { workspaceSlug: string }
         me?.platformRoles?.includes('PLATFORM_OWNER') ||
         me?.platformRoles?.includes('PLATFORM_OPERATOR')
     );
+    const platformOwnerPreviewEnabled = isPlatformOwnerPreview(me, currentWorkspace?.slug);
+    const workspaceAiEnabled = !IS_PRIVATE_BETA || platformOwnerPreviewEnabled;
     const canViewWorkspaceAnalytics = Boolean(
         currentWorkspace && ['OWNER', 'ADMIN'].includes(currentWorkspace.role)
     );
@@ -846,7 +849,7 @@ export function AdminDashboardShell({ workspaceSlug }: { workspaceSlug: string }
 
     return (
         <main className="flex h-screen flex-col overflow-hidden bg-[#f8fafc] text-slate-800">
-            {!IS_PRIVATE_BETA && <AiProcessingConsentDialog />}
+            {workspaceAiEnabled && <AiProcessingConsentDialog />}
             <header className="z-50 flex h-12 shrink-0 items-center justify-between border-b border-slate-200/70 bg-white/90 px-4 shadow-sm backdrop-blur-xl">
                 <div className="flex items-center gap-3">
                     <button
@@ -864,7 +867,7 @@ export function AdminDashboardShell({ workspaceSlug }: { workspaceSlug: string }
                     </button>
                 </div>
                 <div className="flex items-center gap-2">
-                    {isPlatformOperator && !IS_PRIVATE_BETA && <AiModelFloatingWidget />}
+                    {isPlatformOperator && workspaceAiEnabled && <AiModelFloatingWidget />}
                     {canEditWorkspace && previewSupported && (
                         <button
                             type="button"
@@ -1138,8 +1141,9 @@ export function AdminDashboardShell({ workspaceSlug }: { workspaceSlug: string }
                     role="status"
                     className="shrink-0 border-b border-amber-200 bg-amber-50 px-4 py-2 text-xs font-semibold text-amber-950"
                 >
-                    비공개 베타에서는 외부 AI 처리를 일시 중지했습니다. 기록·편집·공개 기능은 그대로
-                    이용할 수 있습니다.
+                    {platformOwnerPreviewEnabled
+                        ? 'PLATFORM_OWNER 전용 샌드박스입니다. 이 Workspace에서만 AI·BYOK·테스트 결제를 검증할 수 있습니다.'
+                        : '비공개 베타에서는 외부 AI 처리를 일시 중지했습니다. 기록·편집·공개 기능은 그대로 이용할 수 있습니다.'}
                 </div>
             )}
 
@@ -1404,7 +1408,7 @@ export function AdminDashboardShell({ workspaceSlug }: { workspaceSlug: string }
                             {activeTab === 'STUDY' && (
                                 <StudyManagement
                                     workspaceSlug={workspaceSlug}
-                                    enableWorkspaceAi={!IS_PRIVATE_BETA}
+                                    enableWorkspaceAi={workspaceAiEnabled}
                                 />
                             )}
                             {activeTab === 'MEMBERS' && currentWorkspace && (
@@ -1425,7 +1429,7 @@ export function AdminDashboardShell({ workspaceSlug }: { workspaceSlug: string }
                             {activeTab === 'EXPERIENCE' && (
                                 <ExperienceManagement
                                     workspaceSlug={workspaceSlug}
-                                    enableWorkspaceAi={!IS_PRIVATE_BETA}
+                                    enableWorkspaceAi={workspaceAiEnabled}
                                     pendingIntent={pendingExperienceIntent}
                                     onConsumeIntent={() => setPendingExperienceIntent(null)}
                                 />
@@ -1436,7 +1440,7 @@ export function AdminDashboardShell({ workspaceSlug }: { workspaceSlug: string }
                             {activeTab === 'COMPETENCIES' && (
                                 <CompetencyManagement
                                     workspaceSlug={workspaceSlug}
-                                    enableWorkspaceAi={!IS_PRIVATE_BETA}
+                                    enableWorkspaceAi={workspaceAiEnabled}
                                 />
                             )}
                             {activeTab === 'CORE_PROJECTS' && (
@@ -1452,13 +1456,13 @@ export function AdminDashboardShell({ workspaceSlug }: { workspaceSlug: string }
                             {activeTab === 'PRINT_TEMPLATES' && (
                                 <PrintTemplateManagement
                                     workspaceSlug={workspaceSlug}
-                                    enablePlatformAi={!IS_PRIVATE_BETA}
+                                    enablePlatformAi={workspaceAiEnabled}
                                 />
                             )}
                             {activeTab === 'PORTFOLIO' && (
                                 <PortfolioManagement
                                     workspaceSlug={workspaceSlug}
-                                    enablePlatformAi={!IS_PRIVATE_BETA}
+                                    enablePlatformAi={workspaceAiEnabled}
                                 />
                             )}
                             {isPlatformOperator && activeTab === 'ANALYTICS' && <AnalyticsPanel />}

@@ -51,6 +51,10 @@ spec:
             - secretRef:
                 name: backend-mail-secret
                 optional: true
+            # 토스 샌드박스 키는 API에만 주입한다. 전역 결제 gate가 false이므로
+            # PLATFORM_OWNER + 지정 Workspace 예외에서만 사용할 수 있다.
+            - secretRef:
+                name: backend-billing-secret
             # Ko-fi 연동키 설정 (optional)
             - secretRef:
                 name: backend-kofi-secret

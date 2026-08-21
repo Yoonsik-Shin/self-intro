@@ -1,6 +1,6 @@
 # ADR-008: 개인정보 암호화와 AI 처리 보안 경계
 
-- 상태: Accepted (정책 확정, 구현 전)
+- 상태: Accepted (정책 확정, 단계적 구현 중)
 - 기준일: 2026-08-21
 - 승인일: 2026-08-21
 - 적용 범위: 개인정보 분류, 애플리케이션 암호화, AI 처리·동의, 관리자 접근, 비공개 파일,
@@ -8,9 +8,11 @@
 - 관련 문서: [ADR-001](./ADR-001-saas-security-multitenancy.md),
   [ADR-006](./ADR-006-private-data-plane-and-public-projection.md),
   [ADR-007](./ADR-007-workspace-subscription-ai-usage-and-byok.md)
-- 구현 상태: 이 문서는 목표 정책을 정의한다. 기존 Workspace 격리, 제한된 Support Access,
-  일부 Secret 암호화와 purge 기반은 구현돼 있지만, 아래의 필드 암호화·Evidence Packet·중앙 AI
-  라우터·BYOK Secret Manager·내부 mTLS·WORM 감사는 전체 구현·배포가 완료되지 않았다.
+- 구현 상태: Workspace 격리, 제한된 Support Access, AI 처리 동의, usage 원장, Provider Router,
+  OCI Vault 기반 BYOK Secret Manager와 purge 기반은 구현됐다. 비공개 베타의 BYOK는 플랫폼 운영자와
+  지정 테스트 Workspace에만 열며 OCI BASIC_CLUSTER의 정확한 노드 instance principal에 한정한다.
+  필드별 Workspace DEK, 내부 mTLS와 WORM 감사는 이 ADR의 후속 강화 항목으로 남아 있고 완료된 것으로
+  간주하지 않는다.
 
 ## 배경
 

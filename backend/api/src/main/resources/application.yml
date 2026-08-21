@@ -114,6 +114,10 @@ logging:
     file: "%d{yyyy-MM-dd HH:mm:ss.SSS} %5p [%X{traceId:-},%X{spanId:-}] --- [%t] %-40.40logger{39} : %m%n"
 
 app:
+  private-beta:
+    platform-owner-preview:
+      enabled: ${PLATFORM_OWNER_PREVIEW_ENABLED:false}
+      workspace-slugs: ${PLATFORM_OWNER_PREVIEW_WORKSPACE_SLUGS:}
   runtime-role: ${APP_RUNTIME_ROLE:api}
   worker:
     base-url: ${WORKER_BASE_URL:http://localhost:8081}
