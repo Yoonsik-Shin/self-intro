@@ -21,7 +21,7 @@ images:
     newTag: "3d7b470"
   - name: self-intro-backend-worker
     newName: yny.ocir.io/axrywc89b6lf/self-intro/backend-worker
-    newTag: "b7280f7"
+    newTag: "3d7b470"
 
 
 configMapGenerator:
