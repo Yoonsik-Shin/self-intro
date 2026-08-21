@@ -3016,3 +3016,15 @@ flag를 구분한다. release-readiness는 production manifest에서 AI 호출, 
 통과했다. `main` push는 API·Worker·Frontend 운영 배포 workflow를 즉시 실행하므로 외부 배포 승인 전에는
 push하지 않는다. 이 항목은 로컬 배포 후보 검증 기록이며 아직 원격 push·CI·운영 rollout·운영 수신
 smoke 완료를 뜻하지 않는다.
+
+### 15.37 GitGuardian OCI OCID 형식 오탐 대응
+
+`release/private-beta-20260822` PR의 GitGuardian 검사에서 OCI Vault Secret OCID의 공개 리소스
+형식 접두사를 `Generic High Entropy Secret`으로 오인했다. 탐지 대상은 자격 증명이나 실제 Secret
+OCID가 아니라 입력값이 OCI Vault Secret 참조인지 검사하기 위한 고정 형식 문자열이었다.
+
+검증 동작은 유지하되 공개 형식의 구성 요소를 별도 상수로 분리하여 소스 스캐너가 자격 증명으로
+오인하지 않도록 수정했다. 수정 후 `spotlessCheck`와 API 전체 테스트를 다시 실행하고, 같은 release
+브랜치에 보안 수정 커밋을 추가한 뒤 GitGuardian 및 전체 PR 검사를 재확인한다. 과거 커밋의 탐지가
+계속 남는 경우 실제 비밀이 아님을 근거로 false positive 처리하며, 암호문이나 커밋 이력을 임의로
+재작성하지 않는다.

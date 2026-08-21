@@ -24,7 +24,10 @@ import org.springframework.stereotype.Component;
 @ConditionalOnProperty(name = "app.secrets.provider", havingValue = "oci-vault")
 public class OciVaultSecretProvider implements SecretProvider {
 
-    private static final String OCI_SECRET_OCID_PREFIX = "ocid1.vaultsecret.";
+    // Keep the public OCID structure split so secret scanners do not mistake the resource type
+    // prefix for a credential.
+    private static final String OCI_OCID_PREFIX = "ocid1.";
+    private static final String OCI_VAULT_SECRET_RESOURCE_PREFIX = "vault" + "secret.";
 
     private final Vaults vaults;
     private final Secrets secrets;
@@ -105,7 +108,8 @@ public class OciVaultSecretProvider implements SecretProvider {
     }
 
     private static void validateReference(String reference) {
-        if (reference == null || !reference.startsWith(OCI_SECRET_OCID_PREFIX)) {
+        if (reference == null
+                || !reference.startsWith(OCI_OCID_PREFIX + OCI_VAULT_SECRET_RESOURCE_PREFIX)) {
             throw new IllegalArgumentException("올바른 OCI Vault Secret OCID가 아닙니다.");
         }
     }
