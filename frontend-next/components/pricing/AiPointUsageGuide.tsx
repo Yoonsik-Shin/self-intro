@@ -89,10 +89,11 @@ export function AiPointUsageGuide({ id, compact = false }: AiPointUsageGuideProp
                 </p>
                 <p>
                     <strong className="inline-flex items-center gap-1.5 text-slate-900">
-                        <KeyRound className="h-3.5 w-3.5" /> BYOK 사용
+                        <KeyRound className="h-3.5 w-3.5" /> 내 AI API 키 사용
                     </strong>
-                    <br />내 Provider key로 실행하면 플랫폼 AI point는 차감되지 않고 Provider 계정에
-                    token 비용이 발생합니다. 실패해도 플랫폼 key로 자동 전환하지 않습니다.
+                    <br />내 AI 제공업체 API 키로 실행하면 플랫폼 AI point는 차감되지 않고 연결한
+                    제공업체 계정에 사용료가 발생합니다. 실패해도 플랫폼 제공 AI로 자동 전환하지
+                    않습니다.
                 </p>
             </div>
         </section>

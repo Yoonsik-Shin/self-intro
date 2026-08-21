@@ -182,7 +182,7 @@ const privacyProtections = [
         icon: EyeOff,
     },
     {
-        title: 'BYOK 키 원문 재조회 금지',
+        title: '연결한 AI 키 원문 재조회 금지',
         description:
             'Provider API key는 업무 데이터와 분리하고 등록 후 브라우저에서 다시 읽거나 다운로드하는 API를 제공하지 않습니다.',
         icon: KeyRound,
@@ -203,7 +203,7 @@ const aiPrinciples = [
     {
         title: '자동 전환·자동충전 없음',
         description:
-            'BYOK 오류 시 플랫폼 키로 몰래 전환하지 않고, AI point가 부족해도 사용자의 승인 없이 자동 결제하지 않습니다.',
+            '내 AI 키에 오류가 생겨도 플랫폼 제공 AI로 몰래 전환하지 않고, AI point가 부족해도 사용자의 승인 없이 자동 결제하지 않습니다.',
     },
 ];
 

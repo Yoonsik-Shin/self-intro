@@ -40,7 +40,7 @@ public class WorkspaceAiCredentialResolver {
         }
         CredentialReference reference = rows.get(0);
         if (reference.secretReference() == null || reference.secretReference().isBlank()) {
-            throw new AiPolicyViolationException("선택한 BYOK 자격 증명을 사용할 수 없습니다.");
+            throw new AiPolicyViolationException("연결한 AI API 키를 사용할 수 없습니다.");
         }
         return Optional.of(
                 new Credential(

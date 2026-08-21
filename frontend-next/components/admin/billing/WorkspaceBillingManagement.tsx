@@ -335,7 +335,7 @@ export function WorkspaceBillingManagement({
             </section>
 
             <section className="rounded-xl border border-slate-200 bg-white p-5">
-                <h2 className="font-bold text-slate-950">BYOK</h2>
+                <h2 className="font-bold text-slate-950">내 AI API 키 연결</h2>
                 {billingAvailable ? (
                     <>
                         <p className="mt-1 text-xs leading-5 text-slate-500">
@@ -343,7 +343,14 @@ export function WorkspaceBillingManagement({
                             전환하지 않습니다.
                         </p>
                         <div className="mt-3 text-sm text-slate-700">
-                            현재 경로: <strong>{byok.data?.credentialMode ?? '확인 중'}</strong>
+                            현재 사용 방식:{' '}
+                            <strong>
+                                {byok.data?.credentialMode === 'BYOK'
+                                    ? '내 AI 키'
+                                    : byok.data?.credentialMode === 'PLATFORM_MANAGED'
+                                      ? '플랫폼 제공 AI'
+                                      : '확인 중'}
+                            </strong>
                             {byok.data?.maskedFingerprint && ` · ${byok.data.maskedFingerprint}`}
                         </div>
                         <div className="mt-4 grid gap-2 sm:grid-cols-[140px_1fr]">
@@ -360,14 +367,14 @@ export function WorkspaceBillingManagement({
                                 type="password"
                                 value={apiKey}
                                 onChange={(event) => setApiKey(event.target.value)}
-                                placeholder="Provider API key"
+                                placeholder="AI 제공업체 API 키"
                                 autoComplete="off"
                                 className="min-h-11 rounded-lg border border-slate-300 px-3 text-base sm:text-sm"
                             />
                         </div>
                         <div className="mt-2 grid gap-2 sm:grid-cols-3">
                             <Action
-                                label="BYOK 저장·회전"
+                                label="내 AI 키 저장·교체"
                                 disabled={disabled || !apiKey}
                                 onClick={() =>
                                     void run(
@@ -378,18 +385,18 @@ export function WorkspaceBillingManagement({
                                                 provider,
                                                 apiKey
                                             ),
-                                        'BYOK 경로를 저장했습니다.'
+                                        '내 AI API 키를 안전하게 저장했습니다.'
                                     ).then(() => setApiKey(''))
                                 }
                             />
                             <Action
-                                label="BYOK 폐기"
+                                label="내 AI 키 연결 해제"
                                 disabled={disabled || byok.data?.credentialMode !== 'BYOK'}
                                 onClick={() =>
                                     void run(
                                         'revoke-byok',
                                         () => billingApi.revokeByok(workspaceSlug),
-                                        'BYOK를 폐기하고 AI 실행을 중지했습니다.'
+                                        '내 AI 키 연결을 해제하고 AI 실행을 중지했습니다.'
                                     )
                                 }
                             />

@@ -223,7 +223,7 @@ public class WorkspaceByokService {
         }
         if (!actor.getUser().isMfaEnabled()) {
             throw new ResponseStatusException(
-                    HttpStatus.PRECONDITION_REQUIRED, "BYOK 관리 전에 MFA를 등록해 주세요.");
+                    HttpStatus.PRECONDITION_REQUIRED, "내 AI API 키를 연결하기 전에 MFA를 등록해 주세요.");
         }
     }
 
@@ -232,7 +232,7 @@ public class WorkspaceByokService {
                 && !previewPolicy.isAllowed(
                         actor.getUser().getId(), actor.getWorkspace().getId())) {
             throw new ResponseStatusException(
-                    HttpStatus.SERVICE_UNAVAILABLE, "비공개 베타에서는 BYOK 기능을 제공하지 않습니다.");
+                    HttpStatus.SERVICE_UNAVAILABLE, "비공개 베타에서는 내 AI API 키 연결 기능을 제공하지 않습니다.");
         }
     }
 

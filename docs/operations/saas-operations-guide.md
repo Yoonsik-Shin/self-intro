@@ -6,7 +6,7 @@
 - 제품 기능 진입점: [제품 기능 지도](../product/feature-map.md)
 - 설계 기준: [ADR-001](../adr/ADR-001-saas-security-multitenancy.md)
 - 가입 기준안: [ADR-002](../adr/ADR-002-registration-and-workspace-onboarding.md)
-- 구독·AI point·BYOK 기준: [ADR-007](../adr/ADR-007-workspace-subscription-ai-usage-and-byok.md)
+- 구독·AI point·사용자 제공 AI API 키 기준: [ADR-007](../adr/ADR-007-workspace-subscription-ai-usage-and-customer-api-key.md)
 - 개인정보 암호화·AI 처리 기준: [ADR-008](../adr/ADR-008-personal-data-encryption-and-ai-processing.md)
 - 비공개 베타테스터 안내: [베타테스터 가이드](../beta/private-beta-tester-guide.md)
 - Workspace 삭제 inventory: [Workspace purge inventory](workspace-purge-inventory.md)
@@ -21,10 +21,10 @@
 설계 원칙은 ADR을, 실제 실행 절차는 이 문서를 기준으로 한다.
 
 ADR-007과 ADR-008은 2026-08-21 제품·보안 정책 기준선이다. V8~V10과 애플리케이션 코드에는 구독·AI
-usage/point 원장, 결제 경계, Evidence Packet envelope, 중앙 Provider Router, AI 처리 동의와 BYOK Secret
+usage/point 원장, 결제 경계, Evidence Packet envelope, 중앙 Provider Router, AI 처리 동의와 사용자 제공 AI API 키 보관
 Manager reference가 구현됐다. 운영의 전역 `BILLING_ENABLED`, `BILLING_RENEWAL_ENABLED`,
 `BILLING_RECONCILIATION_ENABLED`, `AI_USAGE_ENFORCEMENT_ENABLED`는 계속 `false`다. 단,
-`PLATFORM_OWNER`이면서 명시적으로 허용한 테스트 Workspace인 경우에만 서버와 화면이 결제·AI·BYOK
+`PLATFORM_OWNER`이면서 명시적으로 허용한 테스트 Workspace인 경우에만 서버와 화면이 결제·AI·사용자 제공 AI API 키
 preview를 연다. Workspace DEK, Argon2id 전환과 WORM 감사는 후속 보안 강화 항목이며 현재 기능으로
 간주하지 않는다.
 법정 보존기간은 ADR-008의 승인 기본값을 사용하되 정식 출시 전 법률·세무·PG 검토 결과가 더 엄격하면
@@ -43,7 +43,7 @@ preview를 연다. Workspace DEK, Argon2id 전환과 WORM 감사는 후속 보�
 모두 준비된 release candidate에서만 프런트 값을 `PAID`로 변경한다. 이 값은 `NEXT_PUBLIC_*`이므로
 Pod 런타임 환경변수 변경이 아니라 새 프런트 이미지를 빌드해야 반영된다.
 
-운영 API는 `SECRET_PROVIDER=oci-vault`와 instance principal을 사용한다. BYOK 저장·회전·폐기 화면은
+운영 API는 `SECRET_PROVIDER=oci-vault`와 instance principal을 사용한다. 사용자 제공 AI API 키 저장·회전·폐기 화면은
 일반 베타 사용자에게 노출하지 않고, `PLATFORM_OWNER`과 허용된 테스트 Workspace의 결합 조건에서만
 노출한다. Worker에는 결제 Secret과 Toss 자격 증명을 주입하지 않는다. 이는 일반 사용자의 Provider
 키나 결제가 preview 경로로 유입되는 것을 막기 위한 운영 gate다.
@@ -2787,10 +2787,10 @@ SELECT 'portfolio_case_study_study', COUNT(*) FROM portfolio_case_study_study;
 - stage·운영 migration 적용과 배포는 별도 승인 전까지 수행하지 않는다. 이전 애플리케이션으로 롤백할
   때 nullable 컬럼은 호환되므로 유지하고, 독립 사례를 만든 뒤에는 이전 버전에서 해당 행을 편집하지 않는다.
 
-### 15.41 Workspace 구독·결제·AI point·BYOK 기반선
+### 15.41 Workspace 구독·결제·AI point·사용자 제공 AI API 키 기반선
 
 - `V8__add_workspace_subscription_ai_usage_foundation.sql`은 플랜/entitlement, Workspace 구독, Provider
-  가격, AI usage, point ledger, FREE 월별 세션, AI 처리 동의, Workspace AI 정책과 BYOK Secret reference
+  가격, AI usage, point ledger, FREE 월별 세션, AI 처리 동의, Workspace AI 정책과 사용자 제공 AI API 키 참조
   테이블을 만든다. 기존 Workspace에는 FREE 구독과 플랫폼 관리 NVIDIA 경로를 부여한다.
 - `V9__add_billing_payment_boundary.sql`은 billing customer/payment method/charge/payment/webhook inbox와
   추가 좌석을 만든다. billing key와 payment key 원문은 DB에 저장하지 않고 외부 Secret reference와
@@ -2810,7 +2810,7 @@ SELECT 'portfolio_case_study_study', COUNT(*) FROM portfolio_case_study_study;
   환불 mutation은 노출하지 않는다. 브라우저는 V2 SDK로 카드 본인인증만 수행하고, callback
   query만으로 entitlement를 지급하지 않는다. 서버의 stored charge 금액·orderId와 `DONE` 응답이 모두
   일치해야 승인된다.
-- 구독/결제수단/point pack/좌석/BYOK mutation은 Workspace OWNER, MFA 등록, 최근 비밀번호 재인증을
+- 구독/결제수단/point pack/좌석/사용자 제공 AI API 키 변경은 Workspace OWNER, MFA 등록, 최근 비밀번호 재인증을
   모두 요구한다. 좌석은 PRO/BUSINESS에서 월 3,000원·연 30,000원을 기준으로 남은 기간을 일할 계산하며,
   초대 시 활성 멤버와 유효한 대기 초대를 함께 계산하고 수락 시 다시 잠금·검증한다.
 - 소비자 화면의 PRO 9,900원·99,000원, BUSINESS 39,000원·390,000원과 point pack 9,900원은 모두
@@ -2832,7 +2832,7 @@ SELECT 'portfolio_case_study_study', COUNT(*) FROM portfolio_case_study_study;
   ADR-007과 `billing_plan` seed 값에 맞춰 함께 갱신하며, 공개 가격은 모두 부가세 포함 금액이다.
 - 공개 플랫폼 메인 `/`은 시스템 토폴로지·기술 지표·도메인 레이어 명세를 노출하지 않는다. 경력 원본의
   재사용 가치, 기록→연결→선택→발행 흐름, Workspace 권한 검증, OWNER 승인 고객지원, 로그 원문 배제,
-  BYOK 재조회 금지와 책임 있는 AI 원칙을 설명하는 판매용 랜딩페이지를 사용한다. 개인정보 보호 문구는
+  사용자 제공 AI API 키 재조회 금지와 책임 있는 AI 원칙을 설명하는 판매용 랜딩페이지를 사용한다. 개인정보 보호 문구는
   현재 구현된 경계만 설명하며 Workspace DEK·WORM처럼 출시 gate에 남은 항목을 완료 기능으로 표시하지
   않는다. 개인/기업·팀은 소개 주체, Free/Pro/Business는 사용 규모로 분리해 안내한다. 플랫폼 헤더는
   특정 운영자의 이니셜 대신 `Self-Intro` 브랜드를 표시하고, 실제 개인 프로필 예시는
@@ -2847,7 +2847,7 @@ SELECT 'portfolio_case_study_study', COUNT(*) FROM portfolio_case_study_study;
   사용자에게는 이 운영 도구 메뉴가 노출되지 않는다. 이 URL에는 API secret, billingKey, paymentKey를
   query로 넣지 않는다.
 - Workspace 소유권 이전 트랜잭션은 기존 payment method를 `SUSPENDED`, 유료 구독을 기간 말 해지 예약,
-  BYOK credential과 AI generation을 중지한다. 새 OWNER가 결제수단/BYOK 또는 플랫폼 AI 경로를 직접
+  사용자 제공 AI API 키 자격 증명과 AI generation을 중지한다. 새 OWNER가 결제수단/사용자 제공 AI API 키 또는 플랫폼 AI 경로를 직접
   다시 선택하기 전에는 기존 OWNER의 자동 결제·Secret을 승계하지 않는다.
 - 결제 승인 응답이 불명확하면 `RECONCILIATION_REQUIRED`로 남기고 orderId 조회로 조정한다. 구독 갱신은
   기간별 unique key와 DB lease를 사용하며 최대 실패 수와 7일 grace 필드를 유지한다. 이 scheduler들은
@@ -2858,7 +2858,7 @@ SELECT 'portfolio_case_study_study', COUNT(*) FROM portfolio_case_study_study;
 - Worker의 OpenAI/Anthropic/Gemini 응답 token metadata와 Evidence Packet SHA-256은 응답 header를 통해
   API 원장에 기록한다. 스트리밍과 NVIDIA의 실제 token metadata가 모든 경로에서 검증되고 provider_price
   version에 따른 point 환산식이 확정되기 전에는 `AI_USAGE_ENFORCEMENT_ENABLED=false`를 유지한다.
-- BYOK는 OpenAI/Anthropic/Gemini를 지원한다. Worker가 Workspace 정책과 ACTIVE Secret reference를
+- 사용자 제공 AI API 키는 OpenAI/Anthropic/Gemini를 지원한다. Worker가 Workspace 정책과 ACTIVE Secret reference를
   해석하며 누락·폐기·quota 오류 시 플랫폼 key로 자동 fallback하지 않는다. OWNER가 명시적으로
   `platform-managed`를 선택해야만 플랫폼 경로가 다시 활성화된다.
 - AI 처리 동의는 정책 version, actor, 목적, Provider, region, credential mode와 data category code를
@@ -2910,7 +2910,7 @@ SELECT 'portfolio_case_study_study', COUNT(*) FROM portfolio_case_study_study;
    제한한다. 실제 연결이 끝날 때만 `SECRET_PROVIDER=oci-vault`로 바꾼다.
 3. 스트리밍 포함 실제 token/원가 계측 2~4주와 provider_price/환율 version, point 환산식 확정
 4. 중복 charge, timeout 뒤 order 조회, 다중 Pod lease, grace downgrade와 point 중복 지급 회귀 테스트
-5. 정기결제·환불·AI 처리·BYOK 약관과 개인정보 처리방침의 법률·세무·PG 검토
+5. 정기결제·환불·AI 처리·사용자 제공 AI API 키 약관과 개인정보 처리방침의 법률·세무·PG 검토
 6. stage에서 V8/V9 migration, health, OWNER/MFA/교차 Workspace 격리와 결제 Secret 로그 비노출 확인
 
 ### 15.42 OCI Email Delivery 발신 구성
@@ -2972,7 +2972,7 @@ OCI 서비스 로그는 root 로그 그룹 `self-intro-email-delivery`에 30일 
 
 비공개 베타 프런트는 `NEXT_PUBLIC_RELEASE_CHANNEL=PRIVATE_BETA`로 빌드한다. 이 모드에서는 가격 숫자를
 blur 처리하지 않는다. 접근성 도구나 HTML에서 실제 가격이 노출되는 착시를 피하기 위해 숫자 자체를
-렌더링하지 않고 `베타 기간 무료`, `정식 출시 예정`을 표시한다. 결제·카드·좌석·AI point 구매와 BYOK
+렌더링하지 않고 `베타 기간 무료`, `정식 출시 예정`을 표시한다. 결제·카드·좌석·AI point 구매와 사용자 제공 AI API 키
 입력도 함께 감춘다. `PAID`는 PG 계약, 환불 운영, OCI Vault, 정책 확정과 별도 동의를 마친 유료 출시
 이미지에서만 사용한다.
 
@@ -3106,7 +3106,7 @@ action runtime과 `setup-java@v4` 폐기 예정 annotation이 있으므로 후�
 
 ### 15.50 PLATFORM_OWNER 지정 Workspace 결제·AI preview
 
-비공개 베타의 일반 사용자 gate를 유지한 채 운영자가 실제 결제·AI·BYOK 경로를 검증할 수 있도록 다음
+비공개 베타의 일반 사용자 gate를 유지한 채 운영자가 실제 결제·AI·사용자 제공 AI API 키 경로를 검증할 수 있도록 다음
 결합 조건을 추가했다.
 
 1. 로그인 사용자가 `PLATFORM_OWNER` 역할을 보유한다.
@@ -3120,7 +3120,7 @@ usage flag는 계속 `false`이므로 다른 Workspace와 일반 베타 사용�
 검증한다.
 
 AI preview에서도 처리 동의, point reservation·commit·release와 사용량 enforcement를 생략하지 않는다.
-BYOK는 Workspace에 저장된 OCI Vault reference만 사용하고 플랫폼 키로 암묵적으로 fallback하지 않는다.
+사용자 제공 AI API 키는 Workspace에 저장된 OCI Vault reference만 사용하고 플랫폼 키로 암묵적으로 fallback하지 않는다.
 운영 API는 OCI Vault의 instance principal로 Secret을 처리한다. 현재 OKE가 BASIC_CLUSTER이므로
 `self-intro-oke-vault-nodes` 동적 그룹은 현재 운영 노드의 정확한 instance OCID만 허용하고,
 `self-intro-private-beta-vault-policy`가 `self-intro` 컴파트먼트의 Secret 사용 권한만 부여한다. 노드가
@@ -3158,5 +3158,5 @@ Pod Ready/restart, 외부 health·readiness와 오류 로그를 다시 확인한
 
 로그인된 운영자 UI를 자동 조작하지 않아도 서버 단위 테스트, frontend production build, 실제 ConfigMap,
 Deployment secret 소비자, SealedSecret 동기화와 외부 endpoint를 각각 독립적으로 확인했다. 계정 화면의
-수동 탐색은 기능 배포의 필수 조건이 아닌 선택적 운영 smoke이며, 결제 승인이나 BYOK key 저장처럼 상태를
+수동 탐색은 기능 배포의 필수 조건이 아닌 선택적 운영 smoke이며, 결제 승인이나 사용자 제공 AI API 키 저장처럼 상태를
 바꾸는 작업은 별도 테스트 거래로 수행한다.

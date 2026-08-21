@@ -20,6 +20,11 @@ const FEATURE_LABEL: Record<string, string> = {
     PDF_OUTPUT: 'PDF·출력 문서',
 };
 
+const AI_CREDENTIAL_MODE_LABEL: Record<string, string> = {
+    BYOK: '내 AI 키',
+    PLATFORM_MANAGED: '플랫폼 제공 AI',
+};
+
 export function WorkspaceBillingPanel({ workspaceSlug }: { workspaceSlug: string }) {
     const me = useAuthStore((state) => state.me);
     const sandboxPreview = isPlatformOwnerPreview(me, workspaceSlug);
@@ -111,7 +116,7 @@ export function WorkspaceBillingPanel({ workspaceSlug }: { workspaceSlug: string
                             />
                             <Detail
                                 label="AI 처리 경로"
-                                value={`${data.aiProvider} · ${data.credentialMode}`}
+                                value={`${data.aiProvider} · ${AI_CREDENTIAL_MODE_LABEL[data.credentialMode] ?? '확인 중'}`}
                             />
                             <Detail label="처리 정책 버전" value={data.consentPolicyVersion} />
                         </div>

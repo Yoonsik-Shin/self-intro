@@ -8,7 +8,7 @@
 기준이다. 제품 정책은 ADR, 반복 가능한 운영 절차는 운영 가이드, 실제 출시 차단 조건은 출시 전
 체크리스트를 함께 따른다.
 
-- 구독·AI point·BYOK 정책: [ADR-007](../adr/ADR-007-workspace-subscription-ai-usage-and-byok.md)
+- 구독·AI point·사용자 제공 AI API 키 정책: [ADR-007](../adr/ADR-007-workspace-subscription-ai-usage-and-customer-api-key.md)
 - 개인정보 암호화·AI 처리 정책: [ADR-008](../adr/ADR-008-personal-data-encryption-and-ai-processing.md)
 - 운영 절차와 검증 이력: [SaaS 운영 가이드](saas-operations-guide.md)
 - 정식 출시 전 외부 작업: [베타 및 정식 출시 전 체크리스트](pre-launch-checklist.md)
@@ -42,8 +42,8 @@
 | Email 인증 | Gmail 원본에서 SPF `PASS`, DKIM `PASS`, DMARC `PASS` 확인 | DNS·SMTP 경로 검증 완료 |
 | 운영 Secret | `backend-mail-secret` SealedSecret과 Deployment secret 참조 구성 | 운영 적용 완료, Git에는 암호문만 저장 |
 | 가입·복구 메일 | production manifest에서 가입 확인·계정 복구 메일 flag 활성화 | 운영 적용 완료, 실제 수신 smoke 필요 |
-| 비공개 베타 UI | 일반 사용자는 실제 가격·결제·BYOK를 숨기고 `베타 기간 무료` 표시 | 운영 적용 완료 |
-| 운영자 preview | `PLATFORM_OWNER`와 지정 Workspace가 모두 일치할 때만 Toss 샌드박스·BYOK 노출 | 배포 검증 중 |
+| 비공개 베타 UI | 일반 사용자는 실제 가격·결제·사용자 제공 AI API 키를 숨기고 `베타 기간 무료` 표시 | 운영 적용 완료 |
+| 운영자 preview | `PLATFORM_OWNER`와 지정 Workspace가 모두 일치할 때만 Toss 샌드박스·사용자 제공 AI API 키 노출 | 배포 검증 중 |
 | 결제·AI 차단 | 전역 flag는 비활성화하고 preview 요청만 서버·UI에서 정확히 예외 처리 | 일반 사용자 fail closed |
 | 정책 | 이용약관·개인정보·마케팅 동의 version을 `2026-08-22`로 일치 | 비공개 베타 기준 확정 |
 | 메모리 안정화 | Tempo와 Oracle exporter의 메모리 request/limit 보강 | 운영 적용 완료, 24시간 관찰 중 |
@@ -52,7 +52,7 @@
 | 프런트 재현성 | npm 10 기준 lockfile을 동기화하고 CI `npm ci` 실패를 해결 | 최종 빌드 통과 |
 
 구현 또는 정책 문서가 존재한다는 사실만으로 정식 운영 활성화를 의미하지 않는다. Toss 테스트 결제와
-OCI Vault BYOK는 지정 운영자 preview에만 사용한다. Workspace DEK, 내부 mTLS와 WORM 감사는 후속 보안
+OCI Vault 사용자 제공 AI API 키는 지정 운영자 preview에만 사용한다. Workspace DEK, 내부 mTLS와 WORM 감사는 후속 보안
 강화 항목이며 완료된 것으로 표현하지 않는다.
 
 ## 3. 비공개 베타 출시 기준
@@ -69,14 +69,14 @@ OCI Vault BYOK는 지정 운영자 preview에만 사용한다. Workspace DEK, �
 
 - 일반 테스터의 카드 등록, 월·연 구독, point pack, 추가 좌석 결제와 자동 갱신
 - 실제 금액 노출과 유료 플랜으로의 자동 전환
-- 일반 테스터의 플랫폼 key 또는 BYOK 외부 AI 호출
+- 일반 테스터의 플랫폼 key 또는 사용자 제공 AI API 키 외부 AI 호출
 - 자동 환불 또는 운영자 환불 mutation
 - 정식 서비스 수준의 SLA 또는 무중단 제공 보장
 
 베타 중 생성한 계정이 정식 출시 때 자동으로 유료 전환되거나 청구되지 않는다. 정식 출시 후 결제를
 도입할 때는 가격·결제 주기·해지·환불 조건을 다시 표시하고 사용자의 명시적 승인을 받아야 한다.
 
-운영자는 지정 테스트 Workspace에서만 Toss 샌드박스와 BYOK를 검증할 수 있다. Toss 테스트 거래는 실제
+운영자는 지정 테스트 Workspace에서만 Toss 샌드박스와 사용자 제공 AI API 키를 검증할 수 있다. Toss 테스트 거래는 실제
 매출이 아니며, allowlist에 없는 Workspace 또는 `PLATFORM_OWNER`가 아닌 계정은 같은 API를 호출해도
 fail closed된다.
 
@@ -101,7 +101,7 @@ PR [#3](https://github.com/Yoonsik-Shin/self-intro/pull/3)은
 | Pod 상태 | 모두 Ready, 재시작 0 |
 | 외부 health·readiness·공개 Workspace route | 모두 HTTP 200 |
 
-이후 `PLATFORM_OWNER`와 지정 Workspace에만 결제·AI·BYOK preview를 허용하는 `9660ae70`을 배포했다.
+이후 `PLATFORM_OWNER`와 지정 Workspace에만 결제·AI·사용자 제공 AI API 키 preview를 허용하는 `9660ae70`을 배포했다.
 release gate의 billing Secret 소비자 검증은 `a60fc315`에서 API Deployment만 허용하도록 보정했다.
 
 | owner preview 검사 | 결과 |
@@ -147,7 +147,7 @@ release gate의 billing Secret 소비자 검증은 `a60fc315`에서 API Deployme
 - 월 포함 point는 월말에 만료하고 구매 point는 무제한 이월한다.
 - 자동 충전은 제공하지 않는다.
 - 작업 시작 전에 예상 상한을 예약하고, 시작한 작업은 서버 소유 최대 범위 안에서 완료한 뒤 정산한다.
-- BYOK는 FREE, PERSONAL PRO, BUSINESS에 제공하지만 플랫폼 key로 묵시적으로 fallback하지 않는다.
+- 사용자 제공 AI API 키는 FREE, PERSONAL PRO, BUSINESS에 제공하지만 플랫폼 key로 묵시적으로 fallback하지 않는다.
 - 월 구독은 결제 후 7일 이내이고 유료 AI point와 유료 기능을 사용하지 않았으면 전액 환불한다.
 - 연 구독 중도 환불은 사용한 개월을 월 정가로 계산한 뒤 남은 결제금액을 환불한다.
 - point pack은 구매 원장에 남은 구매 point 비율만큼만 환불한다.
@@ -165,9 +165,9 @@ release gate의 billing Secret 소비자 검증은 `a60fc315`에서 API Deployme
 
 #### 계약 없이 완료한 코드·인프라
 
-- OCI Vault, AES key, exact-node instance principal, BYOK 저장·조회·회전·폐기 경계
+- OCI Vault, AES key, exact-node instance principal, 사용자 제공 AI API 키 저장·조회·회전·폐기 경계
 - Subscription·Billing·AI point 원장, Toss webhook 멱등성, 갱신·정합성·취소 adapter와 테스트
-- 외부 AI 처리 동의, Provider Router, BYOK no-fallback과 교차 Workspace 격리
+- 외부 AI 처리 동의, Provider Router, 사용자 제공 AI API 키 사용 시 플랫폼 키로 대체하지 않는 정책과 교차 Workspace 격리
 - `PLATFORM_OWNER`와 정확한 Workspace allowlist의 서버·UI 이중 preview gate
 - API 전용 Toss SealedSecret과 Worker secret 비주입
 
@@ -191,7 +191,7 @@ Workspace DEK, 내부 mTLS와 WORM 감사는 ADR-008의 후속 보안 강화 항
 | 5 | 24시간 restart·OOM·trace·scrape 관찰 | Codex | 관찰 시작 |
 | 6 | 비공개 베타 초대와 피드백 운영 | 사용자 | 시작 가능 |
 | 7 | 사업자·PG·법률·AI Provider 계약 준비 | 사용자 | 정식 출시 전 필수 |
-| 8 | Vault·샌드박스·BYOK 지정 Workspace preview | Codex | 구현·검증·배포 완료 |
+| 8 | Vault·샌드박스·사용자 제공 AI API 키 지정 Workspace preview | Codex | 구현·검증·배포 완료 |
 
 현재 비공개 베타와 지정 owner preview는 **배포 가능하며 운영 배포와 1차 안정화 검증까지 완료**했다.
 필수 사용자 작업은 없다. 다음 단계는 실제 베타 초대 운영이며, 가입 확인·계정 복구 메일의 링크 host와

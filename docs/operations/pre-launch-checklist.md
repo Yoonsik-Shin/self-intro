@@ -83,7 +83,7 @@ Worker에는 주입하지 않는다.
 
 OCI Console에서 다음 순서로 만든다.
 
-1. `Identity & Security → Compartments`에서 결제·BYOK secret 전용 compartment를 만든다.
+1. `Identity & Security → Compartments`에서 결제·사용자 제공 AI API 키 secret 전용 compartment를 만든다.
 2. `Identity & Security → Vault`에서 Vault를 만든다.
 3. 같은 Vault 안에 AES 대칭키를 만든다. 비대칭키는 secret 암호화에 사용할 수 없다.
 4. compartment OCID, Vault OCID, Key OCID, region, OKE cluster OCID를 기록한다. 이 OCID들은 secret
@@ -105,7 +105,7 @@ cluster에서만 지원된다. 표준 basic cluster라면 먼저 enhanced 전환
 ### 3.3 IAM policy
 
 `<cluster-ocid>`와 `<secret-compartment>`를 실제 값으로 바꾼다. API는 생성·조회·예약 삭제가 필요하고,
-Worker는 BYOK 조회만 필요하다.
+Worker는 사용자 제공 AI API 키 조회만 필요하다.
 
 ```text
 Allow any-user to manage secrets in compartment <secret-compartment> where all {
@@ -214,10 +214,10 @@ Worker에는 Toss secret을 주입하지 않는다.
 
 비공개 베타에서는 프런트 이미지를 `NEXT_PUBLIC_RELEASE_CHANNEL=PRIVATE_BETA`로 빌드하고 전역 결제·AI
 flag를 모두 `false`로 유지한다. 단, `PLATFORM_OWNER_PREVIEW_ENABLED=true`와 정확한
-`PLATFORM_OWNER_PREVIEW_WORKSPACE_SLUGS`가 일치하면 해당 Workspace에서만 Toss 샌드박스와 BYOK를
+`PLATFORM_OWNER_PREVIEW_WORKSPACE_SLUGS`가 일치하면 해당 Workspace에서만 Toss 샌드박스와 사용자 제공 AI API 키를
 허용한다. `PAID` 전환은 약관·PG·환불 준비를 마친 정식 유료 출시 작업에서만 수행한다.
 
-1. stage에서 `SECRET_PROVIDER=oci-vault`만 켜고 카드 등록/BYOK 저장·조회·폐기를 확인한다.
+1. stage에서 `SECRET_PROVIDER=oci-vault`만 켜고 카드 등록/사용자 제공 AI API 키 저장·조회·폐기를 확인한다.
 2. `BILLING_ENABLED=true`로 최초 결제만 연다. 갱신 scheduler는 계속 끈다.
 3. webhook과 reconciliation을 충분히 관찰한 뒤 `BILLING_RECONCILIATION_ENABLED=true`를 켠다.
 4. 갱신·실패·grace 검증 뒤 `BILLING_RENEWAL_ENABLED=true`를 켠다.
@@ -234,7 +234,7 @@ flag를 모두 `false`로 유지한다. 단, `PLATFORM_OWNER_PREVIEW_ENABLED=tru
   초대 사용, 사용·만료·폐기된 초대의 재사용이 모두 거부되는지 확인한다.
 - 프런트는 `NEXT_PUBLIC_RELEASE_CHANNEL=PRIVATE_BETA`로 빌드한다. 이 모드에서는 구체적인 가격을 흐림
   처리하지 않고 `베타 기간 무료`, `정식 출시 예정`으로 표시하며 결제·카드·좌석·AI point 구매 버튼과
-  BYOK 입력란을 노출하지 않는다.
+  사용자 제공 AI API 키 입력란을 노출하지 않는다.
 - API의 `SECRET_PROVIDER=oci-vault`, API·Worker의 `BILLING_ENABLED=false`,
   `BILLING_RECONCILIATION_ENABLED=false`, `BILLING_RENEWAL_ENABLED=false`,
   `AI_GENERATION_ENABLED=false`, `AI_USAGE_ENFORCEMENT_ENABLED=false`를 유지한다. preview policy는
@@ -250,7 +250,7 @@ flag를 모두 `false`로 유지한다. 단, `PLATFORM_OWNER_PREVIEW_ENABLED=tru
   계약·사업자 정보·환불 자동화는 결제 기능이 닫힌 베타의 차단 조건에서는 제외할 수 있지만, 유료 전환
   전에 반드시 1~4절을 완료한다.
 - 일반 비공개 베타에서는 `AI_GENERATION_ENABLED=false`로 외부 AI 호출 자체를 차단한다. 지정 운영자
-  preview에서만 BYOK 경로를 사용한다. AI를 일반 사용자에게 제공한다면 실제 Provider별 처리 항목, 목적,
+  preview에서만 사용자 제공 AI API 키 경로를 사용한다. AI를 일반 사용자에게 제공한다면 실제 Provider별 처리 항목, 목적,
   처리 국가·region, 국외 이전 시점과 방법, 보유·삭제 기간, 동의 거부 시 영향을 확인해 정책과 호출 직전
   동의 화면에 반영한다. 현재 운영 구성 후보인 NVIDIA NIM의 정확한 처리 지역·보유기간을 계약·공식
   문서에서 확인하지 못했다면 AI 기능을 열지 않는다.

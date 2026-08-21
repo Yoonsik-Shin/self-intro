@@ -64,7 +64,9 @@ export function AiProcessingConsentDialog() {
                             않습니다.
                         </li>
                         <li>실행 전 예상 point를 예약하고 실패하면 반환합니다.</li>
-                        <li>BYOK가 실패해도 플랫폼 key로 자동 전환하지 않습니다.</li>
+                        <li>
+                            연결한 AI API 키가 실패해도 플랫폼 제공 AI로 자동 전환하지 않습니다.
+                        </li>
                     </ul>
                     <p className="text-xs text-slate-500">
                         확인 기록은 사용자·Workspace·목적·Provider·region·정책 버전 단위로 남습니다.

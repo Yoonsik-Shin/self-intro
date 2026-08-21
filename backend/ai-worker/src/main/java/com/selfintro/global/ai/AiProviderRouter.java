@@ -155,7 +155,7 @@ public class AiProviderRouter {
                                     userPrompt,
                                     "gemini-3.1-flash-lite",
                                     credential.apiKey());
-            default -> throw new AiPolicyViolationException("지원하지 않는 BYOK Provider입니다.");
+            default -> throw new AiPolicyViolationException("지원하지 않는 AI 제공업체입니다.");
         };
     }
 

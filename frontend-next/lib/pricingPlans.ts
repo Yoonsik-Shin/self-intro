@@ -26,7 +26,7 @@ export const PRICING_PLANS: PricingPlan[] = [
         benefits: [
             '경력·학습·역량·포트폴리오 원본 관리',
             '무료 AI 세션별 보정 3회 · 생성 후 7일',
-            'BYOK 지원 · AI 없는 PDF 출력은 제한 없음',
+            '내 AI API 키 연결 지원 · AI 없는 PDF 출력은 제한 없음',
         ],
     },
     {
@@ -41,7 +41,7 @@ export const PRICING_PLANS: PricingPlan[] = [
         benefits: [
             'point 잔액 안에서 AI 보정 횟수 제한 없음',
             '월 포함 point 우선 사용 · 월말 만료',
-            '구매 point 무기한 이월 · BYOK 지원',
+            '구매 point 무기한 이월 · 내 AI API 키 연결 지원',
         ],
         recommended: true,
     },
@@ -57,7 +57,7 @@ export const PRICING_PLANS: PricingPlan[] = [
         benefits: [
             'Workspace 멤버·역할 기반 공동 관리',
             'point 잔액 안에서 AI 보정 횟수 제한 없음',
-            '구매 point 무기한 이월 · BYOK 지원',
+            '구매 point 무기한 이월 · 내 AI API 키 연결 지원',
         ],
     },
 ];

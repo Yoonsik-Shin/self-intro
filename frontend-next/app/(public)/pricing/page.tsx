@@ -44,7 +44,8 @@ export default function PricingPage() {
                         <p className="mt-3 max-w-3xl text-sm leading-6 text-slate-300">
                             월 포함 point를 먼저 사용하고 구매 point는 만료 없이 이월합니다. 이미
                             시작된 작업은 서버 원가 상한 안에서 마무리하며, 실패한 작업의 예약
-                            point는 반환합니다. BYOK는 모든 플랜에서 사용할 수 있습니다.
+                            point는 반환합니다. 내 AI API 키 연결은 모든 플랜에서 사용할 수
+                            있습니다.
                         </p>
                     </div>
                     <Link

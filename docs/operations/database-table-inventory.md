@@ -184,10 +184,10 @@ inventory를 다시 생성하고, 충돌이 있으면 새 후속 version으로 �
 - 결제: `billing_customer`, `billing_payment_method`, `billing_charge`, `billing_payment`,
   `billing_webhook_event`
 - AI usage·point: `provider_price`, `ai_usage`, `ai_point_ledger`, `ai_free_session`
-- AI 처리·BYOK: `workspace_ai_processing_consent`, `workspace_ai_policy`,
+- AI 처리·사용자 제공 AI API 키: `workspace_ai_processing_consent`, `workspace_ai_policy`,
   `workspace_ai_provider_credential`
 
 결제와 AI 원장은 Workspace 일반 purge와 함께 즉시 삭제하지 않는다. Workspace FK는 가능한 영역에서
 삭제를 제한하거나 최소 메타데이터를 보존하며, 법정 보존·환불·분쟁 기간 종료 뒤 별도 purge job으로
-처리한다. billing key, payment key와 BYOK key 원문은 이 inventory의 DB 컬럼에 존재하지 않고 Secret
+처리한다. billing key, payment key와 사용자 제공 AI API 키 원문은 이 inventory의 DB 컬럼에 존재하지 않고 Secret
 Manager reference와 비가역 fingerprint만 둔다.

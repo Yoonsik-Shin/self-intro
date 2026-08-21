@@ -1,4 +1,4 @@
-# ADR-007: Workspace 구독·AI 사용량 과금과 BYOK 경계
+# ADR-007: Workspace 구독·AI 사용량 과금과 사용자 제공 AI API 키 경계
 
 - 상태: Accepted (정책 확정, 애플리케이션 경계 구현 완료)
 - 기준일: 2026-08-20
@@ -7,9 +7,9 @@
   [ADR-002](./ADR-002-registration-and-workspace-onboarding.md),
   [ADR-004](./ADR-004-output-composition-and-revisions.md),
   [ADR-006](./ADR-006-private-data-plane-and-public-projection.md)
-- 구현 상태: Subscription, Billing, AI point, BYOK의 Workspace 권한·원장·Secret reference·no-fallback
+- 구현 상태: Subscription, Billing, AI point, 사용자 제공 AI API 키의 Workspace 권한·원장·Secret reference·no-fallback
   경계는 구현됐다. 비공개 베타에서는 전역 flag를 닫고, `PLATFORM_OWNER`와 명시적으로 허용한 테스트
-  Workspace가 동시에 일치할 때만 Toss 샌드박스와 BYOK 외부 호출을 허용한다. 일반 베타 사용자와 다른
+  Workspace가 동시에 일치할 때만 Toss 샌드박스와 사용자 제공 AI API 키 외부 호출을 허용한다. 일반 베타 사용자와 다른
   Workspace에는 이 예외가 적용되지 않으며, 라이브 결제는 사업자·PG 계약과 운영 키 검증 전까지 열지 않는다.
 
 ## 배경
@@ -25,10 +25,10 @@
 `유료 플랜 = AI 무제한`으로 약속할 수 없다. 반대로 사용자가 결과물을 다듬는 매 호출마다 고정 횟수를
 차감하면 초안을 완성하기 전에 사용량을 걱정하게 되어 제품 경험이 나빠진다.
 
-사용자가 직접 Provider API key를 연결하는 BYOK(Bring Your Own Key)는 플랫폼의 변동 LLM 원가를
+사용자가 OpenAI, Anthropic, Gemini 등 AI 제공업체에서 직접 발급받아 연결하는 API 키는 플랫폼의 변동 LLM 원가를
 줄이고 조직별 Provider 계약을 활용하게 할 수 있다. 그러나 key 유출, 묵시적 Provider 전환, 임의
 endpoint를 통한 SSRF, Workspace 멤버 간 권한 혼동과 개인정보 국외 이전 고지 누락 같은 새로운
-위험을 만든다. BYOK는 단순 문자열 설정이 아니라 별도 Secret·동의·감사 경계로 설계해야 한다.
+위험을 만든다. 사용자 제공 AI API 키는 단순 문자열 설정이 아니라 별도 Secret·동의·감사 경계로 설계해야 한다.
 
 ## 결정
 
@@ -75,10 +75,10 @@ BUSINESS를 선택할 수 있다.
 한 계정이 여러 Workspace에 참여하면 각 Workspace는 서로 다른 플랜·결제수단·AI 잔액을 가질 수 있다.
 
 - 모든 플랜·결제·AI 사용량 조회는 URL의 Workspace Membership을 다시 검증한다.
-- 결제수단 등록·변경, 구독 시작·해지·복구와 BYOK 설정은 우선 `OWNER`만 수행한다.
-- 결제수단·BYOK mutation은 최근 재인증을 요구하고 보안 감사 이벤트를 남긴다.
+- 결제수단 등록·변경, 구독 시작·해지·복구와 사용자 제공 AI API 키 설정은 우선 `OWNER`만 수행한다.
+- 결제수단·사용자 제공 AI API 키 변경은 최근 재인증을 요구하고 보안 감사 이벤트를 남긴다.
 - 플랫폼 역할만으로 다른 Workspace의 결제수단, API key, AI 입력·결과 원문을 열람하지 못한다.
-- 소유권 이전 시 결제수단과 BYOK key를 자동 승계하지 않는다. 기존 자동 갱신과 BYOK를 일시 중지하고
+- 소유권 이전 시 결제수단과 사용자 제공 AI API 키를 자동 승계하지 않는다. 기존 자동 갱신과 사용자 제공 AI API 키를 일시 중지하고
   새 `OWNER`가 각각 재확인한다.
 
 Workspace와 활성 멤버 기본 한도는 다음과 같이 확정한다.
@@ -189,7 +189,7 @@ point 예약
 최소 계측 필드는 다음과 같다.
 
 - `workspaceId`, `userId`, `featureCode`, `artifactId`, `sessionId`, `requestId`
-- Provider, model, region, BYOK 여부와 가격 version
+- Provider, model, region, 사용자 제공 AI API 키 사용 여부와 가격 version
 - input, cached input, output, reasoning token과 재시도 횟수
 - 예약 point, 확정 point, 달러·원화 원가 snapshot
 - 성공·실패·취소 상태와 제한된 reason code
@@ -201,10 +201,10 @@ point 예약
 `provider_price`는 입력·cache·출력 단가, 통화, region 할증, 적용 기간과 version을 보존한다. 과거
 사용량을 현재 단가로 다시 계산하지 않고 요청 시점의 가격 snapshot을 사용한다.
 
-### 6. BYOK는 모든 플랜의 별도 Secret 경계로 제공한다
+### 6. 사용자 제공 AI API 키는 모든 플랜의 별도 Secret 경계로 제공한다
 
-BYOK는 FREE, PERSONAL_PRO, BUSINESS 모두에 제공한다. 첫 지원 Provider는 OpenAI, Anthropic, Gemini로
-확정하고 각 Provider의 생성형 LLM과 embedding 호출을 모두 BYOK 범위에 포함한다. 지원 시 다음 계약을
+사용자 제공 AI API 키는 FREE, PERSONAL_PRO, BUSINESS 모두에 제공한다. 첫 지원 Provider는 OpenAI, Anthropic, Gemini로
+확정하고 각 Provider의 생성형 LLM과 embedding 호출을 모두 사용자 제공 AI API 키 범위에 포함한다. 지원 시 다음 계약을
 지킨다.
 
 #### 권한과 사용자 경험
@@ -216,7 +216,7 @@ BYOK는 FREE, PERSONAL_PRO, BUSINESS 모두에 제공한다. 첫 지원 Provider
   사용할 수 있다는 사실을 명확히 표시한다.
 - Provider, 처리 region 또는 전송 범위가 바뀌면 `OWNER`가 변경된 정책을 다시 확인한다.
 - key 검증은 최소 비용의 전용 검증 요청 또는 Provider가 제공하는 안전한 인증 확인 방법으로 수행한다.
-- 사용자는 언제든 key를 폐기하고 BYOK 사용을 중지할 수 있다.
+- 사용자는 언제든 key를 폐기하고 사용자 제공 AI API 키 사용을 중지할 수 있다.
 
 #### 저장과 전달
 
@@ -233,14 +233,14 @@ BYOK는 FREE, PERSONAL_PRO, BUSINESS 모두에 제공한다. 첫 지원 Provider
 
 #### 호출·과금 계약
 
-- BYOK 호출의 Provider token 비용은 사용자의 Provider 계정에서 발생하므로 플랫폼 AI point를 차감하지
+- 사용자 제공 AI API 키 호출의 Provider token 비용은 사용자의 Provider 계정에서 발생하므로 플랫폼 AI point를 차감하지
   않는다.
 - Subscription은 Workspace 기능, 보안 처리, Evidence Packet, 출력 검증, 저장·협업·운영 기능의
-  사용료로 유지한다. BYOK가 구독료를 면제하지 않는다.
-- 플랫폼은 BYOK에서도 분당 요청, 동시 실행, 최대 입력·출력, 허용 모델과 월간 안전 상한을 적용할 수
+  사용료로 유지한다. 사용자 제공 AI API 키가 구독료를 면제하지 않는다.
+- 플랫폼은 사용자 제공 AI API 키에서도 분당 요청, 동시 실행, 최대 입력·출력, 허용 모델과 월간 안전 상한을 적용할 수
   있다. 이는 Provider 비용 대신 가용성·보안·오류 폭주를 통제하기 위한 제한이다.
-- BYOK usage에도 token·모델·기능·상태를 기록하되 Provider 청구 원가는 `customer billed`로 구분한다.
-- BYOK key가 실패하거나 quota를 초과해도 플랫폼 key로 묵시적으로 fallback하지 않는다. 사용자에게
+- 사용자 제공 AI API 키 사용 기록에도 token·모델·기능·상태를 기록하되 Provider 청구 원가는 `customer billed`로 구분한다.
+- 사용자 제공 AI API 키가 실패하거나 quota를 초과해도 플랫폼 key로 묵시적으로 fallback하지 않는다. 사용자에게
   실패와 선택지를 알리고, 명시적으로 플랫폼 point 사용을 승인한 새 요청만 플랫폼 key로 실행한다.
 - 임의 base URL과 사설 IP endpoint는 MVP에서 허용하지 않는다. 지원 Provider의 고정 HTTPS endpoint와
   검증된 region allowlist만 사용해 SSRF와 자격 증명 탈취를 막는다.
@@ -250,10 +250,10 @@ BYOK는 FREE, PERSONAL_PRO, BUSINESS 모두에 제공한다. 첫 지원 Provider
   기존 vector와 차원이 같더라도 의미 공간이 호환된다고 간주하지 않고 해당 Workspace namespace를
   새 model version으로 재색인한다. 재색인 완료 전에는 서로 다른 embedding model의 vector를 한 검색에
   혼합하지 않는다.
-- BYOK embedding 장애 시 플랫폼 embedding으로 자동 전환하지 않는다. 검색·RAG 기능을 degraded
+- 사용자 제공 AI API 키 기반 embedding 장애 시 플랫폼 embedding으로 자동 전환하지 않는다. 검색·RAG 기능을 degraded
   처리하고 사용자가 key·quota를 복구하거나 플랫폼 point 사용을 명시적으로 승인하게 한다.
 
-BYOK는 데이터가 플랫폼을 거치지 않는다는 뜻이 아니다. 서버는 계속 Workspace 권한을 확인하고
+사용자 제공 AI API 키는 데이터가 플랫폼을 거치지 않는다는 뜻이 아니다. 서버는 계속 Workspace 권한을 확인하고
 Evidence Packet을 만들며 결과를 검증·저장한다. 사용자의 Provider 계약을 사용하더라도 플랫폼의
 개인정보 최소화, 동의, 삭제와 감사 책임은 유지한다.
 
@@ -312,7 +312,7 @@ Evidence Packet을 만들며 결과를 검증·저장한다. 사용자의 Provid
 
 Workspace 사용량이 예산의 70%·90%·100%에 도달하면 알림을 제공한다. BUSINESS의 멤버별 AI 예산과
 허용 모델은 `OWNER`만 설정한다. BUSINESS는 OWNER에게 Workspace 전체·멤버별 사용량, 예산, 허용 모델과
-BYOK 사용 상태를 제공한다. 운영자는 프롬프트·응답 원문 없이 집계·상태·reason code로 장애와 비용을
+사용자 제공 AI API 키 사용 상태를 제공한다. 운영자는 프롬프트·응답 원문 없이 집계·상태·reason code로 장애와 비용을
 진단한다.
 
 ## 개념 데이터 모델
@@ -331,10 +331,10 @@ Flyway 기준선과 충돌 여부를 다시 확인한다.
 | `billing_payment` | 승인·취소·환불 Provider 거래 |
 | `billing_webhook_event` | Webhook inbox·중복 방지·재처리 |
 | `subscription_seat_addon` | 추가 좌석 수·일할 결제·다음 갱신 제거 예약 |
-| `ai_usage` | 기능·모델·token·원가·BYOK 여부·결과 상태 |
+| `ai_usage` | 기능·모델·token·원가·사용자 제공 AI API 키 사용 여부·결과 상태 |
 | `ai_point_ledger` | grant·reserve·commit·release·expire·refund 원장 |
 | `provider_price` | 시점별 모델 가격·환율·region 할증 version |
-| `workspace_ai_provider_credential` | BYOK Provider·Secret reference·상태·회전 이력 |
+| `workspace_ai_provider_credential` | 사용자 지정 AI Provider·Secret reference·상태·회전 이력 |
 | `workspace_ai_policy` | 허용 모델·멤버 한도·예산·fallback 정책 |
 
 잔액과 구독 상태는 임의 update가 아니라 원장·상태 전이를 통해 변경한다. 운영자 조정도 사유, actor,
@@ -347,23 +347,23 @@ Flyway 기준선과 충돌 여부를 다시 확인한다.
 3. 결제 없이 plan, entitlement, AI point reserve/commit/release와 downgrade를 검증한다.
 4. FREE 기능별 월 1개 세션·보정 3회와 유료 point 기반 무제한 보정 UX를 검증한다.
 5. PG sandbox에서 최초 결제, 갱신, 실패, 해지, 환불, point pack과 Webhook 멱등성을 검증한다.
-6. 서로 다른 두 Workspace의 구독·결제·AI 잔액·BYOK key 교차 접근을 404로 차단한다.
+6. 서로 다른 두 Workspace의 구독·결제·AI 잔액·사용자 제공 AI API 키 교차 접근을 404로 차단한다.
 7. 다중 Pod 갱신, Provider timeout, 응답 불명, 중복 Webhook과 reconciliation을 검증한다.
-8. OpenAI·Anthropic·Gemini BYOK를 모든 플랜에 flag로 도입하고 생성·embedding key 등록·회전·폐기,
+8. OpenAI·Anthropic·Gemini 사용자 제공 AI API 키를 모든 플랜에 flag로 도입하고 생성·embedding key 등록·회전·폐기,
    no-fallback, 재색인, endpoint allowlist와 로그 비노출을 검증한다.
 9. 실제 P95 원가, 사용률, PG 수수료, 부가세, 인프라와 지원 비용으로 확정 가격·point의 지속 가능성을
    검증한다. 정책 변경이 필요하면 이 ADR을 명시적으로 개정하고 기존 구독 가격을 소급 변경하지 않는다.
-10. 사용자 약관·환불·정기결제·AI 처리·BYOK 책임 안내와 운영 runbook을 확정한 뒤에만 운영 flag를
+10. 사용자 약관·환불·정기결제·AI 처리·사용자 제공 AI API 키 책임 안내와 운영 runbook을 확정한 뒤에만 운영 flag를
     활성화한다.
 
 다음 항목을 통과하기 전에는 운영 결제를 열지 않는다.
 
-- OWNER 외 결제·BYOK mutation 차단과 최근 재인증
-- 구독·point·결제·BYOK의 교차 Workspace 격리
+- OWNER 외 결제·사용자 제공 AI API 키 변경 차단과 최근 재인증
+- 구독·point·결제·사용자 제공 AI API 키의 교차 Workspace 격리
 - 중복 결제·중복 point 지급 방지
 - 실패 AI point 반환과 응답 불명 reconciliation
 - 해지·downgrade 뒤 데이터 보존과 신규 원가 mutation 제한
-- Secret·billing key·BYOK key·프롬프트·응답의 로그 비노출
+- Secret·billing key·사용자 제공 AI API 키·프롬프트·응답의 로그 비노출
 - Provider key 폐기와 Workspace purge 전파
 - 운영 비용 hard limit와 emergency stop
 - sandbox 전체 E2E와 승인된 소액 실결제·취소·환불 smoke test
@@ -376,7 +376,7 @@ Flyway 기준선과 충돌 여부를 다시 확인한다.
 - 무료 사용자는 결과물을 충분히 보정해 제품 가치를 확인하고 유료 사용자는 인위적인 보정 횟수 제한을
   받지 않는다.
 - 실제 LLM 원가와 point를 연결해 모델·환율 변경과 고급 모델 선택을 흡수할 수 있다.
-- BYOK 조직은 기존 Provider 계약을 활용하면서도 플랫폼의 Workspace 격리·Evidence Packet·감사 경계를
+- 사용자 제공 AI API 키 조직은 기존 Provider 계약을 활용하면서도 플랫폼의 Workspace 격리·Evidence Packet·감사 경계를
   유지한다.
 - 플랫폼 key fallback을 명시적으로 통제해 사용자가 예상하지 않은 비용·데이터 이전을 막는다.
 
@@ -384,7 +384,7 @@ Flyway 기준선과 충돌 여부를 다시 확인한다.
 
 - 횟수 정액제보다 usage 계측, 가격 version, reserve/commit 원장과 reconciliation 구현이 복잡하다.
 - 유료 보정에 횟수 제한이 없어 세션·Workspace·플랫폼 비용 hard limit가 필수다.
-- BYOK는 Secret 암호화, Provider별 capability, 사용자 지원과 개인정보 고지 범위를 늘린다.
+- 사용자 제공 AI API 키는 Secret 암호화, Provider별 capability, 사용자 지원과 개인정보 고지 범위를 늘린다.
 - Workspace 유형 확장은 개인용 도메인을 기업용으로 재사용하지 않는 추가 콘텐츠 모델이 필요하다.
 
 ## 보류한 대안
@@ -393,7 +393,7 @@ Flyway 기준선과 충돌 여부를 다시 확인한다.
 - `모든 요청 1회 차감`: 짧은 보정과 전체 생성의 원가 차이를 반영하지 못해 보류한다.
 - `유료 보정 최대 N회`: point 잔액이 있는데도 결과물 완성을 막으므로 채택하지 않는다.
 - `Workspace 유형별 플랜 강제`: 작은 조직과 고급 개인 사용자를 수용하지 못해 채택하지 않는다.
-- `BYOK 실패 시 플랫폼 key 자동 전환`: 예상하지 않은 플랫폼 비용과 데이터 처리 경로 변경을 만들므로
+- `사용자 제공 AI API 키 실패 시 플랫폼 key 자동 전환`: 예상하지 않은 플랫폼 비용과 데이터 처리 경로 변경을 만들므로
   금지한다.
 - `사용자 지정 base URL`: SSRF·자격 증명 탈취·Provider 검증 우회 위험 때문에 MVP에서 금지한다.
 - `초기 자체 GPU 상시 운영`: 현재 예상 트래픽에서는 온디맨드 API보다 고정비와 운영 부담이 커서
@@ -411,5 +411,5 @@ Flyway 기준선과 충돌 여부를 다시 확인한다.
   맞춰 사용자 약관과 운영 runbook으로 구체화한다.
 - OpenAI·Anthropic·Gemini의 지원 region·생성 모델·embedding 모델 allowlist와 usage 응답 계약을
   확인한다.
-- 운영 Secret Manager adapter, BYOK reference 무결성, key 회전·폐기와 embedding 재색인 rehearsal을
+- 운영 Secret Manager adapter, 사용자 제공 AI API 키 참조 무결성, 키 회전·폐기와 embedding 재색인 rehearsal을
   검증한다.
