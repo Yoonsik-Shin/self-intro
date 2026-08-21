@@ -18,12 +18,21 @@ spec:
     spec:
       serviceAccountName: self-intro-api
       automountServiceAccountToken: true
+      securityContext:
+        seccompProfile:
+          type: RuntimeDefault
       imagePullSecrets:
         - name: ocir-pull-secret
       containers:
         - name: backend
           image: self-intro-backend
           imagePullPolicy: IfNotPresent
+          securityContext:
+            allowPrivilegeEscalation: false
+            runAsNonRoot: true
+            capabilities:
+              drop:
+                - ALL
           ports:
             - name: http
               containerPort: 8080

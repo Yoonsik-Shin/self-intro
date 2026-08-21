@@ -11,8 +11,9 @@
 - 구현 상태: Workspace 격리, 제한된 Support Access, AI 처리 동의, usage 원장, Provider Router,
   OCI Vault 기반 사용자 제공 AI API 키 보관과 purge 기반은 구현됐다. 비공개 베타의 사용자 제공 AI API 키는 플랫폼 운영자와
   지정 테스트 Workspace에만 열며 OCI BASIC_CLUSTER의 정확한 노드 instance principal에 한정한다.
-  필드별 Workspace DEK, 내부 mTLS와 WORM 감사는 이 ADR의 후속 강화 항목으로 남아 있고 완료된 것으로
-  간주하지 않는다.
+  신규 Argon2id 저장·기존 BCrypt 성공 인증 시 점진 재해시와 Pod seccomp·non-root·capability 제거,
+  ingress NetworkPolicy도 구현됐다. 필드별 Workspace DEK, 내부 mTLS, WORM 감사와 외부 목적지 egress
+  통제는 이 ADR의 후속 강화 항목으로 남아 있고 완료된 것으로 간주하지 않는다.
 
 ## 배경
 
