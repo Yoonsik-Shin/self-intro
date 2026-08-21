@@ -1,10 +1,12 @@
 # Self-Intro SaaS 운영 가이드
 
-- 최종 갱신: 2026-08-14
+- 최종 갱신: 2026-08-22
 - 검증 브랜치: `fix/saas-recovery-build-baseline`
 - 제품 기능 진입점: [제품 기능 지도](../product/feature-map.md)
 - 설계 기준: [ADR-001](../adr/ADR-001-saas-security-multitenancy.md)
 - 가입 기준안: [ADR-002](../adr/ADR-002-registration-and-workspace-onboarding.md)
+- 구독·AI point·BYOK 기준: [ADR-007](../adr/ADR-007-workspace-subscription-ai-usage-and-byok.md)
+- 개인정보 암호화·AI 처리 기준: [ADR-008](../adr/ADR-008-personal-data-encryption-and-ai-processing.md)
 - 비공개 베타테스터 안내: [베타테스터 가이드](../beta/private-beta-tester-guide.md)
 - Workspace 삭제 inventory: [Workspace purge inventory](workspace-purge-inventory.md)
 - Workspace 콘텐츠 격리: [Workspace 콘텐츠 안정화 계획](workspace-content-stabilization-plan.md)
@@ -16,6 +18,36 @@
 
 이 문서는 현재 구현된 동작, 로컬 검증 방법, 운영 반영 전 준비사항을 운영자 관점에서 설명한다.
 설계 원칙은 ADR을, 실제 실행 절차는 이 문서를 기준으로 한다.
+
+ADR-007과 ADR-008은 2026-08-21 제품·보안 정책 기준선이다. V8~V10과 애플리케이션 코드에는 구독·AI
+usage/point 원장, 결제 경계, Evidence Packet envelope, 중앙 Provider Router, AI 처리 동의와 BYOK Secret
+Manager reference가 구현됐다. 다만 `BILLING_ENABLED`, `BILLING_RENEWAL_ENABLED`,
+`BILLING_RECONCILIATION_ENABLED`, `AI_USAGE_ENFORCEMENT_ENABLED`는 기본 `false`이며 운영 배포도 하지
+않았다. Workspace DEK, Argon2id 전환과 WORM 감사는 여전히 미구현이므로 현재 기능으로 간주하지 않는다.
+법정 보존기간은 ADR-008의 승인 기본값을 사용하되 정식 출시 전 법률·세무·PG 검토 결과가 더 엄격하면
+그 기준을 우선한다.
+
+### 비공개 베타의 공개 결제 gate
+
+프런트엔드는 `NEXT_PUBLIC_RELEASE_CHANNEL`을 빌드 시점에 읽는다. 값이 없거나 `PAID`가 아니면
+`PRIVATE_BETA`로 닫히며 공개 요금제와 Workspace 결제 관리 화면에 실제 가격·카드 등록·구독·AI point
+구매·추가 좌석 결제 진입점을 렌더링하지 않는다. 베타에서는 금액을 흐림 처리해 DOM에 남기는 대신
+`베타 기간 무료`, `정식 출시 예정`을 명시한다. 운영 프런트 배포 workflow도 현재
+`NEXT_PUBLIC_RELEASE_CHANNEL=PRIVATE_BETA`를 build argument로 고정하고 release-readiness가 이를
+검사한다.
+
+정식 유료 출시 때는 법정 운영자 정보·약관, Toss 운영 계약과 키, 환불 운영 절차, backend 결제 gate가
+모두 준비된 release candidate에서만 프런트 값을 `PAID`로 변경한다. 이 값은 `NEXT_PUBLIC_*`이므로
+Pod 런타임 환경변수 변경이 아니라 새 프런트 이미지를 빌드해야 반영된다.
+
+`SECRET_PROVIDER=none`인 동안에는 BYOK 저장·회전·폐기 화면도 노출하지 않는다. 비공개
+베타 화면에는 OCI Vault 검증 이후 제공한다는 안내만 표시한다. 이는 사용자가 입력한 Provider
+키가 저장되지 않거나 잘못 처리되는 것처럼 보이는 실패 경로를 막기 위한 운영 gate다.
+
+운영 Email Delivery는 `backend-mail-secret`의 `SPRING_MAIL_USERNAME`,
+`SPRING_MAIL_PASSWORD`를 사용한다. 비공개 베타 배포 manifest는 회원가입 확인과 계정 복구
+메일을 모두 활성화하며, Release Readiness는 두 기능 flag와 secret 참조가 하나라도 빠지면
+실패한다. SealedSecret의 평문 자격 증명은 Git에 저장하지 않는다.
 
 ## 1. 현재 상태 요약
 
@@ -441,9 +473,9 @@ V1은 격리된 일회성 MySQL schema에도 적용해 Profile 1건의 이메일
 3. 발행 트랜잭션이 완료되기 전에는 기존 공개 revision을 계속 제공한다. 실패 시 Workspace 상태와
    일부 resource가 섞이지 않도록 전체 트랜잭션을 롤백한다.
 4. `POST .../unpublish`는 공개 URL을 즉시 404로 만들지만 revision은 삭제하지 않는다.
-5. 기존 공개 Workspace의 초기 snapshot runner는 `app.publication.backfill-enabled`로 제어한다.
-   revision이 없거나 최신 `schema_version`이 현재 코드보다 낮을 때만 새 호환 revision을 만든다. 운영
-   migration 전 백업 clone에서 resource 수와 직렬화 성공을 먼저 확인한다.
+5. 기존 공개 Workspace도 애플리케이션 시작 시 자동 backfill하지 않는다. `OWNER` 또는 `ADMIN`이 발행
+   관리 화면에서 현재 초안을 확인하고 명시적으로 새 버전을 발행해야 한다. 일회성
+   `WorkspacePublicationBackfillRunner`와 `app.publication.backfill-enabled` 설정은 제거했다.
 6. `GET .../revisions`는 Membership이 있는 사용자에게 보존 중인 이력과 정책을 반환한다.
 7. `OWNER` 또는 `ADMIN`은 `POST .../revisions/{revisionNumber}/rollback`으로 호환 가능한 과거 snapshot을
    복원한다. 복원은 선택한 resource를 복사한 새 revision이며 초안과 과거 revision을 수정하지 않는다.
@@ -2268,6 +2300,7 @@ SELECT 'portfolio_case_study_study', COUNT(*) FROM portfolio_case_study_study;
   세 제거 대상과 임시 검사 프로시저 부재, backend `healthy`를 확인했다. 두 동기화 스크립트의 `bash -n`도
   통과했다. 별도 임시 DB에 `study_entry` 1행을 넣은 실패 경로에서는 `SQLSTATE 45000`으로 중단되고
   1행과 세 테이블이 모두 보존되는 것도 확인한 뒤 임시 DB를 삭제했다. 운영 DB에는 적용하지 않았다.
+
 ### 15.14 V232 출력 revision과 불변 PDF artifact 연결
 
 - 최종 PDF 첨부·외부 PDF 등록 시 현재 `PrintTemplate` 구성을 먼저 `SNAPSHOT` revision으로 저장하고,
@@ -2749,3 +2782,234 @@ SELECT 'portfolio_case_study_study', COUNT(*) FROM portfolio_case_study_study;
   기존 연결형 사례 조회·revision 저장·발행과 독립 사례 생성·AI 초안·발행을 함께 회귀 검증한다.
 - stage·운영 migration 적용과 배포는 별도 승인 전까지 수행하지 않는다. 이전 애플리케이션으로 롤백할
   때 nullable 컬럼은 호환되므로 유지하고, 독립 사례를 만든 뒤에는 이전 버전에서 해당 행을 편집하지 않는다.
+
+### 15.41 Workspace 구독·결제·AI point·BYOK 기반선
+
+- `V8__add_workspace_subscription_ai_usage_foundation.sql`은 플랜/entitlement, Workspace 구독, Provider
+  가격, AI usage, point ledger, FREE 월별 세션, AI 처리 동의, Workspace AI 정책과 BYOK Secret reference
+  테이블을 만든다. 기존 Workspace에는 FREE 구독과 플랫폼 관리 NVIDIA 경로를 부여한다.
+- `V9__add_billing_payment_boundary.sql`은 billing customer/payment method/charge/payment/webhook inbox와
+  추가 좌석을 만든다. billing key와 payment key 원문은 DB에 저장하지 않고 외부 Secret reference와
+  SHA-256 fingerprint만 저장한다. `SECRET_PROVIDER=none`이면 관련 mutation은 fail closed한다. 현재
+  SecretProvider의 운영 adapter는 OCI Vault이며 AWS Secrets Manager 전용 adapter는 제거했다. OCI Vault와
+  OKE workload identity 권한 구성이 완료되기 전에는 활성화하지 않는다.
+  로컬 Toss 테스트에서는 `local` profile과 `SECRET_PROVIDER=local-memory`를 함께 사용한다. 이 adapter는
+  메모리 밖에 Secret을 기록하지 않고 프로세스 재시작 시 모두 폐기되며, 다른 profile에서는 bean이 생성되지
+  않아 운영 설정으로 잘못 지정해도 fail closed한다.
+- `V10__rename_team_workspace_type_to_organization.sql`은 과거 `TEAM` 값을 `ORGANIZATION`으로
+  정규화한다. Workspace 소개 주체는 `PERSONAL`/`ORGANIZATION`, 구독 플랜은
+  `FREE`/`PERSONAL_PRO`/`BUSINESS`로 서로 독립적이다. OWNER는 최근 재인증 뒤 설정 화면에서 소개
+  주체를 변경할 수 있다.
+- Toss 연동은 `BillingProviderPort` 뒤에 있으며 공식 v1 server API의 빌링키 발급, 자동결제 승인,
+  order/payment 조회, 멱등키가 있는 전액·부분 결제 취소와 빌링키 폐기를 사용한다. 결제 취소 provider
+  경계는 구현됐지만 환불액 산정·point 회수·운영자 승인 원장은 아직 연결하지 않았으므로 사용자/운영자
+  환불 mutation은 노출하지 않는다. 브라우저는 V2 SDK로 카드 본인인증만 수행하고, callback
+  query만으로 entitlement를 지급하지 않는다. 서버의 stored charge 금액·orderId와 `DONE` 응답이 모두
+  일치해야 승인된다.
+- 구독/결제수단/point pack/좌석/BYOK mutation은 Workspace OWNER, MFA 등록, 최근 비밀번호 재인증을
+  모두 요구한다. 좌석은 PRO/BUSINESS에서 월 3,000원·연 30,000원을 기준으로 남은 기간을 일할 계산하며,
+  초대 시 활성 멤버와 유효한 대기 초대를 함께 계산하고 수락 시 다시 잠금·검증한다.
+- 소비자 화면의 PRO 9,900원·99,000원, BUSINESS 39,000원·390,000원과 point pack 9,900원은 모두
+  부가세가 포함된 최종 결제금액이다. 월간 구독은 결제 후 7일 이내이고 유료 AI point와 유료 기능을
+  사용하지 않았으면 전액 환불하며, 그 밖에는 남은 기간과 사용 혜택을 기준으로 운영자가 부분 환불을
+  심사한다. 연간 구독은 사용한 개월을 해당 플랜의 월 정가로 계산한 뒤 남은 결제금액을 환불한다.
+  point pack은 구매 원장에서 아직 남아 있는 구매 point 비율만큼만 환불하고 이미 사용한 point와 월
+  포함 point는 환불 대상으로 계산하지 않는다. 환불 계산·point 회수·Provider 취소는 같은 멱등 처리와
+  감사 원장으로 묶어야 하며 실제 환불 mutation은 구현·PG sandbox 검증 전까지 제공하지 않는다.
+- 유료 구독·point pack·좌석 구매 버튼은 API를 즉시 호출하지 않는다. 상품, 부가세 포함 결제금액,
+  즉시 승인 여부와 해지·환불 정책 확인 checkbox가 있는 확인창을 먼저 표시하고 사용자가 `결제 승인하기`를
+  눌러야 요청한다. point pack은 확인창에서 1회 결제·자동충전 없음과 구매 point 환불 조건을 정기결제와
+  구분한다. 승인 뒤에는 결제 완료 modal에 상품, 승인 금액, 상태와 주문번호를 표시한다. 화면 표시는 보조
+  증빙이며 최종 상태는 `billing_charge`, `billing_payment`와 Toss 테스트/운영 결제내역을 대조한다. 활성
+  유료 구독이 있으면 모든 신규 구독 구매 버튼을 잠가 같은 플랜 중복 승인과 정산 없는 즉시 플랜 변경을
+  차단한다. 업·다운그레이드와 결제 주기 전환은 별도의 견적·정산 API가 구현되기 전까지 제공하지 않는다.
+- 공개 `/pricing`, 플랫폼 메인의 요금제 섹션과 Workspace `요금제·AI 사용량`의 플랜 비교는
+  `frontend-next/lib/pricingPlans.ts`의 같은 표시 모델을 사용한다. 가격·포함 Workspace·멤버·AI 제공량은
+  ADR-007과 `billing_plan` seed 값에 맞춰 함께 갱신하며, 공개 가격은 모두 부가세 포함 금액이다.
+- 공개 플랫폼 메인 `/`은 시스템 토폴로지·기술 지표·도메인 레이어 명세를 노출하지 않는다. 경력 원본의
+  재사용 가치, 기록→연결→선택→발행 흐름, Workspace 권한 검증, OWNER 승인 고객지원, 로그 원문 배제,
+  BYOK 재조회 금지와 책임 있는 AI 원칙을 설명하는 판매용 랜딩페이지를 사용한다. 개인정보 보호 문구는
+  현재 구현된 경계만 설명하며 Workspace DEK·WORM처럼 출시 gate에 남은 항목을 완료 기능으로 표시하지
+  않는다. 개인/기업·팀은 소개 주체, Free/Pro/Business는 사용 규모로 분리해 안내한다. 플랫폼 헤더는
+  특정 운영자의 이니셜 대신 `Self-Intro` 브랜드를 표시하고, 실제 개인 프로필 예시는
+  `NEXT_PUBLIC_EXAMPLE_WORKSPACE_SLUG`가 지정한 발행 Workspace로 연결한다. 이 값은 frontend 빌드 타임
+  환경변수이며 GitHub Actions에서는 repository variable `EXAMPLE_WORKSPACE_SLUG`로 주입한다. 값이 없으면
+  기존 `PUBLIC_WORKSPACE_SLUG` 기본값을 사용한다. 플랫폼 운영자의 시스템 아키텍처 관리 기능과 로그인 없는
+  합성 데이터 데모는 실제 결과물 예시와 구분해 별도로 유지한다.
+- 플랫폼 운영자 네비게이션의 `도구 → 토스 API 로그`는 새 탭으로 토스 개발자센터를 연다. 계정별
+  API 로그 화면으로 바로 이동하려면 로컬/Compose는 `TOSS_PAYMENTS_API_LOG_URL`, frontend 빌드는
+  GitHub Actions repository variable `TOSS_PAYMENTS_API_LOG_URL`에 개발자센터의 테스트 API 로그 전체
+  URL을 설정한다. 값이 없으면 로그인한 계정의 `/my/api-logs` 경로로 이동하며 일반 Workspace
+  사용자에게는 이 운영 도구 메뉴가 노출되지 않는다. 이 URL에는 API secret, billingKey, paymentKey를
+  query로 넣지 않는다.
+- Workspace 소유권 이전 트랜잭션은 기존 payment method를 `SUSPENDED`, 유료 구독을 기간 말 해지 예약,
+  BYOK credential과 AI generation을 중지한다. 새 OWNER가 결제수단/BYOK 또는 플랫폼 AI 경로를 직접
+  다시 선택하기 전에는 기존 OWNER의 자동 결제·Secret을 승계하지 않는다.
+- 결제 승인 응답이 불명확하면 `RECONCILIATION_REQUIRED`로 남기고 orderId 조회로 조정한다. 구독 갱신은
+  기간별 unique key와 DB lease를 사용하며 최대 실패 수와 7일 grace 필드를 유지한다. 이 scheduler들은
+  PG sandbox 중복·timeout·역순 이벤트 검증 전에는 활성화하지 않는다.
+- AI API는 실행 전 usage row와 point reserve를 만들고 성공 시 commit, 실패 시 release한다. 월 포함
+  point는 월말 만료 bucket, 구매 point는 무기한 bucket이며, 이미 시작한 작업은 실제 사용량이 예약량을
+  넘더라도 완료 후 음수 정산할 수 있다. 자동 충전은 없다.
+- Worker의 OpenAI/Anthropic/Gemini 응답 token metadata와 Evidence Packet SHA-256은 응답 header를 통해
+  API 원장에 기록한다. 스트리밍과 NVIDIA의 실제 token metadata가 모든 경로에서 검증되고 provider_price
+  version에 따른 point 환산식이 확정되기 전에는 `AI_USAGE_ENFORCEMENT_ENABLED=false`를 유지한다.
+- BYOK는 OpenAI/Anthropic/Gemini를 지원한다. Worker가 Workspace 정책과 ACTIVE Secret reference를
+  해석하며 누락·폐기·quota 오류 시 플랫폼 key로 자동 fallback하지 않는다. OWNER가 명시적으로
+  `platform-managed`를 선택해야만 플랫폼 경로가 다시 활성화된다.
+- AI 처리 동의는 정책 version, actor, 목적, Provider, region, credential mode와 data category code를
+  저장한다. usage/결제 원장에는 prompt·응답 원문, 이메일, Workspace 이름과 Provider 오류 body를
+  저장하지 않는다.
+
+검증 기록:
+
+- disposable Compose MySQL DB에 V1~V10 순차 적용 성공 여부를 검증하고 검증 DB는 즉시 삭제
+- `./gradlew :api:compileJava :api:compileTestJava :ai-worker:compileJava` 성공
+- 결제 승인/point pack과 AI prompt policy 집중 테스트, `:ai-worker:test` 성공
+- Toss callback의 Suspense 경계를 보정한 뒤 `npm run build` 성공
+- 결제 사전 확인창과 승인 결과 표시를 추가한 뒤 해당 컴포넌트 ESLint와 `npm run build` 성공
+- 결제 승인 완료 modal, point pack 1회 결제 안내, 공개 `/pricing`, 플랫폼 메인과 Workspace 관리의
+  공용 플랜 비교를 추가했다. 변경 frontend ESLint와 production build를 통과했고 브라우저에서 공개
+  요금제·메인 홍보 섹션·현재 플랜 강조·point pack 사전 확인창을 확인했다. 검증 중 추가 결제는 하지 않았다.
+- 플랫폼 메인을 제품 가치·개인정보 보호·AI 원칙 중심으로 재구성하고 공개 페이지의 아키텍처 API 의존을
+  제거했다. frontend ESLint와 production build를 통과했으며 `/`이 정적 route로 생성됐다. 브라우저에서
+  판매용 일곱 섹션과 CTA를 확인하고 `기술 하이라이트`, `시스템 토폴로지`, `도메인 레이어 명세` 문구가
+  공개 메인에 남지 않은 것과 console error 0건을 확인했다.
+- 일회성 publication backfill runner와 활성화 설정을 제거했다. 신규 공개 구성 테이블이 없는 이전
+  schema·통합 테스트에서는 legacy projection으로 안전하게 물러나고, 신규 환경은 OWNER/ADMIN의 명시적
+  발행만 허용한다. `./gradlew :api:test` 전체 통합 테스트가 통과했다.
+- 배포 workflow가 image build 전에 API `spotlessCheck + :api:test`, Worker
+  `spotlessCheck + :ai-worker:test`, frontend `npm ci + lint + format:check + build`를 실행하도록 변경했다.
+  네트워크에 의존하던 사람인 relay URL 테스트는 URL 정규화 단위 테스트로 분리해 외부 사이트 상태와
+  무관하게 재현 가능하게 했다.
+- `FlywayMySqlMigrationIntegrationTest`는 Testcontainers MySQL 8의 빈 schema에 classpath V1~V10을
+  적용하고 최신 version 10과 성공 history 10개를 확인한다. Docker가 없는 로컬 환경에서는 skip되지만
+  GitHub Actions와 배포 전 검증 환경에서는 Docker를 제공해 반드시 실행한다.
+- OCI Java SDK 3.91.1 기반 `oci-vault` SecretProvider를 구현했다. secret 내용은 Base64 payload로
+  Vault에 저장하고 DB에는 Secret OCID만 남긴다. 조회는 CURRENT bundle만 사용하며 폐기는 즉시 삭제가
+  아니라 기본 7일 뒤 예약 삭제로 처리한다. 지원 인증 방식은 `oke-workload-identity`,
+  `instance-principal`, `config-file`이다. OKE에서는 API ServiceAccount `self-intro-api`와 Worker
+  ServiceAccount `self-intro-worker`를 분리했다. 두 workload가 같은 인증 provider instance를 재사용한다.
+- OCI adapter 단위 테스트에서 Base64 저장·조회, Secret OCID 검증, 복구 가능 예약 삭제를 확인했고,
+  `./gradlew spotlessCheck :api:test --tests
+  com.selfintro.global.secret.OciVaultSecretProviderTest`가 통과했다. 빈 MySQL migration test와 Worker 전체
+  테스트도 각각 통과했다. 로컬 코드에만 반영했으며 OCI Vault 실제 리소스와 stage·운영에는 아직
+  연결하지 않았다.
+
+운영 활성화 전 필수 gate:
+
+1. 토스페이먼츠 자동결제 계약·심사와 test/live key 분리, sandbox 최초 결제/갱신/실패/해지/환불 smoke
+2. OCI Vault Secret Management에 AES key와 Vault를 만들고 enhanced OKE cluster의 workload identity
+   policy를 `self-intro-api`(manage secrets + read secret-bundles)와
+   `self-intro-worker`(read secret-bundles)로 분리한다. enhanced
+   cluster가 아니라면 전환 전까지 Instance Principal을 사용하고 node dynamic group 권한 범위를 별도로
+   제한한다. 실제 연결이 끝날 때만 `SECRET_PROVIDER=oci-vault`로 바꾼다.
+3. 스트리밍 포함 실제 token/원가 계측 2~4주와 provider_price/환율 version, point 환산식 확정
+4. 중복 charge, timeout 뒤 order 조회, 다중 Pod lease, grace downgrade와 point 중복 지급 회귀 테스트
+5. 정기결제·환불·AI 처리·BYOK 약관과 개인정보 처리방침의 법률·세무·PG 검토
+6. stage에서 V8/V9 migration, health, OWNER/MFA/교차 Workspace 격리와 결제 Secret 로그 비노출 확인
+
+### 15.33 OCI Email Delivery 발신 구성
+
+수신 문의 주소는 Cloudflare Email Routing이 `support@unbrdn.me`, `privacy@unbrdn.me`,
+`billing@unbrdn.me`를 운영자 수신함으로 전달한다. 애플리케이션의 가입 확인·계정 복구·초대 메일 발송은
+OCI Email Delivery가 담당한다. 수신 forwarding 자격증명과 발신 SMTP 자격증명을 혼용하지 않는다.
+
+현재 발신 리소스는 `aaa946(루트)` 컴파트먼트와 `ap-chuncheon-1` 리전에 구성했다. Email Domain은
+`unbrdn.me`, DKIM selector는 `selfintro-20260822`이며 Cloudflare CNAME은 프록시하지 않는 DNS only로
+유지한다. 승인된 발신자는 `no-reply@unbrdn.me`, `support@unbrdn.me`, `privacy@unbrdn.me`,
+`billing@unbrdn.me`이다. 애플리케이션 자동 메일의 기본 From은 `no-reply@unbrdn.me`를 사용한다.
+
+Cloudflare에는 다음 DMARC TXT 레코드를 DNS only로 등록한다. 비공개 베타 초기에는 정상 메일까지
+차단하는 오탐을 피하면서 인증 결과를 관찰하기 위해 `p=none`으로 시작한다. 수신 원문과 리포트를
+충분히 확인한 뒤 `quarantine`, 최종적으로 `reject` 순서로 강화한다.
+
+```text
+Name: _dmarc
+Value: v=DMARC1; p=none; rua=mailto:privacy@unbrdn.me; adkim=r; aspf=r; pct=100
+```
+
+IAM 그룹 `self-intro-email-senders`에는 다음 tenancy 정책만 부여한다.
+
+```text
+Allow group 'Default'/'self-intro-email-senders' to use email-family in tenancy
+```
+
+SMTP 연결은 OCI 콘솔에 표시된 리전별 endpoint와 포트 465를 사용한다. 465는 연결 시작부터 TLS를
+협상하므로 `SPRING_MAIL_SMTP_SSL_ENABLE=true`, `SPRING_MAIL_SMTP_STARTTLS_ENABLE=false`로 설정한다.
+생성된 SMTP username/password는 일반 OCI 로그인 비밀번호가 아니며 Git, ConfigMap, 문서, 일반 로그에
+기록하지 않는다. 로컬 검증은 gitignored `.env`, 운영은 `backend-mail-secret`의
+`SPRING_MAIL_USERNAME`, `SPRING_MAIL_PASSWORD` 키로만 주입한다.
+
+운영 Secret을 만들기 전까지 `REGISTRATION_EMAIL_ENABLED`와 `ACCOUNT_RECOVERY_EMAIL_ENABLED`는
+`false`로 유지한다. SealedSecret 생성 시 평문 Secret YAML을 저장하지 말고 표준입력으로
+`kubeseal --format yaml --namespace self-intro --name backend-mail-secret`에 전달한 암호문만 Git에
+추가한다. Deployment의 `envFrom`에 `backend-mail-secret`을 연결한 뒤 stage에서 다음 순서로 검증한다.
+
+1. 본인 수신 주소로 가입 확인 메일 1건을 발송하고 링크 host가 `https://unbrdn.me`인지 확인한다.
+2. OCI `email-outbound-accepted`, `email-outbound-relayed` 로그와 실제 수신을 대조한다.
+3. 수신 원문 헤더에서 SPF와 DKIM이 `pass`인지 확인하고 SMTP username/password가 로그에 없는지 확인한다.
+4. 실패·timeout이 사용자 가입 상태를 잘못 완료 처리하지 않는지 확인한다.
+5. 검증이 끝난 뒤에만 두 발송 enable flag를 `true`로 전환한다.
+
+OCI 서비스 로그는 root 로그 그룹 `self-intro-email-delivery`에 30일 보존으로 구성한다. 로그의 수신자
+주소 등 운영상 필요한 개인정보는 고객지원 목적 범위에서만 조회하고 일반 애플리케이션 로그나 이슈에
+복사하지 않는다.
+
+2026-08-22 로컬 실 SMTP smoke test에서 OCI Email Delivery가 보낸 가입 확인 메일의 실제 수신을
+확인했다. Gmail 원본 판정은 SPF `PASS`, DKIM `PASS`(`unbrdn.me`), DMARC `PASS`였고 DMARC 정책은
+의도한 모니터링 단계인 `p=none`으로 표시됐다. 테스트에만 사용한 사용자, 확인 token, 동의, 초대 데이터는
+검증 직후 삭제했다. 이 결과는 로컬 자격증명과 DNS 인증 경로의 검증이며 stage·운영 배포 완료를 뜻하지
+않는다. 같은 날 운영용 `backend-mail-secret` SealedSecret을 생성하고 두 email enable flag를 `true`로
+변경했으며 production manifest 렌더링으로 secret 참조를 확인했다. 아직 Git commit·배포·운영 수신 smoke는
+수행하지 않았다.
+
+### 15.34 비공개 베타 release channel과 운영 메모리 보강
+
+비공개 베타 프런트는 `NEXT_PUBLIC_RELEASE_CHANNEL=PRIVATE_BETA`로 빌드한다. 이 모드에서는 가격 숫자를
+blur 처리하지 않는다. 접근성 도구나 HTML에서 실제 가격이 노출되는 착시를 피하기 위해 숫자 자체를
+렌더링하지 않고 `베타 기간 무료`, `정식 출시 예정`을 표시한다. 결제·카드·좌석·AI point 구매와 BYOK
+입력도 함께 감춘다. `PAID`는 PG 계약, 환불 운영, OCI Vault, 정책 확정과 별도 동의를 마친 유료 출시
+이미지에서만 사용한다.
+
+2026-08-22 운영 read-only 점검에서 모든 Pod가 Ready였으나 Tempo는 재시작 51회이며 마지막
+`OOMKilled`가 2026-08-21 14:52:20 UTC, Oracle exporter는 재시작 3회이며 마지막 `OOMKilled`가
+2026-08-20 21:20:40 UTC였다. 당시 manifest limit는 각각 `512Mi`, `128Mi`였다. 노드의 CPU request가
+94%였으므로 CPU는 늘리지 않고 Tempo 메모리를 request `384Mi`/limit `1Gi`, Oracle exporter를
+request `96Mi`/limit `256Mi`로 보강했다. 이는 로컬 manifest 변경이며 배포 후 24시간 동안 restart,
+OOM, scrape·trace 정상 여부를 다시 확인해야 한다.
+
+### 15.35 비공개 베타 정책 확정과 외부 AI 차단
+
+2026-08-22 비공개 베타 이용약관, 개인정보 처리 안내, 마케팅 수신 동의 버전을 모두
+`2026-08-22`로 확정했다. 운영자·대표자·개인정보 보호책임자는 신윤식이며 고객지원,
+개인정보, 결제 문의는 각각 `support@unbrdn.me`, `privacy@unbrdn.me`, `billing@unbrdn.me`로
+접수한다. 운영시간은 평일 09:00~18:00, 최초 답변 목표는 영업일 기준 1일 이내다. 결제가 없는
+초대형 비공개 베타에서는 이메일 문의만 제공하며 공개 전화번호, 사업장 주소, 사업자등록 및
+통신판매업 정보는 유료 공개 서비스 개시 전에 고지한다.
+
+NVIDIA API Trial은 일반 개인정보를 입력하는 운영 계약으로 확정할 수 없고 처리 지역도 현재 계약에서
+명시적으로 확정하지 못했다. 따라서 외부 AI 처리 제공자·국가·보유기간을 정책과 호출 직전 동의에
+반영하기 전까지 `AI_GENERATION_ENABLED=false`로 API의 모든 외부 AI 실행을 503으로 차단한다.
+`AI_USAGE_ENFORCEMENT_ENABLED=false`는 point 차감 비활성화일 뿐 AI 호출 차단 수단이 아니므로 두
+flag를 구분한다. release-readiness는 production manifest에서 AI 호출, 결제, 갱신, reconciliation이
+모두 비활성이고 세 정책 version이 일치하는지 검사한다.
+
+### 15.36 비공개 베타 배포 후보 로컬 검증
+
+2026-08-22 배포 후보에 다음 검증을 수행했다.
+
+1. `./gradlew spotlessCheck :api:test :ai-worker:test --no-daemon`: 성공
+2. `npm run lint && npm run format:check && npm run build`: 성공, production build 23개 static page 생성
+3. `kubectl kustomize deploy/k8s/overlays/prod/backend`: 성공
+4. `kubectl kustomize deploy/k8s/overlays/prod/frontend`: 성공
+5. production backend manifest에서 결제·갱신·정산·외부 AI·AI point 차감이 모두 `false`이고,
+   가입·계정 복구 메일은 `true`, 세 정책 version은 `2026-08-22`, SMTP username/password는
+   `backend-mail-secret` 참조인 것을 확인했다.
+6. private beta 프런트는 실제 가격과 결제 입력을 렌더링하지 않고 외부 AI 실행 UI와 동의창을 숨긴다.
+   서버의 `AI_GENERATION_ENABLED=false` 차단은 별도로 유지한다.
+
+검증 중 `application.yml`의 중복 `app.ai` key로 Spring context가 시작되지 않는 문제를 발견했고,
+기존 `app.ai` 아래에 `generation-enabled`를 통합한 뒤 집중 테스트와 전체 테스트를 다시 통과했다.
+이 항목은 로컬 배포 후보 검증 기록이며 아직 Git commit·push·CI·운영 rollout·운영 수신 smoke 완료를
+뜻하지 않는다.
