@@ -101,6 +101,22 @@ PR [#3](https://github.com/Yoonsik-Shin/self-intro/pull/3)은
 | Pod 상태 | 모두 Ready, 재시작 0 |
 | 외부 health·readiness·공개 Workspace route | 모두 HTTP 200 |
 
+이후 `PLATFORM_OWNER`와 지정 Workspace에만 결제·AI·BYOK preview를 허용하는 `9660ae70`을 배포했다.
+release gate의 billing Secret 소비자 검증은 `a60fc315`에서 API Deployment만 허용하도록 보정했다.
+
+| owner preview 검사 | 결과 |
+| --- | --- |
+| Workspace Purge Release Gate `32518296197` | 성공 |
+| Deploy API `32518296138` | 성공, `backend:9660ae7` |
+| Frontend CI/CD `32518296146` | 성공, `frontend:9660ae7` |
+| Release Readiness `32519188500` | 성공 |
+| GitOps revision | `3876b283`, Backend·Frontend `Synced/Healthy` |
+| 전역 결제·AI flag | 모두 `false` |
+| owner preview | `true`, `w-199d6de326de71385a98`만 허용 |
+| Toss Secret | SealedSecret 동기화, API에만 주입 |
+| API·Frontend Pod | Ready, 재시작 0 |
+| 외부 smoke | API readiness `UP`, 서비스 홈 HTTP 200 |
+
 따라서 **비공개 베타 배포 준비도와 운영 배포 완료도는 100%**다. 운영 가입 확인·계정 복구 메일의 실제
 수신 및 링크 host 검증과 24시간 인프라 관찰은 배포 후 운영 확인으로 계속 수행한다. 이 두 항목은 현재
 앱 rollout, health와 공개 route가 정상임을 뒤집는 배포 차단 조건은 아니다.
@@ -175,8 +191,8 @@ Workspace DEK, 내부 mTLS와 WORM 감사는 ADR-008의 후속 보안 강화 항
 | 5 | 24시간 restart·OOM·trace·scrape 관찰 | Codex | 관찰 시작 |
 | 6 | 비공개 베타 초대와 피드백 운영 | 사용자 | 시작 가능 |
 | 7 | 사업자·PG·법률·AI Provider 계약 준비 | 사용자 | 정식 출시 전 필수 |
-| 8 | Vault·샌드박스·BYOK 지정 Workspace preview | Codex | 구현·검증·배포 진행 중 |
+| 8 | Vault·샌드박스·BYOK 지정 Workspace preview | Codex | 구현·검증·배포 완료 |
 
-현재 비공개 베타는 **배포 가능하며 이미 운영 배포와 1차 안정화 검증까지 완료**했다. 다음 단계는
-사용자가 실제 초대 계정으로 가입 확인·계정 복구 메일을 각각 받아 링크 host와 인증 헤더를 확인하는
-운영 smoke이고, Codex는 24시간 restart·OOM·trace·scrape 상태를 후속 점검한다.
+현재 비공개 베타와 지정 owner preview는 **배포 가능하며 운영 배포와 1차 안정화 검증까지 완료**했다.
+필수 사용자 작업은 없다. 다음 단계는 실제 베타 초대 운영이며, 가입 확인·계정 복구 메일의 링크 host와
+인증 헤더 확인 및 24시간 restart·OOM·trace·scrape 확인은 배포 후 관찰 항목으로 계속 추적한다.

@@ -3138,3 +3138,25 @@ allowlist에 포함된 Workspace만 선택한다.
 enforcement, consent, 비허용 Workspace 차단을 확인한다. 전체 backend, frontend production build와
 Kubernetes render를 통과한 commit만 `main`에 반영하고, 이후 GitHub Actions, GitOps revision, Argo CD,
 Pod Ready/restart, 외부 health·readiness와 오류 로그를 다시 확인한다.
+
+2026-08-22 실제 rollout 증거는 다음과 같다.
+
+| 항목 | 확인 결과 |
+| --- | --- |
+| 기능 commit | `9660ae70` (`feat(beta): enable owner sandbox preview`) |
+| release gate 보정 commit | `a60fc315` (`fix(ci): validate billing secret consumer`) |
+| API·Frontend GitOps commit | `0bf008a9`, `3876b283` |
+| Workspace Purge Release Gate | run `32518296197` 성공 |
+| API CI/CD | run `32518296138` 성공, `backend:9660ae7` |
+| Frontend CI/CD | run `32518296146` 성공, `frontend:9660ae7` |
+| Release Readiness | run `32519188500` 성공 |
+| Argo CD | Backend·Frontend 모두 revision `3876b283`, `Synced/Healthy` |
+| Secret 경계 | `backend-billing-secret` `Synced=True`, API에만 주입, Worker 미주입 |
+| 운영 설정 | 전역 결제·AI flag `false`, owner preview `true`, exact slug 1개 |
+| 런타임 | API·Frontend Pod Ready, 재시작 0 |
+| 외부 smoke | API readiness `UP`, `https://unbrdn.me/` HTTP 200 |
+
+로그인된 운영자 UI를 자동 조작하지 않아도 서버 단위 테스트, frontend production build, 실제 ConfigMap,
+Deployment secret 소비자, SealedSecret 동기화와 외부 endpoint를 각각 독립적으로 확인했다. 계정 화면의
+수동 탐색은 기능 배포의 필수 조건이 아닌 선택적 운영 smoke이며, 결제 승인이나 BYOK key 저장처럼 상태를
+바꾸는 작업은 별도 테스트 거래로 수행한다.
