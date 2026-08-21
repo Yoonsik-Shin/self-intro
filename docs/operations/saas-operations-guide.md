@@ -1,7 +1,8 @@
 # Self-Intro SaaS 운영 가이드
 
 - 최종 갱신: 2026-08-22
-- 검증 브랜치: `fix/saas-recovery-build-baseline`
+- 검증 브랜치: `release/private-beta-20260822`
+- 최신 출시 상태: [2026-08-22 비공개 베타와 정식 서비스 출시 기준](release-status-2026-08-22.md)
 - 제품 기능 진입점: [제품 기능 지도](../product/feature-map.md)
 - 설계 기준: [ADR-001](../adr/ADR-001-saas-security-multitenancy.md)
 - 가입 기준안: [ADR-002](../adr/ADR-002-registration-and-workspace-onboarding.md)
@@ -2909,7 +2910,7 @@ SELECT 'portfolio_case_study_study', COUNT(*) FROM portfolio_case_study_study;
 5. 정기결제·환불·AI 처리·BYOK 약관과 개인정보 처리방침의 법률·세무·PG 검토
 6. stage에서 V8/V9 migration, health, OWNER/MFA/교차 Workspace 격리와 결제 Secret 로그 비노출 확인
 
-### 15.33 OCI Email Delivery 발신 구성
+### 15.42 OCI Email Delivery 발신 구성
 
 수신 문의 주소는 Cloudflare Email Routing이 `support@unbrdn.me`, `privacy@unbrdn.me`,
 `billing@unbrdn.me`를 운영자 수신함으로 전달한다. 애플리케이션의 가입 확인·계정 복구·초대 메일 발송은
@@ -2964,7 +2965,7 @@ OCI 서비스 로그는 root 로그 그룹 `self-intro-email-delivery`에 30일 
 변경했으며 production manifest 렌더링으로 secret 참조를 확인했다. 해당 변경은 `7ae9d61b`에 커밋했지만
 아직 원격 push·운영 배포·운영 수신 smoke는 수행하지 않았다.
 
-### 15.34 비공개 베타 release channel과 운영 메모리 보강
+### 15.43 비공개 베타 release channel과 운영 메모리 보강
 
 비공개 베타 프런트는 `NEXT_PUBLIC_RELEASE_CHANNEL=PRIVATE_BETA`로 빌드한다. 이 모드에서는 가격 숫자를
 blur 처리하지 않는다. 접근성 도구나 HTML에서 실제 가격이 노출되는 착시를 피하기 위해 숫자 자체를
@@ -2979,7 +2980,7 @@ blur 처리하지 않는다. 접근성 도구나 HTML에서 실제 가격이 노
 request `96Mi`/limit `256Mi`로 보강했다. 이는 로컬 manifest 변경이며 배포 후 24시간 동안 restart,
 OOM, scrape·trace 정상 여부를 다시 확인해야 한다.
 
-### 15.35 비공개 베타 정책 확정과 외부 AI 차단
+### 15.44 비공개 베타 정책 확정과 외부 AI 차단
 
 2026-08-22 비공개 베타 이용약관, 개인정보 처리 안내, 마케팅 수신 동의 버전을 모두
 `2026-08-22`로 확정했다. 운영자·대표자·개인정보 보호책임자는 신윤식이며 고객지원,
@@ -2995,7 +2996,7 @@ NVIDIA API Trial은 일반 개인정보를 입력하는 운영 계약으로 확�
 flag를 구분한다. release-readiness는 production manifest에서 AI 호출, 결제, 갱신, reconciliation이
 모두 비활성이고 세 정책 version이 일치하는지 검사한다.
 
-### 15.36 비공개 베타 배포 후보 로컬 검증
+### 15.45 비공개 베타 배포 후보 로컬 검증
 
 2026-08-22 배포 후보에 다음 검증을 수행했다.
 
@@ -3017,7 +3018,7 @@ flag를 구분한다. release-readiness는 production manifest에서 AI 호출, 
 push하지 않는다. 이 항목은 로컬 배포 후보 검증 기록이며 아직 원격 push·CI·운영 rollout·운영 수신
 smoke 완료를 뜻하지 않는다.
 
-### 15.37 GitGuardian OCI OCID 형식 오탐 대응
+### 15.46 GitGuardian OCI OCID 형식 오탐 대응
 
 `release/private-beta-20260822` PR의 GitGuardian 검사에서 OCI Vault Secret OCID의 공개 리소스
 형식 접두사를 `Generic High Entropy Secret`으로 오인했다. 탐지 대상은 자격 증명이나 실제 Secret
@@ -3029,7 +3030,7 @@ OCID가 아니라 입력값이 OCI Vault Secret 참조인지 검사하기 위한
 계속 남는 경우 실제 비밀이 아님을 근거로 false positive 처리하며, 암호문이나 커밋 이력을 임의로
 재작성하지 않는다.
 
-### 15.38 PR release gate 재검증
+### 15.47 PR release gate 재검증
 
 2026-08-22 GitGuardian incident `#36471809`는 실제 자격 증명이 아닌 OCI Vault Secret OCID의 공개
 형식 접두사임을 확인하고 `Ignored · Not a secret (false positive)`로 처리했다. 과거 커밋은 재작성하지
@@ -3046,3 +3047,19 @@ OCID가 아니라 입력값이 OCI Vault Secret 참조인지 검사하기 위한
 
 lockfile 수정 커밋을 release 브랜치에 push하면 GitGuardian과 release-readiness를 새 head에서 다시
 실행한다. 모든 필수 검사가 성공하기 전에는 `main`에 병합하거나 운영 rollout을 시작하지 않는다.
+
+### 15.48 PR #3 최종 release gate 결과
+
+2026-08-22 `release/private-beta-20260822`의 HEAD
+`c48fd88ef817fd1f140e7f3eb3fae02dbe3a5c63`에서 GitHub PR #3을 다시 확인했다.
+
+1. `GitGuardian Security Checks`: 성공
+2. `verify-recovery-evidence`: 성공
+3. `verify-release-candidate`: 성공
+4. GitHub mergeability: `MERGEABLE`
+5. GitHub merge state: `CLEAN`
+
+따라서 비공개 베타 배포 전 준비도는 100%이며 PR을 병합하고 운영 rollout을 시작할 수 있다. 다만 이
+확인은 병합·배포 완료를 뜻하지 않는다. 현재 운영 상태는 여전히 미배포이고, 사용자 승인 없이 `main`
+병합이나 운영 rollout을 실행하지 않는다. 정식 유료 서비스는 사업자·PG·법률, OCI Vault, 환불 원장,
+외부 AI 처리 계약과 암호화 gate가 남아 있어 현재 활성화할 수 없다.
