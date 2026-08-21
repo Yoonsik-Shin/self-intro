@@ -14,7 +14,7 @@ import {
 } from '@xyflow/react';
 import '@xyflow/react/dist/style.css';
 import { studyApi } from '@/lib/api';
-import type { Study, StudyRelationType, StudySection, TaxonomyNode } from '@/lib/api/types';
+import type { Study, StudyRelationType, StudySection } from '@/lib/api/types';
 import { SECTION_LABEL, groupStudiesBySectionAndTaxonomy } from '@/lib/studyCategoryGroups';
 
 const RELATION_COLOR: Record<StudyRelationType, string> = {
@@ -31,7 +31,6 @@ type Props = {
     search: string;
     activeSection: StudySection | null;
     activeTaxonomyNodeId: number | null;
-    taxonomyNodesById: Map<number, TaxonomyNode>;
 };
 
 export function StudyGraphView({
@@ -41,7 +40,6 @@ export function StudyGraphView({
     search,
     activeSection,
     activeTaxonomyNodeId,
-    taxonomyNodesById,
 }: Props) {
     const router = useRouter();
 

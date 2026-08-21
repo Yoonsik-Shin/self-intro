@@ -44,7 +44,12 @@ public class OpenAiClient {
     }
 
     public String generate(String systemPrompt, String userPrompt, String modelName) {
-        return generate(systemPrompt, userPrompt, modelName, false);
+        return generate(systemPrompt, userPrompt, modelName, false, apiKey);
+    }
+
+    public String generateWithApiKey(
+            String systemPrompt, String userPrompt, String modelName, String requestApiKey) {
+        return generate(systemPrompt, userPrompt, modelName, false, requestApiKey);
     }
 
     /**
@@ -52,12 +57,21 @@ public class OpenAiClient {
      * NVIDIA NIM 전용이었던 {@code generateJsonOnce}와 동등한 기능을 OpenAI 모델에도 제공한다.
      */
     public String generateJson(String systemPrompt, String userPrompt, String modelName) {
-        return generate(systemPrompt, userPrompt, modelName, true);
+        return generate(systemPrompt, userPrompt, modelName, true, apiKey);
+    }
+
+    public String generateJsonWithApiKey(
+            String systemPrompt, String userPrompt, String modelName, String requestApiKey) {
+        return generate(systemPrompt, userPrompt, modelName, true, requestApiKey);
     }
 
     private String generate(
-            String systemPrompt, String userPrompt, String modelName, boolean forceJsonResponse) {
-        if (!isConfigured()) {
+            String systemPrompt,
+            String userPrompt,
+            String modelName,
+            boolean forceJsonResponse,
+            String requestApiKey) {
+        if (requestApiKey == null || requestApiKey.isBlank()) {
             throw new IllegalArgumentException("OPENAI_API_KEY 가 환경변수/k8s 시크릿에 설정되지 않았습니다.");
         }
 
@@ -79,7 +93,7 @@ public class OpenAiClient {
             HttpRequest request =
                     HttpRequest.newBuilder()
                             .uri(URI.create("https://api.openai.com/v1/chat/completions"))
-                            .header("Authorization", "Bearer " + apiKey)
+                            .header("Authorization", "Bearer " + requestApiKey)
                             .header("Content-Type", "application/json")
                             .timeout(Duration.ofSeconds(60))
                             .POST(HttpRequest.BodyPublishers.ofString(requestJson))
@@ -100,7 +114,7 @@ public class OpenAiClient {
                             .increment();
                 }
                 throw new RuntimeException(
-                        "OpenAI API Error (" + response.statusCode() + "): " + response.body());
+                        "OpenAI API 요청 실패 (status=" + response.statusCode() + ")");
             }
 
             if (meterRegistry != null) {
@@ -120,6 +134,16 @@ public class OpenAiClient {
             }
 
             OpenAiResponse resBody = objectMapper.readValue(response.body(), OpenAiResponse.class);
+            if (resBody.usage != null) {
+                ProviderUsageContext.record(
+                        "OPENAI",
+                        targetModel,
+                        resBody.usage.promptTokens,
+                        resBody.usage.promptTokensDetails == null
+                                ? 0
+                                : resBody.usage.promptTokensDetails.cachedTokens,
+                        resBody.usage.completionTokens);
+            }
             if (resBody.choices != null && !resBody.choices.isEmpty()) {
                 String content =
                         resBody.choices.get(0).message != null
@@ -129,10 +153,10 @@ public class OpenAiClient {
                     return content;
                 }
             }
-            throw new RuntimeException("OpenAI API 반환 결과가 비어 있습니다: " + response.body());
+            throw new RuntimeException("OpenAI API가 빈 결과를 반환했습니다.");
         } catch (Exception e) {
             if (e instanceof RuntimeException) throw (RuntimeException) e;
-            throw new RuntimeException("OpenAI 호출 중 오류 발생: " + e.getMessage(), e);
+            throw new RuntimeException("OpenAI 호출 중 내부 오류가 발생했습니다.", e);
         }
     }
 
@@ -148,6 +172,23 @@ public class OpenAiClient {
 
     private static class OpenAiResponse {
         public List<OpenAiChoice> choices;
+        public OpenAiUsage usage;
+    }
+
+    private static class OpenAiUsage {
+        @JsonProperty("prompt_tokens")
+        public long promptTokens;
+
+        @JsonProperty("completion_tokens")
+        public long completionTokens;
+
+        @JsonProperty("prompt_tokens_details")
+        public OpenAiPromptTokenDetails promptTokensDetails;
+    }
+
+    private static class OpenAiPromptTokenDetails {
+        @JsonProperty("cached_tokens")
+        public long cachedTokens;
     }
 
     private static class OpenAiChoice {

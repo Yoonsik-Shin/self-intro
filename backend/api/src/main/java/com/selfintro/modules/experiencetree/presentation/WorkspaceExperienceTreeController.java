@@ -71,8 +71,7 @@ public class WorkspaceExperienceTreeController {
     public ResponseEntity<ExperienceTreeResponse.StudyLink> createLink(
             @CurrentWorkspace Long workspaceId,
             @Valid @RequestBody DecisionStudyLinkRequest request) {
-        return ResponseEntity.status(201)
-                .body(service.createLink(workspaceId, request));
+        return ResponseEntity.status(201).body(service.createLink(workspaceId, request));
     }
 
     @PutMapping("/manage/study-links/{id}")
@@ -85,8 +84,7 @@ public class WorkspaceExperienceTreeController {
 
     @DeleteMapping("/manage/study-links/{id}")
     public ResponseEntity<Void> deleteLink(
-            @CurrentWorkspace Long workspaceId,
-            @PathVariable Long id) {
+            @CurrentWorkspace Long workspaceId, @PathVariable Long id) {
         service.deleteLink(workspaceId, id);
         return ResponseEntity.noContent().build();
     }

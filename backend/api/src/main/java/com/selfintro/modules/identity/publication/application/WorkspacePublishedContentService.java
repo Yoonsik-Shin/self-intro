@@ -139,7 +139,11 @@ public class WorkspacePublishedContentService {
         List<StudyResponse> studies =
                 readAll(revision, PublicationResourceType.STUDY, StudyResponse.class);
         List<StudyTaxonomyResponse> taxonomy =
-                readList(revision, PublicationResourceType.STUDY_TAXONOMY, ROOT, new TypeReference<>() {});
+                readList(
+                        revision,
+                        PublicationResourceType.STUDY_TAXONOMY,
+                        ROOT,
+                        new TypeReference<>() {});
         return new PublicStudyPreview(studies, taxonomy);
     }
 

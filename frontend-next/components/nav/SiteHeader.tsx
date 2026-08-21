@@ -5,8 +5,10 @@ import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { useQuery } from '@tanstack/react-query';
 import {
+    ArrowLeft,
     BookOpen,
     Briefcase,
+    Building2,
     ChevronDown,
     ChevronRight,
     Eye,
@@ -15,13 +17,14 @@ import {
     LogOut,
     Menu,
     Printer,
+    CreditCard,
     ShieldCheck,
-    Terminal,
     User,
     UserPlus,
     X,
 } from 'lucide-react';
 import { visitorApi } from '@/lib/api';
+import { ORGANIZATION_EXAMPLE_HREF, PLATFORM_EXAMPLE_WORKSPACE_HREF } from '@/lib/exampleWorkspace';
 import { usePrintStore } from '@/store/usePrintStore';
 import { useAuthStore } from '@/store/useAuthStore';
 
@@ -37,6 +40,10 @@ function isActivePage(pathname: string, href: string, exact = false): boolean {
     if (exact) return pathname.replace(/\/$/, '') === href.replace(/\/$/, '');
     if (href === '/') return pathname === '/';
     return pathname.startsWith(href);
+}
+
+function platformExampleSessionKey(workspaceSlug: string): string {
+    return `self-intro:platform-example:${workspaceSlug}`;
 }
 
 export function SiteHeader() {
@@ -72,16 +79,35 @@ export function SiteHeader() {
               },
           ]
         : [
-              { href: '/', label: 'Self-Intro 플랫폼', shortLabel: '플랫폼', icon: Terminal },
+              { href: '/', label: '서비스 소개', shortLabel: '서비스 소개', icon: Home },
               {
                   href: '/architecture/demo',
-                  label: '워크스페이스 체험',
-                  shortLabel: '워크스페이스 체험',
+                  label: '기능 체험',
+                  shortLabel: '기능 체험',
                   icon: Eye,
+              },
+              {
+                  href: PLATFORM_EXAMPLE_WORKSPACE_HREF,
+                  label: '개인 예시',
+                  shortLabel: '개인 예시',
+                  icon: User,
+              },
+              {
+                  href: ORGANIZATION_EXAMPLE_HREF,
+                  label: '기업 예시',
+                  shortLabel: '기업 예시',
+                  icon: Building2,
+              },
+              {
+                  href: '/pricing',
+                  label: '요금제',
+                  shortLabel: '요금제',
+                  icon: CreditCard,
               },
           ];
     const [isPageMenuOpen, setIsPageMenuOpen] = useState(false);
     const [isAccountMenuOpen, setIsAccountMenuOpen] = useState(false);
+    const [showPlatformReturn, setShowPlatformReturn] = useState(false);
     const accountMenuRef = useRef<HTMLDivElement>(null);
     const isAuthenticated = useAuthStore((state) => state.isAuthenticated);
     const isCheckingSession = useAuthStore((state) => state.isChecking);
@@ -122,10 +148,46 @@ export function SiteHeader() {
         };
     }, [isAccountMenuOpen]);
 
+    useEffect(() => {
+        let shouldShow = false;
+
+        if (isWorkspacePublicArea && workspaceSlug) {
+            const sessionKey = platformExampleSessionKey(workspaceSlug);
+            const url = new URL(window.location.href);
+            const enteredFromPlatform = url.searchParams.get('from') === 'platform';
+
+            try {
+                if (enteredFromPlatform) {
+                    window.sessionStorage.setItem(sessionKey, '1');
+                }
+                shouldShow =
+                    enteredFromPlatform || window.sessionStorage.getItem(sessionKey) === '1';
+            } catch {
+                shouldShow = enteredFromPlatform;
+            }
+
+            if (enteredFromPlatform) {
+                url.searchParams.delete('from');
+                window.history.replaceState(null, '', `${url.pathname}${url.search}${url.hash}`);
+            }
+        }
+
+        const timer = window.setTimeout(() => setShowPlatformReturn(shouldShow), 0);
+        return () => window.clearTimeout(timer);
+    }, [isWorkspacePublicArea, workspaceSlug]);
+
+    const leavePlatformExample = () => {
+        if (workspaceSlug) {
+            try {
+                window.sessionStorage.removeItem(platformExampleSessionKey(workspaceSlug));
+            } catch {
+                // sessionStorage가 차단되어도 서비스 소개 이동 자체는 계속 진행한다.
+            }
+        }
+        setIsPageMenuOpen(false);
+    };
+
     const currentWorkspace = me?.workspaces[0];
-    const ownPublicWorkspaceHref = currentWorkspace
-        ? `/workspace/${encodeURIComponent(currentWorkspace.slug)}`
-        : '/';
     const workspaceActionHref = currentWorkspace
         ? `/workspace/${encodeURIComponent(currentWorkspace.slug)}/manage`
         : '/onboarding/workspace';
@@ -159,19 +221,24 @@ export function SiteHeader() {
             <div className="mx-auto flex h-12 max-w-[1500px] items-center justify-between gap-3 px-4 sm:px-6 lg:px-8">
                 <div className="flex min-w-0 items-center gap-6">
                     <Link
-                        href={workspaceBase ?? ownPublicWorkspaceHref}
+                        href={workspaceBase ?? '/'}
                         className="flex shrink-0 items-center text-left transition hover:opacity-90 focus:outline-none"
                         title={
-                            isWorkspacePublicArea
-                                ? 'Workspace 홈으로 이동'
-                                : currentWorkspace
-                                  ? '내 공개 Workspace로 이동'
-                                  : '제품 메인으로 이동'
+                            isWorkspacePublicArea ? 'Workspace 홈으로 이동' : '서비스 소개로 이동'
+                        }
+                        aria-label={
+                            isWorkspacePublicArea ? 'Workspace 홈으로 이동' : '서비스 소개로 이동'
                         }
                     >
-                        <div className="grid h-10 w-10 shrink-0 place-items-center rounded-md bg-slate-950 text-sm font-black text-white">
-                            YS
-                        </div>
+                        {isWorkspacePublicArea ? (
+                            <div className="grid h-10 w-10 shrink-0 place-items-center rounded-md bg-slate-950 text-white">
+                                <Briefcase className="h-4 w-4" />
+                            </div>
+                        ) : (
+                            <span className="text-lg font-black tracking-[-0.03em] text-slate-950">
+                                Self-Intro
+                            </span>
+                        )}
                     </Link>
 
                     <nav
@@ -240,6 +307,18 @@ export function SiteHeader() {
                                 </span>
                             </Link>
                         </>
+                    )}
+                    {isWorkspacePublicArea && showPlatformReturn && (
+                        <Link
+                            href="/"
+                            onClick={leavePlatformExample}
+                            className="hidden h-9 items-center justify-center gap-1.5 rounded-md border border-slate-300 bg-white px-3 text-sm font-black text-slate-700 transition hover:border-slate-400 hover:bg-slate-50 hover:text-slate-950 sm:inline-flex"
+                            title="서비스 소개로 돌아가기"
+                        >
+                            <ArrowLeft className="h-3.5 w-3.5" />
+                            <span className="hidden lg:inline">서비스 소개로 돌아가기</span>
+                            <span className="lg:hidden">돌아가기</span>
+                        </Link>
                     )}
                     {visitorSummary && canManageCurrentWorkspace && (
                         <span className="inline-flex items-center gap-1.5 px-1 text-xs font-semibold text-slate-400">
@@ -460,6 +539,18 @@ export function SiteHeader() {
                                 </Link>
                             );
                         })}
+                        {isWorkspacePublicArea && showPlatformReturn && (
+                            <div className="mt-1 border-t border-slate-100 pt-3">
+                                <Link
+                                    href="/"
+                                    onClick={leavePlatformExample}
+                                    className="flex w-full items-center justify-center gap-2 rounded-md border border-slate-300 bg-slate-50 px-3 py-2.5 text-sm font-black text-slate-800"
+                                >
+                                    <ArrowLeft className="h-4 w-4" />
+                                    서비스 소개로 돌아가기
+                                </Link>
+                            </div>
+                        )}
                         {isWorkspacePublicArea &&
                             !isCheckingSession &&
                             isAuthenticated &&

@@ -22,8 +22,7 @@ public class WorkspaceExperienceConnectionController {
 
     @GetMapping
     public ExperienceConnections get(
-            @CurrentWorkspace(WorkspaceAccessLevel.READ) Long workspaceId,
-            @PathVariable Long id) {
+            @CurrentWorkspace(WorkspaceAccessLevel.READ) Long workspaceId, @PathVariable Long id) {
         return connectionService.getExperienceConnections(workspaceId, id);
     }
 

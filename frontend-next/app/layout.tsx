@@ -4,8 +4,8 @@ import 'katex/dist/katex.min.css';
 import { Providers } from './providers';
 
 export const metadata: Metadata = {
-    title: 'Yoonsik Shin',
-    description: '이력서 & 경력기술서',
+    title: 'Self-Intro',
+    description: '개인과 조직의 기록을 공개 페이지와 지원 문서로 만드는 Workspace 서비스',
 };
 
 export default function RootLayout({
@@ -31,11 +31,6 @@ export default function RootLayout({
                 <link
                     href="https://fonts.googleapis.com/css2?family=Noto+Serif+KR:wght@400;500;600;700&family=Nanum+Gothic+Coding:wght@400;700&display=swap"
                     rel="stylesheet"
-                />
-                <script
-                    async
-                    src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-6825696073869286"
-                    crossOrigin="anonymous"
                 />
             </head>
             <body className="min-h-full flex flex-col font-['Plus_Jakarta_Sans',Pretendard,sans-serif]">

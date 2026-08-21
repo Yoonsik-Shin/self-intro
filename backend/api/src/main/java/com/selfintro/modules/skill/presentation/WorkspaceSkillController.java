@@ -27,8 +27,7 @@ public class WorkspaceSkillController {
     private final SkillService skillService;
 
     @GetMapping
-    public List<SkillResponse> list(
-            @CurrentWorkspace(WorkspaceAccessLevel.READ) Long workspaceId) {
+    public List<SkillResponse> list(@CurrentWorkspace(WorkspaceAccessLevel.READ) Long workspaceId) {
         return skillService.getWorkspaceSkills(workspaceId).stream()
                 .map(SkillResponse::from)
                 .toList();
@@ -51,8 +50,7 @@ public class WorkspaceSkillController {
 
     @DeleteMapping("/{catalogSkillId}")
     public ResponseEntity<Void> delete(
-            @CurrentWorkspace Long workspaceId,
-            @PathVariable Long catalogSkillId) {
+            @CurrentWorkspace Long workspaceId, @PathVariable Long catalogSkillId) {
         skillService.removeFromWorkspace(workspaceId, catalogSkillId);
         return ResponseEntity.noContent().build();
     }

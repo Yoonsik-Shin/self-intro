@@ -5,10 +5,7 @@ import com.selfintro.modules.identity.domain.WorkspaceRole;
 public enum WorkspaceAccessLevel {
     READ(
             new WorkspaceRole[] {
-                WorkspaceRole.OWNER,
-                WorkspaceRole.ADMIN,
-                WorkspaceRole.EDITOR,
-                WorkspaceRole.VIEWER
+                WorkspaceRole.OWNER, WorkspaceRole.ADMIN, WorkspaceRole.EDITOR, WorkspaceRole.VIEWER
             }),
     WRITE(new WorkspaceRole[] {WorkspaceRole.OWNER, WorkspaceRole.ADMIN, WorkspaceRole.EDITOR}),
     ADMIN(new WorkspaceRole[] {WorkspaceRole.OWNER, WorkspaceRole.ADMIN}),

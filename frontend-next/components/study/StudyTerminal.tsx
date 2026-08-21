@@ -5,7 +5,7 @@ import { useRouter } from 'next/navigation';
 import { useQuery } from '@tanstack/react-query';
 import { X } from 'lucide-react';
 import { studyApi } from '@/lib/api';
-import type { Study, StudySection } from '@/lib/api/types';
+import type { Study } from '@/lib/api/types';
 import {
     SECTION_LABEL,
     groupStudiesBySectionAndTaxonomy,
@@ -542,7 +542,7 @@ export function StudyTerminal({
 /____/\\__/\\__,_/\\__,_/\\__, /   \\____//____/
                      /____/`}
                                 <br />
-                                studyOS v1.0 — 'help' 입력해서 명령어 확인, Esc로 닫기
+                                studyOS v1.0 — &apos;help&apos; 입력해서 명령어 확인, Esc로 닫기
                             </pre>
                         );
                     }

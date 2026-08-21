@@ -2288,8 +2288,6 @@ export function JobApplicationManagement({
         [postings]
     );
 
-    const settings = null;
-
     const isCreating = drawerState?.type === 'create';
     const drawerId = drawerState?.type === 'existing' ? drawerState.id : null;
     const drawerItem = postings.find((item) => item.id === drawerId) ?? null;
@@ -2433,7 +2431,6 @@ export function JobApplicationManagement({
         setIsSingleIngesting(true);
         setSingleIngestElapsedSeconds(0);
         // 사용자 이벤트 시점부터의 경과 시간을 표시하기 위한 기준값이다.
-        // eslint-disable-next-line react-hooks/purity
         const startedAt = Date.now();
         const timer = window.setInterval(() => {
             setSingleIngestElapsedSeconds(Math.floor((Date.now() - startedAt) / 1000));
@@ -2841,60 +2838,6 @@ export function JobApplicationManagement({
             alert(error instanceof ApiError ? error.message : '저장 해제에 실패했습니다.'),
     });
 
-    const collectMutation = useMutation({
-        mutationFn: () => jobPostingApi.collect(),
-        onSuccess: (result) => {
-            invalidate();
-            const parts = [`만료 처리 ${result.expiredCount}건`];
-            parts.push(
-                result.saraminEnabled ? `사람인 ${result.saraminCollected}건` : '사람인 비활성화'
-            );
-            alert(`수집 결과 — ${parts.join(' · ')}`);
-        },
-        onError: (error) =>
-            alert(error instanceof ApiError ? error.message : '공고 수집에 실패했습니다.'),
-    });
-
-    const [isRefreshingAll, setIsRefreshingAll] = useState(false);
-    const [refreshProgressText, setRefreshProgressText] = useState('');
-
-    const handleRefreshAll = async () => {
-        if (!confirm('등록된 모든 활성 공고의 최신 정보(마감시간 등)를 백필/재수집하시겠습니까?')) {
-            return;
-        }
-        setIsRefreshingAll(true);
-        setRefreshProgressText('백필 준비 중...');
-
-        try {
-            await jobPostingApi.refreshAllStream((event) => {
-                if (event.type === 'progress') {
-                    setRefreshProgressText(`백필 진행 중 (${event.current}/${event.total})`);
-                } else if (event.type === 'item_success') {
-                    setRefreshProgressText(
-                        `진행 중 (${event.current}/${event.total}) — ${event.label}`
-                    );
-                } else if (event.type === 'item_error') {
-                    setRefreshProgressText(`오류 발생 (${event.current}/${event.total})`);
-                } else if (event.type === 'complete') {
-                    invalidate();
-                    alert(
-                        `전체 공고 재수집 완료:\n- 총 공고: ${event.total}건\n- 성공: ${event.successCount}건\n- 실패: ${event.errorCount}건`
-                    );
-                }
-            });
-            invalidate();
-        } catch (error) {
-            alert(
-                error instanceof ApiError
-                    ? error.message
-                    : '전체 공고 재수집 중 오류가 발생했습니다.'
-            );
-        } finally {
-            setIsRefreshingAll(false);
-            setRefreshProgressText('');
-        }
-    };
-
     const updateSettingsMutation = useMutation({
         mutationFn: (payload: JobPostingSettingRequest) => jobPostingApi.updateSettings(payload),
         onSuccess: () => {
@@ -2904,13 +2847,6 @@ export function JobApplicationManagement({
         onError: (error) =>
             alert(error instanceof ApiError ? error.message : '설정 저장에 실패했습니다.'),
     });
-
-    function openSettingsDrawer() {
-        // Workspace 사용자는 플랫폼 공통 수집 설정을 변경하지 않는다.
-        // 기존 관리 화면의 설정 drawer는 플랫폼 운영 경계에 남겨 두고 여기서는 열지 않는다.
-        setSettingsForm(null);
-        setIsSettingsDrawerOpen(true);
-    }
 
     const filteredApplications = useMemo(() => {
         const keyword = search.trim().toLowerCase();

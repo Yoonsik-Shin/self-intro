@@ -11,7 +11,5 @@ public interface JobPostingRepositoryCustom {
     Page<JobPosting> findSharedCatalog(String keyword, LocalDateTime now, Pageable pageable);
 
     Page<JobPosting> findAdminPostings(
-            String keyword,
-            JobPostingPermissionReviewStatus reviewStatus,
-            Pageable pageable);
+            String keyword, JobPostingPermissionReviewStatus reviewStatus, Pageable pageable);
 }

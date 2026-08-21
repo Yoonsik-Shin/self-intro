@@ -68,6 +68,20 @@ spring:
     port: ${RABBITMQ_PORT:5672}
     username: ${RABBITMQ_USERNAME:guest}
     password: ${RABBITMQ_PASSWORD:guest}
+  mail:
+    # 로컬 기본값은 Mailpit이다. OCI Email Delivery의 465 포트는 연결 시작부터 TLS를
+    # 사용하는 implicit TLS이므로 ssl=true, starttls=false로 주입한다.
+    host: ${SPRING_MAIL_HOST:localhost}
+    port: ${SPRING_MAIL_PORT:1025}
+    username: ${SPRING_MAIL_USERNAME:}
+    password: ${SPRING_MAIL_PASSWORD:}
+    properties:
+      "[mail.smtp.auth]": ${SPRING_MAIL_SMTP_AUTH:false}
+      "[mail.smtp.ssl.enable]": ${SPRING_MAIL_SMTP_SSL_ENABLE:false}
+      "[mail.smtp.starttls.enable]": ${SPRING_MAIL_SMTP_STARTTLS_ENABLE:false}
+      "[mail.smtp.connectiontimeout]": ${SPRING_MAIL_SMTP_CONNECTION_TIMEOUT_MS:5000}
+      "[mail.smtp.timeout]": ${SPRING_MAIL_SMTP_TIMEOUT_MS:10000}
+      "[mail.smtp.writetimeout]": ${SPRING_MAIL_SMTP_WRITE_TIMEOUT_MS:10000}
   session:
     store-type: ${SPRING_SESSION_STORE_TYPE:none}
 
@@ -120,9 +134,9 @@ app:
     invitation:
       signup-base-url: ${REGISTRATION_INVITATION_SIGNUP_BASE_URL:http://localhost:3000/signup}
     policy:
-      terms-version: ${REGISTRATION_TERMS_VERSION:2026-08-12-draft}
-      privacy-version: ${REGISTRATION_PRIVACY_VERSION:2026-08-12-draft}
-      marketing-version: ${REGISTRATION_MARKETING_VERSION:2026-08-12-draft}
+      terms-version: ${REGISTRATION_TERMS_VERSION:2026-08-22}
+      privacy-version: ${REGISTRATION_PRIVACY_VERSION:2026-08-22}
+      marketing-version: ${REGISTRATION_MARKETING_VERSION:2026-08-22}
     local-invitation:
       enabled: ${LOCAL_REGISTRATION_INVITATION_ENABLED:false}
       code: ${LOCAL_REGISTRATION_INVITATION_CODE:}
@@ -204,6 +218,8 @@ app:
         max-attempts: ${AUTH_PASSWORD_RESET_RATE_LIMIT_MAX_ATTEMPTS:5}
         window: ${AUTH_PASSWORD_RESET_RATE_LIMIT_WINDOW:10m}
   ai:
+    # 외부 AI 처리 제공자·국가·보유기간을 고지하고 동의를 받기 전에는 false를 유지한다.
+    generation-enabled: ${AI_GENERATION_ENABLED:false}
     base-url: ${NVIDIA_API_BASE_URL:https://integrate.api.nvidia.com}
     api-key: ${NVIDIA_API_KEY:}
     model: ${NVIDIA_MODEL:nvidia/nemotron-3-super-120b-a12b}
@@ -215,6 +231,11 @@ app:
     # Qwen3.5 NIM 엔드포인트는 response_format 지정 시 빈 응답을 반환했음.
     # Nemotron으로 교체 후 정상 동작 여부를 재검증하고 필요 시 true로 전환할 것.
     json-response-format: ${NVIDIA_JSON_RESPONSE_FORMAT:false}
+    usage:
+      # false는 원장과 동의 기록만 쌓는 shadow 단계다. 출시 게이트 통과 후 API와 Worker에 함께 true로 적용한다.
+      enforcement-enabled: ${AI_USAGE_ENFORCEMENT_ENABLED:false}
+      evidence-policy-version: ${AI_EVIDENCE_POLICY_VERSION:2026-08-21}
+      consent-policy-version: ${AI_CONSENT_POLICY_VERSION:2026-08-21}
   # 사람인 access-key(비밀값)만 환경변수로 관리한다. 사용 여부/검색 키워드/개수/정렬/
   # 지역·직무·업종 코드/매칭 임계치/수집 스케줄 cron은 재배포 없이 바꿀 수 있도록
   # job_posting_setting 테이블(어드민 설정 화면, JobPostingSettingRepository)에서 관리한다.
@@ -249,6 +270,32 @@ app:
     # Git에 버전 관리되는 정적 카탈로그를 stable key 기준으로 멱등 동기화한다.
     # 긴급 시 false로 내려 기존 DB read model만 제공할 수 있다.
     import-enabled: ${EXPERIENCE_TREE_IMPORT_ENABLED:true}
+  billing:
+    # PG 계약, 약관/환불 고지, sandbox E2E와 소액 실결제 smoke gate 전에는 false를 유지한다.
+    enabled: ${BILLING_ENABLED:false}
+    reconciliation-enabled: ${BILLING_RECONCILIATION_ENABLED:false}
+    reconciliation-cron: ${BILLING_RECONCILIATION_CRON:0 */5 * * * *}
+    time-zone: ${BILLING_TIME_ZONE:Asia/Seoul}
+    renewal-enabled: ${BILLING_RENEWAL_ENABLED:false}
+    renewal-cron: ${BILLING_RENEWAL_CRON:0 */10 * * * *}
+    toss:
+      base-url: ${TOSS_PAYMENTS_BASE_URL:https://api.tosspayments.com}
+      client-key: ${TOSS_PAYMENTS_CLIENT_KEY:}
+      secret-key: ${TOSS_PAYMENTS_SECRET_KEY:}
+  secrets:
+    # none이면 BYOK/빌링키 mutation은 fail-closed 한다. local-memory는 local profile 테스트 전용이며
+    # 프로세스 재시작 시 폐기된다. 운영은 OCI Vault와 OKE workload identity 구성을 완료한 뒤 활성화한다.
+    provider: ${SECRET_PROVIDER:none}
+    name-prefix: ${SECRET_PROVIDER_NAME_PREFIX:self-intro}
+    oci:
+      region: ${SECRET_PROVIDER_OCI_REGION:ap-chuncheon-1}
+      auth-mode: ${SECRET_PROVIDER_OCI_AUTH_MODE:oke-workload-identity}
+      compartment-id: ${SECRET_PROVIDER_OCI_COMPARTMENT_ID:}
+      vault-id: ${SECRET_PROVIDER_OCI_VAULT_ID:}
+      key-id: ${SECRET_PROVIDER_OCI_KEY_ID:}
+      config-file: ${SECRET_PROVIDER_OCI_CONFIG_FILE:}
+      profile: ${SECRET_PROVIDER_OCI_PROFILE:DEFAULT}
+      recovery-days: ${SECRET_PROVIDER_OCI_RECOVERY_DAYS:7}
 
 kakao:
   # job_posting 좌표 지오코딩 1순위 provider. 비어있으면 OSM Nominatim만 쓰는데, 국내 상세 건물

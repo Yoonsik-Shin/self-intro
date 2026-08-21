@@ -58,6 +58,20 @@ app:
   runtime-role: ${APP_RUNTIME_ROLE:worker}
   worker:
     internal-token: ${INTERNAL_WORKER_TOKEN:}
+  secrets:
+    # Worker는 BYOK reference 조회만 수행한다. OCI IAM에서 secret-bundle read만 허용하고
+    # create/update/delete 권한은 API workload에만 부여한다.
+    provider: ${SECRET_PROVIDER:none}
+    name-prefix: ${SECRET_PROVIDER_NAME_PREFIX:self-intro}
+    oci:
+      region: ${SECRET_PROVIDER_OCI_REGION:ap-chuncheon-1}
+      auth-mode: ${SECRET_PROVIDER_OCI_AUTH_MODE:oke-workload-identity}
+      compartment-id: ${SECRET_PROVIDER_OCI_COMPARTMENT_ID:}
+      vault-id: ${SECRET_PROVIDER_OCI_VAULT_ID:}
+      key-id: ${SECRET_PROVIDER_OCI_KEY_ID:}
+      config-file: ${SECRET_PROVIDER_OCI_CONFIG_FILE:}
+      profile: ${SECRET_PROVIDER_OCI_PROFILE:DEFAULT}
+      recovery-days: ${SECRET_PROVIDER_OCI_RECOVERY_DAYS:7}
   maintenance-mode: ${MAINTENANCE_MODE:false}
   vector-sync:
     # 실패 payload에는 경력·학습 원문이 포함될 수 있어 DLQ에 무기한 보존하지 않는다(기본 7일).

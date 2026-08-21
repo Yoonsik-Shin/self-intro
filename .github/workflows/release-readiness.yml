@@ -1,0 +1,94 @@
+name: Release Readiness
+
+on:
+  workflow_dispatch: {}
+  pull_request:
+    branches:
+      - main
+
+permissions:
+  contents: read
+
+jobs:
+  verify-release-candidate:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Set up Java
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '21'
+          cache: gradle
+
+      - name: Verify Backend and MySQL migrations
+        working-directory: backend
+        run: ./gradlew spotlessCheck :api:test :ai-worker:test --no-daemon
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+          cache-dependency-path: frontend-next/package-lock.json
+
+      - name: Verify Frontend
+        working-directory: frontend-next
+        run: |
+          npm ci
+          npm run lint
+          npm run format:check
+          npm run build
+
+      - name: Render production manifests
+        run: |
+          kubectl kustomize deploy/k8s/overlays/prod/backend >/dev/null
+          kubectl kustomize deploy/k8s/overlays/prod/frontend >/dev/null
+
+      - name: Reject draft legal policies
+        run: |
+          if grep -E -- '-draft|운영 전 확정 필요|로컬 비공개 베타용 정책 초안' \
+            frontend-next/lib/registrationPolicies.ts \
+            frontend-next/app/policies/'[policy]'/page.tsx; then
+            echo '::error::이용약관/개인정보 처리방침의 draft 항목을 실제 운영 정보로 확정해야 합니다.'
+            exit 1
+          fi
+
+      - name: Verify production billing remains fail closed
+        run: |
+          if ! grep -F 'NEXT_PUBLIC_RELEASE_CHANNEL=PRIVATE_BETA' \
+            .github/workflows/deploy-frontend.yml; then
+            echo '::error::frontend private beta billing gate is missing.'
+            exit 1
+          fi
+          manifest="$(mktemp)"
+          kubectl kustomize deploy/k8s/overlays/prod/backend >"$manifest"
+          for expected in \
+            'SECRET_PROVIDER: none' \
+            'BILLING_ENABLED: "false"' \
+            'BILLING_RENEWAL_ENABLED: "false"' \
+            'BILLING_RECONCILIATION_ENABLED: "false"' \
+            'AI_GENERATION_ENABLED: "false"' \
+            'AI_USAGE_ENFORCEMENT_ENABLED: "false"' \
+            'REGISTRATION_EMAIL_ENABLED: "true"' \
+            'ACCOUNT_RECOVERY_EMAIL_ENABLED: "true"' \
+            'REGISTRATION_TERMS_VERSION: "2026-08-22"' \
+            'REGISTRATION_PRIVACY_VERSION: "2026-08-22"' \
+            'REGISTRATION_MARKETING_VERSION: "2026-08-22"'; do
+            if ! grep -F "  $expected" "$manifest"; then
+              echo "::error::production fail-closed setting is missing: $expected"
+              exit 1
+            fi
+          done
+          if ! grep -F -- 'name: backend-mail-secret' "$manifest"; then
+            echo '::error::production mail secret reference is missing: backend-mail-secret'
+            exit 1
+          fi
+          for secret_key in SPRING_MAIL_USERNAME SPRING_MAIL_PASSWORD; do
+            if ! grep -F -- "    $secret_key:" "$manifest"; then
+              echo "::error::production sealed mail secret key is missing: $secret_key"
+              exit 1
+            fi
+          done

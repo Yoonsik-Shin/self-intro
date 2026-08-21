@@ -19,6 +19,8 @@ import com.selfintro.SelfIntroApplication;
 import com.selfintro.bff.application.BffService;
 import com.selfintro.bff.application.IntroductionChannel;
 import com.selfintro.modules.auth.application.AppUserPrincipal;
+import com.selfintro.modules.billing.application.WorkspaceOwnershipBillingGuard;
+import com.selfintro.modules.billing.application.WorkspacePlanEntitlementService;
 import com.selfintro.modules.competency.domain.entity.Competency;
 import com.selfintro.modules.competency.domain.repository.CompetencyRepository;
 import com.selfintro.modules.identity.application.CurrentWorkspaceService;
@@ -36,6 +38,7 @@ import com.selfintro.modules.identity.domain.AppUser;
 import com.selfintro.modules.identity.domain.AppUserRepository;
 import com.selfintro.modules.identity.domain.EmailVerificationToken;
 import com.selfintro.modules.identity.domain.EmailVerificationTokenRepository;
+import com.selfintro.modules.identity.domain.MembershipStatus;
 import com.selfintro.modules.identity.domain.RegistrationInvitation;
 import com.selfintro.modules.identity.domain.RegistrationInvitationRepository;
 import com.selfintro.modules.identity.domain.UserStatus;
@@ -88,6 +91,7 @@ import org.springframework.mock.web.MockHttpSession;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.test.context.ActiveProfiles;
+import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.context.bean.override.mockito.MockitoSpyBean;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.web.bind.annotation.RequestMethod;
@@ -130,6 +134,8 @@ class SaasSecurityFoundationIntegrationTest {
     @Autowired private SecurityAuditEventRepository auditEventRepository;
     @Autowired private RequestMappingHandlerMapping requestMappingHandlerMapping;
     @MockitoSpyBean private SecurityAuditService securityAuditService;
+    @MockitoBean private WorkspacePlanEntitlementService workspacePlanEntitlementService;
+    @MockitoBean private WorkspaceOwnershipBillingGuard workspaceOwnershipBillingGuard;
     @Autowired private RegistrationInvitationRepository invitationRepository;
     @Autowired private EmailVerificationTokenRepository emailVerificationTokenRepository;
     @Autowired private InvitationRetentionService invitationRetentionService;
@@ -2366,6 +2372,26 @@ class SaasSecurityFoundationIntegrationTest {
                         event ->
                                 "AUTHORIZATION_DENIED".equals(event.getEventType())
                                         && "MEMBERSHIP_NOT_FOUND".equals(event.getReasonCode()));
+    }
+
+    @Test
+    void workspacePolicyReturnsMembershipWithUserSecurityStateLoaded() {
+        AppUser owner = appUserRepository.findByLoginId("test-owner").orElseThrow();
+        WorkspaceMember membership =
+                workspaceMemberRepository
+                        .findAllByUserIdAndStatus(owner.getId(), MembershipStatus.ACTIVE)
+                        .getFirst();
+        AppUserPrincipal principal = AppUserPrincipal.of(owner, Set.of());
+        var authentication =
+                UsernamePasswordAuthenticationToken.authenticated(
+                        principal, principal.getPassword(), principal.getAuthorities());
+
+        WorkspaceMember resolved =
+                workspaceAccessPolicy.requireAnyRole(
+                        authentication, membership.getWorkspace().getSlug(), WorkspaceRole.OWNER);
+
+        assertThat(resolved.getUser().isMfaEnabled()).isEqualTo(owner.isMfaEnabled());
+        assertThat(resolved.getWorkspace().getId()).isEqualTo(membership.getWorkspace().getId());
     }
 
     @Test

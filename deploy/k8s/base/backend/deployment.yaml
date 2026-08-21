@@ -16,6 +16,8 @@ spec:
       labels:
         app.kubernetes.io/name: self-intro-backend
     spec:
+      serviceAccountName: self-intro-api
+      automountServiceAccountToken: true
       imagePullSecrets:
         - name: ocir-pull-secret
       containers:
@@ -44,6 +46,11 @@ spec:
                 name: backend-ai-secret
             - secretRef:
                 name: backend-storage-secret
+            # 발송 flag가 false인 동안은 없어도 기동한다. stage SMTP 검증 전에 같은 이름의
+            # SealedSecret을 만들고, 검증 완료 후 config의 발송 flag를 true로 전환한다.
+            - secretRef:
+                name: backend-mail-secret
+                optional: true
             # Ko-fi 연동키 설정 (optional)
             - secretRef:
                 name: backend-kofi-secret

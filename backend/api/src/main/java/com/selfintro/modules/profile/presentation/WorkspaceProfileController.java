@@ -33,8 +33,7 @@ public class WorkspaceProfileController {
 
     @PutMapping
     public ResponseEntity<ProfileResponse> upsert(
-            @CurrentWorkspace Long workspaceId,
-            @Valid @RequestBody ProfileRequest request) {
+            @CurrentWorkspace Long workspaceId, @Valid @RequestBody ProfileRequest request) {
         return ResponseEntity.ok(ProfileResponse.from(profileService.upsert(workspaceId, request)));
     }
 }

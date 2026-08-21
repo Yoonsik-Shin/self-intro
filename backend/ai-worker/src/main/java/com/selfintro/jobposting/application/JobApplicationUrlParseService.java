@@ -333,7 +333,7 @@ public class JobApplicationUrlParseService {
 
     private JobApplicationUrlParseResponse doParse(String url) {
         long startedAt = System.nanoTime();
-        URI uri = normalizeSaraminRelayUrl(validateUrl(url));
+        URI uri = normalizeAndValidateUrl(url);
         long fetchStartedAt = System.nanoTime();
         Document document = fetchDocument(uri);
         long fetchMillis = elapsedMillis(fetchStartedAt);
@@ -1102,6 +1102,10 @@ public class JobApplicationUrlParseService {
                 pick(jobkorea.compensationDetail(), aiFallback.compensationDetail()),
                 jobkorea.postingUrl(),
                 aiFallback.additionalPositionTitles());
+    }
+
+    URI normalizeAndValidateUrl(String url) {
+        return normalizeSaraminRelayUrl(validateUrl(url));
     }
 
     private URI validateUrl(String url) {

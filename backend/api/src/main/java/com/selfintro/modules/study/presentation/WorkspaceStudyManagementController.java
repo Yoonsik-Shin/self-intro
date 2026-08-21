@@ -75,9 +75,7 @@ public class WorkspaceStudyManagementController {
     }
 
     @DeleteMapping("/{id}")
-    public ResponseEntity<Void> delete(
-            @CurrentWorkspace Long workspaceId,
-            @PathVariable Long id) {
+    public ResponseEntity<Void> delete(@CurrentWorkspace Long workspaceId, @PathVariable Long id) {
         studyService.delete(workspaceId, id);
         return ResponseEntity.noContent().build();
     }

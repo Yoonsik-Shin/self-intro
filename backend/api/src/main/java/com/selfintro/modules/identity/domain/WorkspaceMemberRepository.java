@@ -22,6 +22,7 @@ public interface WorkspaceMemberRepository extends JpaRepository<WorkspaceMember
     List<WorkspaceMember> findAllByUserIdAndStatusForUpdate(
             @Param("userId") Long userId, @Param("status") MembershipStatus status);
 
+    @EntityGraph(attributePaths = {"workspace", "user"})
     Optional<WorkspaceMember> findByWorkspaceIdAndUserIdAndStatus(
             Long workspaceId, Long userId, MembershipStatus status);
 

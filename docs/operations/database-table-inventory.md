@@ -1,6 +1,6 @@
 # Database table inventory
 
-- 최종 갱신: 2026-08-14
+- 최종 갱신: 2026-08-21
 - 검증 브랜치: `fix/saas-recovery-build-baseline`
 - 로컬 기준: Flyway V234, 애플리케이션 테이블 115개 + `flyway_schema_history` 1개
 - 목적: SaaS 전환 뒤 늘어난 테이블의 소유권과 보존·제거 기준을 한 곳에서 관리한다.
@@ -170,3 +170,24 @@ outbox event, idempotent consumer와 row count·business key·checksum reconcili
    선적용하지 않는다.
 5. ADR-006 이관은 공고·taxonomy 혼합 모델 분리와 Public/Private datasource port를 먼저 구현한 뒤
    수행하며, 현재 MySQL 개인정보 테이블을 선삭제하지 않는다.
+
+## 6. V8~V10 구독·결제·AI 원장 증분
+
+현재 checkout의 재기준선 Flyway V8/V9는 다음 테이블을 추가하고 V10은 기존 `TEAM` Workspace 유형을
+`ORGANIZATION`으로 정규화한다. 이 문서 상단의 V234 운영 inventory와
+version 숫자가 다르므로 운영 history에 직접 적용하거나 번호를 맞추기 위해 기존 migration을 수정하지
+않는다. 배포 대상 checkout을 확정한 뒤 `flyway_schema_history` resolved/applied 목록과 전체 table
+inventory를 다시 생성하고, 충돌이 있으면 새 후속 version으로 이식한다.
+
+- 구독·권리: `billing_plan`, `plan_entitlement`, `workspace_subscription`,
+  `subscription_seat_addon`
+- 결제: `billing_customer`, `billing_payment_method`, `billing_charge`, `billing_payment`,
+  `billing_webhook_event`
+- AI usage·point: `provider_price`, `ai_usage`, `ai_point_ledger`, `ai_free_session`
+- AI 처리·BYOK: `workspace_ai_processing_consent`, `workspace_ai_policy`,
+  `workspace_ai_provider_credential`
+
+결제와 AI 원장은 Workspace 일반 purge와 함께 즉시 삭제하지 않는다. Workspace FK는 가능한 영역에서
+삭제를 제한하거나 최소 메타데이터를 보존하며, 법정 보존·환불·분쟁 기간 종료 뒤 별도 purge job으로
+처리한다. billing key, payment key와 BYOK key 원문은 이 inventory의 DB 컬럼에 존재하지 않고 Secret
+Manager reference와 비가역 fingerprint만 둔다.

@@ -5,11 +5,13 @@ import com.selfintro.modules.identity.application.WorkspaceAccessPolicy;
 import com.selfintro.modules.identity.application.WorkspaceLifecycleService;
 import com.selfintro.modules.identity.application.WorkspaceLifecycleService.ClosureView;
 import com.selfintro.modules.identity.application.WorkspaceLifecycleService.LeaveView;
+import com.selfintro.modules.identity.application.WorkspaceLifecycleService.WorkspaceTypeView;
 import com.selfintro.modules.identity.application.WorkspaceLifecycleService.WorkspaceView;
 import com.selfintro.modules.identity.domain.WorkspaceMember;
 import com.selfintro.modules.identity.domain.WorkspaceRole;
 import com.selfintro.modules.identity.presentation.dto.WorkspaceClosureRequest;
 import com.selfintro.modules.identity.presentation.dto.WorkspaceNameChangeRequest;
+import com.selfintro.modules.identity.presentation.dto.WorkspaceTypeChangeRequest;
 import com.selfintro.modules.securityaudit.application.SecurityAuditService;
 import jakarta.servlet.http.HttpSession;
 import jakarta.validation.Valid;
@@ -18,6 +20,7 @@ import org.springframework.http.HttpStatus;
 import org.springframework.security.core.Authentication;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.bind.annotation.DeleteMapping;
+import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.PutMapping;
@@ -50,6 +53,37 @@ public class WorkspaceLifecycleController {
         WorkspaceView result = lifecycleService.rename(actor, request.name());
         securityAuditService.recordWorkspaceAction(
                 "WORKSPACE_RENAMED", actor.getUser().getId(), result.workspaceId());
+        return result;
+    }
+
+    @GetMapping("/settings/type")
+    public WorkspaceTypeView type(
+            Authentication authentication, @PathVariable String workspaceSlug) {
+        WorkspaceMember actor =
+                workspaceAccessPolicy.requireAnyRole(
+                        authentication,
+                        workspaceSlug,
+                        WorkspaceRole.OWNER,
+                        WorkspaceRole.ADMIN,
+                        WorkspaceRole.EDITOR,
+                        WorkspaceRole.VIEWER);
+        return lifecycleService.type(actor);
+    }
+
+    @PutMapping("/settings/type")
+    @Transactional
+    public WorkspaceTypeView changeType(
+            Authentication authentication,
+            HttpSession session,
+            @PathVariable String workspaceSlug,
+            @Valid @RequestBody WorkspaceTypeChangeRequest request) {
+        WorkspaceMember actor =
+                workspaceAccessPolicy.requireAnyRole(
+                        authentication, workspaceSlug, WorkspaceRole.OWNER);
+        reauthenticationPolicy.requireRecent(session);
+        WorkspaceTypeView result = lifecycleService.changeType(actor, request.type());
+        securityAuditService.recordWorkspaceAction(
+                "WORKSPACE_TYPE_CHANGED", actor.getUser().getId(), result.workspaceId());
         return result;
     }
 

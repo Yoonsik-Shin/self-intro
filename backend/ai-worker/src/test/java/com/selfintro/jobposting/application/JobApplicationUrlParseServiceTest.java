@@ -1,7 +1,6 @@
 package com.selfintro.jobposting.application;
 
 import static org.assertj.core.api.Assertions.assertThat;
-import static org.assertj.core.api.Assertions.assertThatCode;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyInt;
@@ -9,7 +8,6 @@ import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
-import static org.mockito.Mockito.when;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.selfintro.global.ai.NvidiaNimClient;
@@ -38,14 +36,13 @@ class JobApplicationUrlParseServiceTest {
 
     @Test
     void acceptsSaraminRelayUrl() {
-        when(nimClient.generateJsonOnce(anyString(), anyString(), anyInt(), any(Duration.class)))
-                .thenReturn("{\"companyName\":\"테스트\",\"positionTitle\":\"개발자\"}");
+        URI normalized =
+                service.normalizeAndValidateUrl(
+                        "https://www.saramin.co.kr/zf_user/jobs/relay/view?view_type=list&rec_idx=54581696#seq=0");
 
-        assertThatCode(
-                        () ->
-                                service.parse(
-                                        "https://www.saramin.co.kr/zf_user/jobs/relay/view?view_type=list&rec_idx=54581696#seq=0"))
-                .doesNotThrowAnyException();
+        assertThat(normalized)
+                .isEqualTo(
+                        URI.create("https://www.saramin.co.kr/zf_user/jobs/view?rec_idx=54581696"));
     }
 
     @Test
