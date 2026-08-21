@@ -97,8 +97,14 @@ jobs:
             echo '::error::API billing sandbox secret reference is missing: backend-billing-secret'
             exit 1
           fi
-          if [ "$(grep -cF -- 'name: backend-billing-secret' "$manifest")" -ne 1 ]; then
-            echo '::error::billing sandbox secret must be mounted only by the API deployment.'
+          if ! grep -F -- 'name: backend-billing-secret' \
+            deploy/k8s/base/backend/deployment.yaml; then
+            echo '::error::billing sandbox secret must be mounted by the API deployment.'
+            exit 1
+          fi
+          if grep -F -- 'name: backend-billing-secret' \
+            deploy/k8s/base/backend/deployment-worker.yaml; then
+            echo '::error::billing sandbox secret must not be mounted by the worker deployment.'
             exit 1
           fi
           for secret_key in SPRING_MAIL_USERNAME SPRING_MAIL_PASSWORD; do
