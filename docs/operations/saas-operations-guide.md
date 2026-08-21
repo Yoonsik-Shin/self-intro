@@ -2961,8 +2961,8 @@ OCI 서비스 로그는 root 로그 그룹 `self-intro-email-delivery`에 30일 
 의도한 모니터링 단계인 `p=none`으로 표시됐다. 테스트에만 사용한 사용자, 확인 token, 동의, 초대 데이터는
 검증 직후 삭제했다. 이 결과는 로컬 자격증명과 DNS 인증 경로의 검증이며 stage·운영 배포 완료를 뜻하지
 않는다. 같은 날 운영용 `backend-mail-secret` SealedSecret을 생성하고 두 email enable flag를 `true`로
-변경했으며 production manifest 렌더링으로 secret 참조를 확인했다. 아직 Git commit·배포·운영 수신 smoke는
-수행하지 않았다.
+변경했으며 production manifest 렌더링으로 secret 참조를 확인했다. 해당 변경은 `7ae9d61b`에 커밋했지만
+아직 원격 push·운영 배포·운영 수신 smoke는 수행하지 않았다.
 
 ### 15.34 비공개 베타 release channel과 운영 메모리 보강
 
@@ -3011,5 +3011,8 @@ flag를 구분한다. release-readiness는 production manifest에서 AI 호출, 
 
 검증 중 `application.yml`의 중복 `app.ai` key로 Spring context가 시작되지 않는 문제를 발견했고,
 기존 `app.ai` 아래에 `generation-enabled`를 통합한 뒤 집중 테스트와 전체 테스트를 다시 통과했다.
-이 항목은 로컬 배포 후보 검증 기록이며 아직 Git commit·push·CI·운영 rollout·운영 수신 smoke 완료를
-뜻하지 않는다.
+배포 후보는 `7ae9d61b`(SaaS backend), `a6395103`(private beta web), `bc310d57`(release gate) 세
+커밋으로 분리했다. 커밋 후에도 backend 전체 gate와 frontend lint·format·production build를 다시
+통과했다. `main` push는 API·Worker·Frontend 운영 배포 workflow를 즉시 실행하므로 외부 배포 승인 전에는
+push하지 않는다. 이 항목은 로컬 배포 후보 검증 기록이며 아직 원격 push·CI·운영 rollout·운영 수신
+smoke 완료를 뜻하지 않는다.
