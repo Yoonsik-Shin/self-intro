@@ -3401,3 +3401,13 @@ limit은 유지하면서 CPU request만 Cluster Autoscaler `100m -> 25m`, Tempo 
 조정했다. 이 변경은 새 node나 유료 리소스를 만들지 않으며, OKE 시스템 DaemonSet을 위한 secondary
 75m와 burst 30m의 scheduler 여유를 확보한다. 운영 검증은 관련 DaemonSet 3/3 Ready, Pending Pod 0개,
 monitoring Argo CD Healthy/Synced, API·Worker Ready와 Tempo scrape `UP`을 모두 확인해야 완료로 판정한다.
+
+2026-08-22 운영 반영 후 OKE observability agent, node problem detector, Grafana Alloy가 모두 3/3
+Ready이고 Pending Pod는 0개임을 확인했다. Self-Intro의 모든 Deployment는 desired/ready/updated/
+available 1/1이며 API·Worker·Tempo·Prometheus의 재시작은 0회다. Argo CD의 전체 애플리케이션은
+Healthy/Synced이고 Prometheus의 Tempo target은 `up=1`이다. 외부 경로는 API health와 readiness가
+`UP`, 서비스 홈이 HTTP 200, Grafana가 인증 화면으로 이동하는 HTTP 302를 반환했다. Tempo 교체 중
+기존 block volume 분리·재연결로 일시적인 Multi-Attach 이벤트가 있었으나 데이터 삭제 없이 1/1로
+복구됐다. 새 Cluster Autoscaler Pod는 leader lease를 획득했고 OCI IAM의 403·Forbidden·Unauthorized
+오류가 없다. autoscaler 관리 대상이 아닌 primary·secondary fixed pool의 `node pool not found for
+instance` 경고는 예상 동작이며 burst pool만 확장 대상으로 관리한다.
