@@ -3441,3 +3441,9 @@ kube-state-metrics는 전체 라벨이 아니라 `nodes=[self-intro.io/node-role
 대시보드의 `primary · <node IP>`, `secondary · <node IP>`, `burst · <node IP>` 범례를 기준으로 한다.
 burst pool이 0대인 평상시에는 primary와 secondary만 표시되는 것이 정상이다. 이 변경은 기존 메트릭의
 표시 이름만 보강하며 별도의 OCI 리소스나 추가 비용을 만들지 않는다.
+
+2026-08-22 운영 검증에서 `kube_node_labels{label_self_intro_io_node_role!=""}`는
+`secondary=10.0.20.235`, `primary=10.0.20.254` 두 시계열을 반환했고, CPU 사용률 조인 쿼리도 같은
+역할 라벨을 유지했다. Grafana Pod의 프로비저닝 경로에는 역할 범례가 포함된 새 JSON이 반영됐으며,
+Grafana API health의 database는 `ok`, Prometheus readiness는 `Ready`, 관련 Pod 재시작 횟수는 모두
+0이었다. Argo CD `self-intro-monitoring`은 커밋 `0fcbb184`에서 `Synced/Healthy`로 확인됐다.
