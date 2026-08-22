@@ -48,6 +48,7 @@ import {
     Settings,
     SlidersHorizontal,
     CreditCard,
+    Cloud,
 } from 'lucide-react';
 import { systemStatusApi } from '@/lib/api';
 import { isPlatformOwnerPreview } from '@/lib/privateBetaPreview';
@@ -758,6 +759,8 @@ export function AdminDashboardShell({ workspaceSlug }: { workspaceSlug: string }
     const tossPaymentsApiLogUrl =
         process.env.NEXT_PUBLIC_TOSS_PAYMENTS_API_LOG_URL ||
         'https://developers.tosspayments.com/my/api-logs';
+    const cloudflareDashboardUrl =
+        process.env.NEXT_PUBLIC_CLOUDFLARE_DASHBOARD_URL || 'https://dash.cloudflare.com/';
 
     // 미리보기를 도킹했을 때 사이드바/admin 콘텐츠를 침범하지 않는 최대 폭.
     const previewMaxAllowedWidth = Math.min(
@@ -936,6 +939,12 @@ export function AdminDashboardShell({ workspaceSlug }: { workspaceSlug: string }
                                             href: tossPaymentsApiLogUrl,
                                             icon: CreditCard,
                                             color: 'text-blue-500',
+                                        },
+                                        {
+                                            label: 'Cloudflare',
+                                            href: cloudflareDashboardUrl,
+                                            icon: Cloud,
+                                            color: 'text-orange-500',
                                         },
                                     ].map((tool) => {
                                         const Icon = tool.icon;
@@ -1136,14 +1145,13 @@ export function AdminDashboardShell({ workspaceSlug }: { workspaceSlug: string }
                 </div>
             </header>
 
-            {IS_PRIVATE_BETA && (
+            {IS_PRIVATE_BETA && !platformOwnerPreviewEnabled && (
                 <div
                     role="status"
                     className="shrink-0 border-b border-amber-200 bg-amber-50 px-4 py-2 text-xs font-semibold text-amber-950"
                 >
-                    {platformOwnerPreviewEnabled
-                        ? 'PLATFORM_OWNER 전용 샌드박스입니다. 이 Workspace에서만 AI·내 AI API 키 연결·테스트 결제를 검증할 수 있습니다.'
-                        : '비공개 베타에서는 외부 AI 처리를 일시 중지했습니다. 기록·편집·공개 기능은 그대로 이용할 수 있습니다.'}
+                    비공개 베타에서는 외부 AI 처리를 일시 중지했습니다. 기록·편집·공개 기능은 그대로
+                    이용할 수 있습니다.
                 </div>
             )}
 
