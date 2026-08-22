@@ -18,12 +18,21 @@ spec:
     spec:
       serviceAccountName: self-intro-worker
       automountServiceAccountToken: true
+      securityContext:
+        seccompProfile:
+          type: RuntimeDefault
       imagePullSecrets:
         - name: ocir-pull-secret
       containers:
         - name: backend-worker
           image: self-intro-backend-worker
           imagePullPolicy: IfNotPresent
+          securityContext:
+            allowPrivilegeEscalation: false
+            runAsNonRoot: true
+            capabilities:
+              drop:
+                - ALL
           ports:
             - name: grpc
               containerPort: 9090

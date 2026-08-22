@@ -28,6 +28,7 @@ public class AuthService {
     private final AuthenticationManager authenticationManager;
     private final AppUserRepository appUserRepository;
     private final PasswordEncoder passwordEncoder;
+    private final PasswordHashUpgradeService passwordHashUpgradeService;
     private final SecurityContextRepository securityContextRepository;
     private final SessionSecurityService sessionSecurityService;
     private final MfaService mfaService;
@@ -70,6 +71,7 @@ public class AuthService {
                 throw exception;
             }
             sessionSecurityService.prepareForLogin(principal);
+            passwordHashUpgradeService.upgradeIfNeeded(principal.userId(), password);
         }
 
         // This endpoint authenticates manually instead of using Spring Security's form-login
@@ -123,6 +125,7 @@ public class AuthService {
             if (!passwordEncoder.matches(password, user.getPasswordHash())) {
                 throw new BadCredentialsException("Invalid credentials");
             }
+            passwordHashUpgradeService.upgradeIfNeeded(principal.userId(), password);
         } catch (AuthenticationException exception) {
             audit(
                     "REAUTHENTICATION_FAILURE",

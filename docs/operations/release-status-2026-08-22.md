@@ -43,13 +43,15 @@
 | 운영 Secret | `backend-mail-secret` SealedSecret과 Deployment secret 참조 구성 | 운영 적용 완료, Git에는 암호문만 저장 |
 | 가입·복구 메일 | production manifest에서 가입 확인·계정 복구 메일 flag 활성화 | 운영 적용 완료, 실제 수신 smoke 필요 |
 | 비공개 베타 UI | 일반 사용자는 실제 가격·결제·사용자 제공 AI API 키를 숨기고 `베타 기간 무료` 표시 | 운영 적용 완료 |
-| 운영자 preview | `PLATFORM_OWNER`와 지정 Workspace가 모두 일치할 때만 Toss 샌드박스·사용자 제공 AI API 키 노출 | 배포 검증 중 |
+| 운영자 preview | `PLATFORM_OWNER`와 지정 Workspace가 모두 일치할 때만 Toss 샌드박스·사용자 제공 AI API 키 노출 | 운영 배포·검증 완료 |
 | 결제·AI 차단 | 전역 flag는 비활성화하고 preview 요청만 서버·UI에서 정확히 예외 처리 | 일반 사용자 fail closed |
 | 정책 | 이용약관·개인정보·마케팅 동의 version을 `2026-08-22`로 일치 | 비공개 베타 기준 확정 |
 | 메모리 안정화 | Tempo와 Oracle exporter의 메모리 request/limit 보강 | 운영 적용 완료, 24시간 관찰 중 |
 | 복구·릴리스 gate | backend, Worker, frontend, manifest, recovery evidence 자동 검사 | PR 필수 검사 통과 |
 | 보안 검사 | OCI OCID 공개 형식 문자열의 GitGuardian 오탐을 확인하고 안전한 상수 표현으로 수정 | 최종 검사 통과 |
 | 프런트 재현성 | npm 10 기준 lockfile을 동기화하고 CI `npm ci` 실패를 해결 | 최종 빌드 통과 |
+| 비밀번호 해시 | 신규 비밀번호는 Argon2id(`m=19 MiB`, `t=2`, `p=1`)로 저장하고 기존 BCrypt는 성공 인증 시 점진 재해시 | 코드·회귀 테스트 완료, 운영 rollout 전 |
+| Pod·네트워크 경계 | API·Worker에 non-root, RuntimeDefault seccomp, capability 전체 제거와 ingress NetworkPolicy 적용 | manifest render·전체 테스트 완료, 운영 rollout 전 |
 
 구현 또는 정책 문서가 존재한다는 사실만으로 정식 운영 활성화를 의미하지 않는다. Toss 테스트 결제와
 OCI Vault 사용자 제공 AI API 키는 지정 운영자 preview에만 사용한다. Workspace DEK, 내부 mTLS와 WORM 감사는 후속 보안
@@ -171,11 +173,12 @@ release gate의 billing Secret 소비자 검증은 `a60fc315`에서 API Deployme
 - `PLATFORM_OWNER`와 정확한 Workspace allowlist의 서버·UI 이중 preview gate
 - API 전용 Toss SealedSecret과 Worker secret 비주입
 
-Workspace DEK, 내부 mTLS와 WORM 감사는 ADR-008의 후속 보안 강화 항목이다. 이는 현재 유료 기능 코드의
-완성도를 낮춰 표시하기 위한 항목이 아니라 별도 보안 roadmap이며, 실제 도입 시 migration·복구 rehearsal을
-거쳐야 한다.
+Argon2id 점진 전환과 Pod·NetworkPolicy 기본 강화는 구현·검증을 마쳤다. Workspace DEK, 내부 mTLS,
+WORM 감사와 외부 목적지 egress 통제는 ADR-008의 후속 보안 강화 항목이며 실제 도입 시
+migration·복구 rehearsal과 비용 승인을 거쳐야 한다.
 
-계약 없이 준비 가능한 정식 유료 서비스 코드·인프라는 **100%**다. 다만 사업자등록, PG 라이브 계약·심사,
+계약 없이 준비 가능한 정식 유료 서비스 코드·인프라는 현재 **75%**다. 이미 구현된 구독·결제·AI 원장과
+Vault·샌드박스 경계는 유지되지만 위 보안 항목을 마치기 전에는 100%로 표시하지 않는다. 사업자등록, PG 라이브 계약·심사,
 법률·세무 검토, 외부 AI 처리 조건과 운영 요율 확정은 코드로 대체할 수 없으므로 **현재 일반 사용자 대상
 유료 서비스 활성화는 불가**하다. 상세 실행 순서와 완료 증거는 [출시 전 체크리스트](pre-launch-checklist.md)에
 기록한다.
@@ -192,6 +195,8 @@ Workspace DEK, 내부 mTLS와 WORM 감사는 ADR-008의 후속 보안 강화 항
 | 6 | 비공개 베타 초대와 피드백 운영 | 사용자 | 시작 가능 |
 | 7 | 사업자·PG·법률·AI Provider 계약 준비 | 사용자 | 정식 출시 전 필수 |
 | 8 | Vault·샌드박스·사용자 제공 AI API 키 지정 Workspace preview | Codex | 구현·검증·배포 완료 |
+| 9 | Argon2id 점진 재해시와 Pod·NetworkPolicy 강화 | Codex | 구현·검증 완료, 배포 예정 |
+| 10 | Workspace DEK·내부 mTLS·WORM·egress 강화 | Codex 구현 + 사용자 비용·보존 잠금 승인 | 비용 승인 전 대기 |
 
 현재 비공개 베타와 지정 owner preview는 **배포 가능하며 운영 배포와 1차 안정화 검증까지 완료**했다.
 필수 사용자 작업은 없다. 다음 단계는 실제 베타 초대 운영이며, 가입 확인·계정 복구 메일의 링크 host와

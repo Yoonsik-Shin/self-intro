@@ -1,0 +1,28 @@
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: self-intro-backend-ingress
+spec:
+  podSelector:
+    matchExpressions:
+      - key: app.kubernetes.io/name
+        operator: In
+        values:
+          - self-intro-backend
+          - self-intro-backend-worker
+  policyTypes:
+    - Ingress
+  ingress:
+    # API/worker, Prometheus, Redis/RabbitMQ clients 등 동일 namespace의 내부 통신.
+    - from:
+        - podSelector: {}
+    # 공개/BFF 및 worker 운영 경로를 전달하는 ingress-nginx controller.
+    - from:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: ingress-nginx
+      ports:
+        - protocol: TCP
+          port: 8080
+        - protocol: TCP
+          port: 8081

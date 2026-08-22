@@ -6,5 +6,6 @@ resources:
   - service-account-worker.yaml
   - deployment.yaml
   - deployment-worker.yaml
+  - network-policy.yaml
   - service.yaml
   - service-worker.yaml

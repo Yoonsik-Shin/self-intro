@@ -25,7 +25,8 @@ usage/point 원장, 결제 경계, Evidence Packet envelope, 중앙 Provider Rou
 Manager reference가 구현됐다. 운영의 전역 `BILLING_ENABLED`, `BILLING_RENEWAL_ENABLED`,
 `BILLING_RECONCILIATION_ENABLED`, `AI_USAGE_ENFORCEMENT_ENABLED`는 계속 `false`다. 단,
 `PLATFORM_OWNER`이면서 명시적으로 허용한 테스트 Workspace인 경우에만 서버와 화면이 결제·AI·사용자 제공 AI API 키
-preview를 연다. Workspace DEK, Argon2id 전환과 WORM 감사는 후속 보안 강화 항목이며 현재 기능으로
+preview를 연다. 신규 비밀번호의 Argon2id 저장과 기존 BCrypt의 성공 인증 시 점진 재해시는 구현됐다.
+Workspace DEK, 내부 mTLS, WORM 감사와 외부 목적지 egress 통제는 후속 보안 강화 항목이며 현재 기능으로
 간주하지 않는다.
 법정 보존기간은 ADR-008의 승인 기본값을 사용하되 정식 출시 전 법률·세무·PG 검토 결과가 더 엄격하면
 그 기준을 우선한다.
@@ -3160,3 +3161,29 @@ Pod Ready/restart, 외부 health·readiness와 오류 로그를 다시 확인한
 Deployment secret 소비자, SealedSecret 동기화와 외부 endpoint를 각각 독립적으로 확인했다. 계정 화면의
 수동 탐색은 기능 배포의 필수 조건이 아닌 선택적 운영 smoke이며, 결제 승인이나 사용자 제공 AI API 키 저장처럼 상태를
 바꾸는 작업은 별도 테스트 거래로 수행한다.
+
+### 15.51 Argon2id 점진 전환과 Kubernetes 기본 보안 강화
+
+신규 비밀번호는 `{argon2id}` prefix와 함께 `m=19 MiB`, `t=2`, `p=1`, salt 16 byte, hash 32 byte로
+저장한다. 기존 prefix 없는 BCrypt hash는 계속 검증하며 로그인 MFA 완료 또는 비밀번호 재확인이 성공한
+경우에만 같은 평문을 Argon2id로 다시 해시한다. 실패 인증과 MFA 미완료 상태에서는 DB를 변경하지 않는다.
+
+API와 Worker Pod에는 `RuntimeDefault` seccomp, `runAsNonRoot`, `allowPrivilegeEscalation=false`, Linux
+capability `ALL` 제거를 적용한다. NetworkPolicy는 API·Worker의 ingress를 기본 차단하고 같은 namespace와
+`ingress-nginx` namespace에서 오는 API 포트만 허용한다. Worker는 외부 Ingress에서 직접 접근할 수 없다.
+OCI Vault, AI Provider와 외부 결제 API는 FQDN과 동적 주소를 사용하므로 egress 기본 차단은 현재 rollout에
+포함하지 않는다. CNI가 FQDN policy 또는 검증된 egress proxy를 제공한 뒤 별도 단계로 적용한다.
+
+`readOnlyRootFilesystem`도 이번 rollout에서는 적용하지 않는다. Playwright 브라우저, 임시 파일과 기존 로그
+경로를 먼저 쓰기 가능 volume으로 분리하지 않으면 PDF·브라우저 작업이 실패할 수 있기 때문이다.
+
+검증 명령은 다음과 같다.
+
+```bash
+./gradlew :api:test :ai-worker:test
+kubectl kustomize deploy/k8s/overlays/prod/backend >/tmp/self-intro-prod-backend.yaml
+```
+
+단위·통합 테스트와 production manifest render가 모두 성공해야 한다. 이 강화는 새 OCI 유료 리소스를
+생성하지 않으며 기존 Pod의 Argon2 연산에 따른 CPU·메모리 사용량만 소폭 증가한다. 운영 rollout 후 로그인
+응답시간, 인증 실패율, Pod restart와 OOM을 확인하고 필요하면 Argon2 매개변수 상향을 별도 부하 시험한다.

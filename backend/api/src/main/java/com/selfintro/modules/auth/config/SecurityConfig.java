@@ -4,6 +4,8 @@ import jakarta.servlet.DispatcherType;
 import jakarta.servlet.http.HttpServletResponse;
 import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
+import java.util.HashMap;
+import java.util.Map;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.web.servlet.FilterRegistrationBean;
@@ -16,7 +18,9 @@ import org.springframework.security.config.annotation.authentication.configurati
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity;
 import org.springframework.security.config.http.SessionCreationPolicy;
+import org.springframework.security.crypto.argon2.Argon2PasswordEncoder;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
+import org.springframework.security.crypto.password.DelegatingPasswordEncoder;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.security.web.authentication.www.BasicAuthenticationFilter;
@@ -33,7 +37,17 @@ public class SecurityConfig {
 
     @Bean
     public PasswordEncoder passwordEncoder() {
-        return new BCryptPasswordEncoder();
+        BCryptPasswordEncoder bcrypt = new BCryptPasswordEncoder();
+        Argon2PasswordEncoder argon2id = new Argon2PasswordEncoder(16, 32, 1, 19 * 1024, 2);
+        Map<String, PasswordEncoder> encoders = new HashMap<>();
+        encoders.put("argon2id", argon2id);
+        encoders.put("bcrypt", bcrypt);
+
+        DelegatingPasswordEncoder delegating = new DelegatingPasswordEncoder("argon2id", encoders);
+        // 기존 데이터에는 {bcrypt} 접두사가 없다. 매칭은 계속 허용하되, 성공한 인증은
+        // PasswordHashUpgradeService가 {argon2id} 형식으로 점진 전환한다.
+        delegating.setDefaultPasswordEncoderForMatches(bcrypt);
+        return delegating;
     }
 
     @Bean
