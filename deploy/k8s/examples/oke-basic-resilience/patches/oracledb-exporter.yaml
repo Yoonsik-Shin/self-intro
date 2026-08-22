@@ -1,0 +1,23 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: oracledb-exporter
+spec:
+  template:
+    spec:
+      priorityClassName: self-intro-deferrable
+      affinity:
+        nodeAffinity:
+          requiredDuringSchedulingIgnoredDuringExecution:
+            nodeSelectorTerms:
+              - matchExpressions:
+                  - key: self-intro.io/node-role
+                    operator: In
+                    values: [primary, burst]
+          preferredDuringSchedulingIgnoredDuringExecution:
+            - weight: 100
+              preference:
+                matchExpressions:
+                  - key: self-intro.io/node-role
+                    operator: In
+                    values: [primary]

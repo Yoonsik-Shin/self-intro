@@ -1,0 +1,26 @@
+apiVersion: scheduling.k8s.io/v1
+kind: PriorityClass
+metadata:
+  name: self-intro-critical
+value: 100000
+preemptionPolicy: PreemptLowerPriority
+globalDefault: false
+description: "Public route, authentication, payment preview, Redis and RabbitMQ"
+---
+apiVersion: scheduling.k8s.io/v1
+kind: PriorityClass
+metadata:
+  name: self-intro-supporting
+value: 200000
+preemptionPolicy: PreemptLowerPriority
+globalDefault: false
+description: "Autoscaling and cluster supporting workloads that must survive application preemption"
+---
+apiVersion: scheduling.k8s.io/v1
+kind: PriorityClass
+metadata:
+  name: self-intro-deferrable
+value: 10000
+preemptionPolicy: Never
+globalDefault: false
+description: "Worker, tracing, metrics dashboards and exporters"

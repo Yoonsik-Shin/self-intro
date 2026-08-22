@@ -220,6 +220,21 @@ Vault·샌드박스 경계는 유지되지만 위 보안 항목을 마치기 전
 | 9 | Argon2id 점진 재해시와 Pod·NetworkPolicy 강화 | Codex | 구현·검증·운영 배포 완료 |
 | 10 | Workspace DEK·내부 mTLS·WORM·egress 강화 | Codex 구현 + 사용자 비용·보존 잠금 승인 | 비용 승인 전 대기 |
 
+## 6. OKE 복원력 후속 준비 상태
+
+비공개 베타 애플리케이션 배포 완료도는 기존과 같이 100%다. 다만 단일 노드 장애와 트래픽 증가를
+자동으로 흡수하는 인프라 복원력은 별도 작업이며 현재 **설계·적용 전 manifest 준비 완료, 운영 미적용**이다.
+`deploy/k8s/examples/oke-basic-resilience/`는 production Kustomization에 연결되지 않으므로 현재 운영
+동작과 비용을 바꾸지 않는다.
+
+최신 OCI 공식 단가와 이 테넌시의 A1 무료 공제 실청구 확인, 월 2만원 상한 구성의 사용자 승인은
+완료했다. self-intro compartment에는 17 SGD Budget과 forecast 70%, actual 85%, actual 100% 경보가
+ACTIVE다. 그러나 live primary가 목표 2/8이 아닌 2 OCPU/12GB이고, secondary boot volume과 기존 Registry
+비용까지 합산하면 즉시 node를 추가할 때 상한을 넘길 가능성이 있다. 따라서 node pool은 생성하지 않았다.
+다음 단계는 primary 2/8 축소의 별도 변경 승인과 Ready·route 검증이다. 그 뒤 fixed-secondary, burst,
+Metrics Server, Cluster Autoscaler, scheduling policy, HPA 순으로 적용하고 primary drain과
+`burst 0 -> 1 -> 0` rehearsal를 통과해야 복원력 완료로 표시한다.
+
 현재 비공개 베타와 지정 owner preview는 **배포 가능하며 운영 배포와 1차 안정화 검증까지 완료**했다.
 필수 사용자 작업은 없다. 다음 단계는 실제 베타 초대 운영이며, 가입 확인·계정 복구 메일의 링크 host와
 인증 헤더 확인 및 24시간 restart·OOM·trace·scrape 확인은 배포 후 관찰 항목으로 계속 추적한다.

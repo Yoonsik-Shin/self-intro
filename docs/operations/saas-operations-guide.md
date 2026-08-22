@@ -3338,3 +3338,38 @@ CPU 확보를 위해 일시 중지한 뒤 replica 1로 복원했다. inventory �
 이 완료 판정은 SMTP username/password에만 적용한다. DB, MFA, 결제, 플랫폼 AI, Storage, Worker token은
 여전히 기존 SealedSecret 경로를 사용한다. 다음 그룹을 이전할 때는 이 결과를 자동 승인으로 간주하지 않고
 별도 비용·회전·rollback 검토를 다시 수행한다.
+
+### 15.56 OKE Basic 저비용 복원력·오토스케일링 준비
+
+2026-08-22 단일 노드의 Pod 상한과 배포 surge 부족을 완화하기 위해 OKE Enhanced 없이 사용할 저비용
+전환안을 준비했다. 이 변경은 설계·예제 manifest만 추가한 것이며 OCI node pool, Metrics Server,
+Cluster Autoscaler, HPA를 production에 활성화하지 않았다.
+
+목표 구조는 fixed-primary A1 2 OCPU/8GB 1대, fixed-secondary A1 1 OCPU/4GB 1대, 평상시 0대인
+burst A1 1 OCPU/4GB node pool이다. 두 고정 pool은 autoscaler에서 제외하고 burst pool만 `0..1`로
+관리한다. HPA가 API·frontend Pod를 최대 2개로 확장하고, 이 Pod가 request 부족으로 Pending일 때에만
+Cluster Autoscaler가 burst를 증설한다. Metrics Server가 없으면 HPA가 동작하지 않으며 Cluster
+Autoscaler만으로는 트래픽 증가를 감지할 수 없다.
+
+장애 복구와 트래픽 확장을 구분한다. primary 장애 시 Deployment가 API·frontend·Redis·RabbitMQ를
+secondary에 우선 재배치하고, 부족한 request는 burst가 수용한다. Worker·Tempo·Prometheus·Loki·Grafana·
+exporter는 축소 운영 중 중지할 수 있다. Cluster Autoscaler는 node health를 복구하지 않고 Pending Pod를
+위한 capacity만 추가하며 새 node 준비에는 최대 수십 분이 걸릴 수 있으므로 무중단 구성이 아니다.
+
+적용 전 예제는 `deploy/k8s/examples/oke-basic-resilience/`, 전체 비용·장애 레벨·적용·rollback 절차는
+`docs/operations/oke-basic-resilience-plan.md`에 기록했다. 현재 production overlay는 이 예제를 참조하지
+않는다. 2026-08-22 Usage API에서 춘천 A1 CPU·메모리 계산 금액 0 SGD와 공식 단가를 확인했다. 사용자는
+월 2만원 상한, fixed-secondary A1 1/4, burst A1 1/4 `0..1`과 비용 중단 기준을 승인했다. self-intro
+compartment에는 17 SGD Budget과 forecast 70%, actual 85%, actual 100% 경보를 만들고 모두 ACTIVE임을
+확인했다. Budget 경보는 리소스를 자동 중지하지 않는다.
+
+live primary는 아직 2 OCPU/12GB이며 boot 47GB와 세 개의 50GB block volume으로 197GB를 사용한다.
+secondary의 기본 50GB boot volume과 기존 Container Image Storage 비용을 합치면 승인된 상한을 넘길
+가능성이 있으므로 node pool은 생성하지 않았다. primary를 목표 2 OCPU/8GB로 축소하는 별도 변경을
+승인·적용하고 Ready·route를 확인한 뒤에만 node pool을 생성한다. label보다 scheduling patch를 먼저
+적용하면 현행 node에서 모든 Pod가 Pending이 될 수 있으므로 문서 순서를 바꾸지 않는다.
+
+이 cluster는 OKE Basic이므로 managed node cycling으로 기존 primary를 갱신할 수 없다. 축소 승인을 받은
+뒤 fixed-secondary와 일시적인 burst를 먼저 Ready로 만들고, primary pool의 신규 shape config를 2/8로
+바꾼 다음 기존 primary를 cordon·drain·수동 교체한다. RWO volume detach/attach와 공개 route를 확인하며,
+실패 시 신규 primary 교체를 중단하고 기존 workload 복구를 우선한다.

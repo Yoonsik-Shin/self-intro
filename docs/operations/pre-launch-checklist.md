@@ -250,3 +250,20 @@ flag를 모두 `false`로 유지한다. 단, `PLATFORM_OWNER_PREVIEW_ENABLED=tru
   플랫폼 AI를 연다면 초대 인원과 운영 한도를 작게 시작하고 Provider 사용량·실패율·예상 비용을 매일
   확인한다. 베타 무료 제공을 월 포함 point 또는 구매 point로 표시하거나 유료 전환 때 승계한다고
   약속하지 않는다.
+
+### OKE Basic 복원력 활성화 전 확인
+
+- 현재 비공개 베타 배포는 가능하지만 단일 노드 장애 내성은 별도 개선 항목이다. 적용 전 예제는
+  `deploy/k8s/examples/oke-basic-resilience/`에 있으며 production overlay에는 연결하지 않는다.
+- fixed-primary와 fixed-secondary는 autoscaler 대상에서 제외하고 burst pool만 `min=0`, `max=1`로
+  관리한다. Cluster Autoscaler가 Pod를 만들거나 트래픽을 감지한다고 간주하지 않는다.
+- Metrics Server, API·frontend HPA, 2 replica Cluster Autoscaler를 먼저 검증한다. Worker는 queue 기반
+  adapter 없이 CPU HPA를 적용하지 않는다.
+- 2026-08-22 월 2만원 상한, fixed-secondary A1 1/4, burst A1 1/4 `0..1` 구성을 승인받았다.
+  self-intro compartment에 17 SGD Budget과 forecast 70%, actual 85%, actual 100% 경보를 생성해 모두
+  ACTIVE임을 확인했다. Budget은 자동 차단이 아니므로 운영 중단 절차를 별도로 유지한다.
+- live primary는 아직 2 OCPU/12GB다. 추가 boot volume과 기존 Registry 비용까지 합치면 secondary를 바로
+  생성할 때 상한을 넘길 가능성이 있으므로 primary를 2 OCPU/8GB로 축소하고 Ready·route 검증을 통과하기
+  전에는 node pool을 생성하지 않는다.
+- primary drain 중 핵심 route의 축소 운영, burst `0 -> 1 -> 0`, rollback rehearsal가 모두 끝나기 전에는
+  무중단 또는 자동 복구 완료로 표시하지 않는다.

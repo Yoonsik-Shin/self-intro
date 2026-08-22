@@ -1,0 +1,29 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: self-intro-backend
+spec:
+  template:
+    spec:
+      priorityClassName: self-intro-critical
+      affinity:
+        nodeAffinity:
+          requiredDuringSchedulingIgnoredDuringExecution:
+            nodeSelectorTerms:
+              - matchExpressions:
+                  - key: self-intro.io/node-role
+                    operator: In
+                    values: [primary, secondary, burst]
+          preferredDuringSchedulingIgnoredDuringExecution:
+            - weight: 100
+              preference:
+                matchExpressions:
+                  - key: self-intro.io/node-role
+                    operator: In
+                    values: [primary]
+            - weight: 50
+              preference:
+                matchExpressions:
+                  - key: self-intro.io/node-role
+                    operator: In
+                    values: [secondary]
