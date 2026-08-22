@@ -22,15 +22,19 @@ FROM eclipse-temurin:21-jre-jammy
 
 WORKDIR /app
 
+ARG APP_UID=10001
+ARG APP_GID=10001
+
 RUN apt-get update \
     && rm -rf /var/lib/apt/lists/* \
-    && groupadd -r spring && useradd -r -g spring spring \
+    && groupadd --gid "${APP_GID}" spring \
+    && useradd --uid "${APP_UID}" --gid spring --no-create-home --shell /usr/sbin/nologin spring \
     && mkdir -p /app/logs \
     && chown -R spring:spring /app
 
 COPY --from=builder /app/api/build/libs/*.jar app.jar
 
-USER spring:spring
+USER 10001:10001
 
 EXPOSE 8080
 
