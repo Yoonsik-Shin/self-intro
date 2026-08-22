@@ -3447,3 +3447,39 @@ burst pool이 0대인 평상시에는 primary와 secondary만 표시되는 것�
 역할 라벨을 유지했다. Grafana Pod의 프로비저닝 경로에는 역할 범례가 포함된 새 JSON이 반영됐으며,
 Grafana API health의 database는 `ok`, Prometheus readiness는 `Ready`, 관련 Pod 재시작 횟수는 모두
 0이었다. Argo CD `self-intro-monitoring`은 커밋 `0fcbb184`에서 `Synced/Healthy`로 확인됐다.
+
+### 15.57 Java API·Worker 부하별 메모리 추세와 노드 메모리 경보
+
+Grafana의 `[App] Spring Boot API & Worker Metrics` 대시보드에 cAdvisor 기반 Java API·Worker
+working set과 CPU core 사용 추세를 추가했다. JVM metric이 누락되더라도 Pod가 실제 점유하는 메모리를
+관찰할 수 있도록 `container_memory_working_set_bytes`를 사용하고, 부하와의 상관관계는
+`container_cpu_usage_seconds_total` 증가율과 RabbitMQ ready message 수를 함께 표시한다. 따라서
+트래픽·비동기 작업 증가 시 API와 Worker 중 어느 쪽의 메모리가 함께 증가하는지 동일 시간축에서 확인할
+수 있다.
+
+Prometheus에는 다음 두 경보를 추가했다.
+
+- `SelfIntroNodeMemoryAvailableLow`: `MemAvailable < 700 MiB`가 10분 지속되면 `critical`
+- `SelfIntroNodeMemoryUsageHigh`: 메모리 사용률이 85% 이상으로 10분 지속되면 `warning`
+
+두 경보는 node-exporter의 `MemAvailable`·`MemTotal`을 사용한다. 순간적인 배포 spike로 경보가
+발생하지 않도록 모두 10분 지속 조건을 적용하며, 별도 OCI 리소스를 만들지 않으므로 추가 비용은 없다.
+
+`self-intro.io/node-role`은 특정 애플리케이션의 영구 소유권이 아니라 scheduler 선호도와 저비용 장애
+복구 경로를 나타낸다. API와 Worker를 서로 다른 fixed node에 배치하면 한 노드 장애 시 두 Java 처리
+계층을 동시에 잃는 위험을 줄일 수 있다. 따라서 중요한 Pod를 primary 한 대에 모두 고정하지 않는다.
+preferred node affinity는 가능한 경우 primary, 다음으로 secondary를 선택하지만 강제 조건이 아니며,
+장애 시 secondary·burst에 재배치할 수 있어야 한다. 현재 배치에서 우선 확인할 위험은 역할 이름이 아니라
+단일 replica, PVC 재연결 시간, node별 request 여유와 autoscaler 기동 시간이다.
+
+배포 전 검증은 다음 명령으로 수행한다.
+
+```bash
+jq empty deploy/k8s/base/monitoring/spring-boot-statistics.json
+kubectl kustomize deploy/k8s/overlays/prod/monitoring > /tmp/self-intro-monitoring-rendered.yaml
+git diff --check
+```
+
+배포 완료 판정은 Argo CD `self-intro-monitoring`의 `Synced/Healthy`, Prometheus rule health,
+두 신규 경보의 정상 로드, Grafana 프로비저닝 JSON의 신규 panel title, API·Worker working set/CPU 시계열
+반환과 관련 Pod의 Ready·restart 상태를 모두 확인한 경우에만 내린다.

@@ -133,6 +133,22 @@ data:
             annotations:
               summary: "OKE node is not Ready"
               description: "Node {{ $labels.node }} has remained NotReady for more than 5 minutes."
+          - alert: SelfIntroNodeMemoryAvailableLow
+            expr: node_memory_MemAvailable_bytes{job="node-exporter"} < 700 * 1024 * 1024
+            for: 10m
+            labels:
+              severity: critical
+            annotations:
+              summary: "OKE node available memory is below 700 MiB"
+              description: "Node {{ $labels.instance }} has had less than 700 MiB available memory for 10 minutes."
+          - alert: SelfIntroNodeMemoryUsageHigh
+            expr: (1 - node_memory_MemAvailable_bytes{job="node-exporter"} / node_memory_MemTotal_bytes{job="node-exporter"}) * 100 >= 85
+            for: 10m
+            labels:
+              severity: warning
+            annotations:
+              summary: "OKE node memory usage is at least 85%"
+              description: "Node {{ $labels.instance }} has remained at or above 85% memory usage for 10 minutes."
           - alert: SelfIntroPodPending
             expr: kube_pod_status_phase{namespace="self-intro",phase="Pending"} > 0
             for: 10m
