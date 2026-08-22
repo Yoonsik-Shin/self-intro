@@ -3393,3 +3393,11 @@ autoscaler를 secondary에 고정하기 위한 exact-match dynamic group
 subnet·VNIC 사용과 필요한 네트워크·compartment 조회만 허용한다. policy 자체의 추가 고정비는 없지만
 autoscaler가 생성한 worker node 사용량은 과금될 수 있다. 전체 현재 상태·적용 gate·rollback은
 `docs/operations/oke-basic-resilience-plan.md`를 기준으로 한다.
+
+임시 3대 1 OCPU/4GB 구성에서 secondary와 burst node의 CPU request가 각각 allocatable 840m의
+100%에 도달해 OKE observability agent, node problem detector와 Grafana Alloy 일부가 Pending 상태가
+됐다. 당시 실제 사용량은 Cluster Autoscaler와 Tempo가 각각 약 2m였으므로, memory request와 CPU
+limit은 유지하면서 CPU request만 Cluster Autoscaler `100m -> 25m`, Tempo `100m -> 70m`으로
+조정했다. 이 변경은 새 node나 유료 리소스를 만들지 않으며, OKE 시스템 DaemonSet을 위한 secondary
+75m와 burst 30m의 scheduler 여유를 확보한다. 운영 검증은 관련 DaemonSet 3/3 Ready, Pending Pod 0개,
+monitoring Argo CD Healthy/Synced, API·Worker Ready와 Tempo scrape `UP`을 모두 확인해야 완료로 판정한다.
