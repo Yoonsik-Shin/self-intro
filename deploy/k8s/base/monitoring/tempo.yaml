@@ -3,6 +3,10 @@ kind: PersistentVolumeClaim
 metadata:
   name: tempo-pvc
   namespace: self-intro
+  annotations:
+    argocd.argoproj.io/sync-options: Prune=false
+  labels:
+    app.kubernetes.io/part-of: observability-legacy-recovery
 spec:
   accessModes:
     - ReadWriteOnce
@@ -37,6 +41,10 @@ spec:
           image: docker.io/grafana/tempo:2.4.1
           args:
             - "-config.file=/etc/tempo/tempo.yaml"
+            - "-config.expand-env=true"
+          envFrom:
+            - secretRef:
+                name: observability-object-storage-secret
           ports:
             - containerPort: 3200
               name: http
@@ -56,13 +64,19 @@ spec:
               mountPath: /etc/tempo
             - name: storage
               mountPath: /var/tempo
+          readinessProbe:
+            httpGet:
+              path: /ready
+              port: http
+            initialDelaySeconds: 10
+            periodSeconds: 10
       volumes:
         - name: config
           configMap:
             name: tempo-config
         - name: storage
-          persistentVolumeClaim:
-            claimName: tempo-pvc
+          emptyDir:
+            sizeLimit: 2Gi
 ---
 apiVersion: v1
 kind: Service

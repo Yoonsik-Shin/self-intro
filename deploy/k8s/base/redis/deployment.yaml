@@ -1,8 +1,9 @@
 apiVersion: apps/v1
-kind: Deployment
+kind: StatefulSet
 metadata:
   name: self-intro-redis
 spec:
+  serviceName: self-intro-redis
   replicas: 1
   selector:
     matchLabels:
@@ -12,12 +13,35 @@ spec:
       labels:
         app.kubernetes.io/name: self-intro-redis
     spec:
+      terminationGracePeriodSeconds: 30
+      securityContext:
+        fsGroup: 999
       containers:
         - name: redis
           image: docker.io/library/redis:7-alpine
           ports:
             - name: redis
               containerPort: 6379
+          args:
+            - --appendonly
+            - "yes"
+            - --appendfsync
+            - everysec
+            - --dir
+            - /data
+          readinessProbe:
+            exec:
+              command: ["sh", "-c", "redis-cli ping | grep PONG"]
+            initialDelaySeconds: 5
+            periodSeconds: 5
+          livenessProbe:
+            exec:
+              command: ["sh", "-c", "redis-cli ping | grep PONG"]
+            initialDelaySeconds: 20
+            periodSeconds: 10
+          volumeMounts:
+            - name: redis-data
+              mountPath: /data
           resources:
             requests:
               cpu: 100m
@@ -25,3 +49,12 @@ spec:
             limits:
               cpu: 250m
               memory: 256Mi
+  volumeClaimTemplates:
+    - metadata:
+        name: redis-data
+      spec:
+        storageClassName: oci-bv-paravirtualized
+        accessModes: ["ReadWriteOnce"]
+        resources:
+          requests:
+            storage: 50Gi

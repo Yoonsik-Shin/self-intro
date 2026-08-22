@@ -6,4 +6,5 @@ namespace: self-intro
 resources:
   - configmap.yaml
   - deployment.yaml
+  - network-policy.yaml
   - service.yaml

@@ -3503,3 +3503,54 @@ kubectl -n self-intro rollout status deployment/prometheus --timeout=180s
 전체 `self-intro` Pod는 Ready이고 새 Prometheus Pod의 restart는 0회였다. 외부 검증은 서비스 홈,
 API `/actuator/health`, Grafana 로그인 경로가 모두 HTTP 200을 반환했다. 이 결과를 기준으로 패널·경보
 구현과 운영 배포를 완료로 판정한다.
+
+### 15.58 저비용 상태 저장 계층과 관측 데이터 Object Storage 전환
+
+비공개 베타의 단일 replica 운영을 전제로 Redis와 RabbitMQ는 각각 `StatefulSet`과 독립 50Gi
+`oci-bv-paravirtualized` PVC를 사용한다. Redis는 AOF `everysec`을 활성화하고 RabbitMQ는
+`/var/lib/rabbitmq`를 영구 볼륨에 저장한다. 이 구성은 데이터 재시작 내구성을 제공하지만 고가용성
+클러스터는 아니다. 노드 장애 시 Block Volume 재연결 시간 동안 서비스가 지연될 수 있고 Redis는 최악의
+경우 약 1초 이내의 확인된 쓰기를 잃을 수 있다. RabbitMQ 전송 보장은 Experience·Study 발행 경로에
+추가한 MySQL transactional outbox가 보완한다.
+
+Outbox relay는 커밋된 `message_outbox`를 1초마다 최대 50건 claim하고 RabbitMQ가 publisher ACK를
+반환하고 메시지가 정상 routing된 뒤에만 `PUBLISHED`로 확정한다. ACK는 최대 5초 기다리며 nack,
+timeout, unroutable return은 모두 발행 실패로 처리한다. 실패 시 지수 backoff를 적용하고 20회 실패하면
+`DEAD`로 격리한다. 발행 완료 레코드는 7일, `DEAD` 레코드는 30일 보존한다. 현재 allowlist는
+`ExperienceUpdatedEvent`, `StudyUpdatedEvent`이며 생성·수정·삭제는 두 이벤트의 payload 상태로 구분한다.
+다른 메시지 경로까지 보장한다고 해석하면 안 된다.
+
+Prometheus는 자체적으로 OCI Object Storage를 장기 저장소로 사용할 수 없으므로 기존 50GB PVC를
+유지한다. Loki와 Tempo만 S3-compatible adapter를 통해 서로 다른 비공개 OCI Object Storage bucket을
+사용한다. 각 Pod의 WAL/cache는 2Gi `emptyDir`로 제한하므로 Pod가 강제 소멸할 때 업로드 전인 소량의
+로그·trace가 유실될 수 있다. 기존 Loki·Tempo PVC는 최초 전환 배포에서 Argo CD prune 대상에서 제외하고
+마운트하지 않은 복구 자산으로 남긴다. Object Storage 조회·재시작·24시간 안정성을 검증하기 전에는
+수동 삭제하지 않는다.
+
+운영 적용 순서는 다음과 같다.
+
+1. OCI Cost Analysis와 Object Storage 사용량에서 기존 저장량·API 사용량 및 상시 무료 잔여분을 확인한다.
+2. 같은 운영 region에 Loki용과 Tempo용 비공개 bucket을 각각 생성하고 public access를 차단한다.
+3. 두 bucket에 필요한 object read/write/list/delete만 허용하는 전용 OCI IAM principal과 S3 customer
+   secret key를 생성한다. 애플리케이션·일반 운영자 키를 재사용하지 않는다.
+4. 아래 키를 가진 `observability-object-storage-secret`을 SealedSecret으로 생성한다.
+   `LOKI_S3_BUCKET`, `TEMPO_S3_BUCKET`, `OCI_S3_ENDPOINT`, `OCI_S3_REGION`,
+   `OCI_S3_ACCESS_KEY_ID`, `OCI_S3_SECRET_ACCESS_KEY`.
+5. 아래 키를 가진 `rabbitmq-credentials`를 SealedSecret으로 생성한다.
+   `RABBITMQ_USERNAME`, `RABBITMQ_PASSWORD`. `guest` 계정의 원격 접속은 허용하지 않는다.
+6. monitoring overlay만 먼저 반영하고 Loki 로그 조회, Tempo trace 조회, Pod 재시작 후 과거 데이터 조회와
+   Object Storage 객체 증가를 검증한다.
+7. 24시간 이상 정상 동작한 뒤에만 기존 Loki·Tempo PVC를 명시적으로 삭제한다. 실패하면 새 workload를
+   중지하고 manifest를 이전 PVC mount 방식으로 되돌린 뒤 기존 PVC로 재기동한다.
+8. Redis와 RabbitMQ StatefulSet을 반영한다. 기존 in-memory Pod와 새 PVC 초기화의 전환 창을 공지하고,
+   API·Worker readiness, Outbox backlog/DEAD 건수, Redis AOF와 RabbitMQ 재시작 복구를 검증한다.
+
+현재 기준으로 Prometheus·Loki·Tempo Block Volume은 OCI에서 각 50GB 단위로 할당된다. Loki·Tempo
+100GB를 Object Storage로 옮긴 뒤 Redis·RabbitMQ 100GB를 추가하면 Self-Intro의 Block/Boot 합계는
+기존과 같은 약 244GB로 예상된다. 테넌시 전체 무료 Block Volume 200GB를 이미 모두 사용할 수 있다는
+가정에서도 초과분은 약 44GB이며, 확인 당시 가격 가정으로 부가세 포함 월 약 2,850원이다. Object
+Storage는 테넌시 전체 저장량과 API 요청량이 무료 한도 안일 때만 추가 저장 비용이 0원이다. 실제 리소스
+생성 전 OCI Cost Estimator와 테넌시 사용량으로 다시 확인해야 한다.
+
+이 절은 코드·manifest·migration 준비 상태를 설명한다. bucket, IAM principal/customer secret key,
+SealedSecret 생성과 실제 rollout은 아직 수행하지 않았으며 별도 운영 승인 없이는 배포하지 않는다.

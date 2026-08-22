@@ -542,3 +542,22 @@ cookie·token·Secret 원문을 출력하지 않으며, 임시 파일이 꼭 필
   각각 통과했다.
 - 과거 migration이 명시한 타입과 엔티티 선언이 달랐던 네 필드는 운영 스키마를 기준으로 엔티티를
   `BINARY(32)`, `CHAR(64)`, `DECIMAL(4,3)`, `TINYINT`에 맞췄다. Hibernate 자동 DDL 보정은 사용하지 않는다.
+
+## 저비용 상태 저장·관측 데이터 결정 (2026-08-22)
+
+- 비공개 베타에서 Redis와 RabbitMQ는 각각 단일 replica StatefulSet, 독립 50Gi Block Volume을 사용한다.
+  Redis는 AOF `everysec`을 사용하며 두 서비스 모두 고가용성 클러스터라고 표시하지 않는다.
+- RabbitMQ 장애 시 데이터베이스 커밋과 메시지 발행 사이의 유실을 막기 위해 지원 이벤트를 MySQL
+  transactional outbox에 기록한 뒤 relay가 발행한다. 현재 보장 범위는 Experience·Study 이벤트
+  allowlist이며 전체 도메인 이벤트 보장으로 확대 해석하지 않는다.
+- Prometheus는 기존 Block Volume을 유지한다. Loki와 Tempo는 provider-neutral S3-compatible storage
+  설정을 사용하고 현재 운영 adapter로 OCI Object Storage의 서로 다른 비공개 bucket을 선택한다.
+- OCI 명칭·endpoint·customer secret key는 배포 adapter에만 존재하며 도메인과 애플리케이션 코드는 특정
+  cloud provider에 의존하지 않는다.
+- Loki·Tempo의 local WAL/cache는 bounded `emptyDir`이므로 강제 Pod 소멸 시 업로드 전 소량의 관측
+  데이터가 유실될 수 있음을 수용한다. 기존 PVC는 Object Storage 전환 검증이 끝날 때까지 복구용으로
+  보존한다.
+- S3 자격증명과 RabbitMQ 계정은 Git 평문 Secret으로 만들지 않고 각각 별도 SealedSecret으로 배포한다.
+  bucket은 public access를 금지하고 서비스 principal에는 필요한 object 작업만 최소 권한으로 허용한다.
+- 이 결정은 리소스 비용을 늘리는 실제 생성·rollout을 승인하지 않는다. 운영자는 사용량·비용을 재확인하고
+  별도 승인과 복구 절차를 갖춘 뒤 적용한다.

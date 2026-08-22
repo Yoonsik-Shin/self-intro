@@ -50,6 +50,8 @@ spec:
             - secretRef:
                 name: backend-storage-secret
             - secretRef:
+                name: rabbitmq-credentials
+            - secretRef:
                 name: backend-kofi-secret
                 optional: true
           # job_posting/job_posting_setting 등 관계형 데이터는 실제로 MySQL(api와 동일 DB)에 산다.

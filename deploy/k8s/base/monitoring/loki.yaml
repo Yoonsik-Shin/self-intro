@@ -12,10 +12,6 @@ data:
     common:
       instance_addr: 127.0.0.1
       path_prefix: /loki
-      storage:
-        filesystem:
-          chunks_directory: /loki/chunks
-          rules_directory: /loki/rules
       replication_factor: 1
       ring:
         kvstore:
@@ -24,17 +20,37 @@ data:
       configs:
         - from: 2020-05-15
           store: tsdb
-          object_store: filesystem
+          object_store: s3
           schema: v13
           index:
             prefix: index_
             period: 24h
+    storage_config:
+      tsdb_shipper:
+        active_index_directory: /loki/index
+        cache_location: /loki/index-cache
+      aws:
+        bucketnames: ${LOKI_S3_BUCKET}
+        endpoint: ${OCI_S3_ENDPOINT}
+        region: ${OCI_S3_REGION}
+        access_key_id: ${OCI_S3_ACCESS_KEY_ID}
+        secret_access_key: ${OCI_S3_SECRET_ACCESS_KEY}
+        s3forcepathstyle: true
+    compactor:
+      working_directory: /loki/compactor
+      retention_enabled: true
+    limits_config:
+      retention_period: 168h
 ---
 apiVersion: v1
 kind: PersistentVolumeClaim
 metadata:
   name: loki-data
   namespace: self-intro
+  annotations:
+    argocd.argoproj.io/sync-options: Prune=false
+  labels:
+    app.kubernetes.io/part-of: observability-legacy-recovery
 spec:
   storageClassName: oci-bv-paravirtualized
   accessModes: ["ReadWriteOnce"]
@@ -66,6 +82,10 @@ spec:
           image: docker.io/grafana/loki:3.0.0
           args:
             - "-config.file=/etc/loki/local-config.yaml"
+            - "-config.expand-env=true"
+          envFrom:
+            - secretRef:
+                name: observability-object-storage-secret
           ports:
             - containerPort: 3100
               name: http
@@ -81,13 +101,19 @@ spec:
               mountPath: /etc/loki
             - name: loki-data
               mountPath: /loki
+          readinessProbe:
+            httpGet:
+              path: /ready
+              port: http
+            initialDelaySeconds: 10
+            periodSeconds: 10
       volumes:
         - name: config-volume
           configMap:
             name: loki-config
         - name: loki-data
-          persistentVolumeClaim:
-            claimName: loki-data
+          emptyDir:
+            sizeLimit: 2Gi
 ---
 apiVersion: v1
 kind: Service

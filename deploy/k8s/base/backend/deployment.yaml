@@ -66,6 +66,8 @@ spec:
             # PLATFORM_OWNER + 지정 Workspace 예외에서만 사용할 수 있다.
             - secretRef:
                 name: backend-billing-secret
+            - secretRef:
+                name: rabbitmq-credentials
             # Ko-fi 연동키 설정 (optional)
             - secretRef:
                 name: backend-kofi-secret
