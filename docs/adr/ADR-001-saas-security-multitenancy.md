@@ -234,6 +234,27 @@ Cloudflare를 사용한다. 이 선택은 배포 어댑터이며 도메인 모�
 - 서비스 간 인증은 TLS/mTLS 표준을 사용하고 특정 클라우드 IAM만을 유일한 인증 방식으로
   삼지 않는다.
 
+### 정적 고위험 Secret의 runtime 전달 (2026-08-22)
+
+Workspace 사용자가 연결한 AI API key를 `SecretProvider`로 저장하는 것과 애플리케이션 시작 전에 필요한
+DB·MFA·SMTP·결제·플랫폼 AI·Storage credential의 runtime 전달을 구분한다. 후자는 OKE Basic을
+유지하고, workload별 전용 OCI IAM 서비스 사용자의 config-file 인증을 사용하는 init container가 Vault
+Secret bundle을 `emptyDir.medium: Memory`에 기록하며 main container가 read-only로 mount하는 계약을
+사용한다. Kubernetes Secret 동기화, Pod 환경변수 재복제, CSI node DaemonSet은 사용하지 않는다.
+
+API와 Worker의 IAM 사용자·그룹·policy를 분리해 자기 범위의 Secret bundle만 읽게 한다.
+생성·새 version 추가·폐기 권한은 별도 rotation principal에만 둔다. OKE node instance principal은
+동일 node의 Pod를 구분하지 못하므로 정적 Secret 전체 이전에 사용하지 않는다. config-file 인증의 API
+signing private key는 부트스트랩 잔존 위험으로 분류하여 SealedSecret으로 배포하고 90일 이내 회전한다.
+별도 stage가 없는 개발 기간에는 production에서 기존 Ready Pod 유지, 한 Secret 그룹씩 전환, 실제 smoke,
+즉시 rollback 조건을 결합한다. OCI metadata egress 차단은 현재 CNI의 외부 FQDN 허용 경로를 함께 검증한
+뒤 적용하며, 그 전에는 workload별 최소 IAM 권한과 init 전용 credential mount를 주 통제로 사용한다.
+MFA 암호화키는 keyring과 재암호화 절차 없이 단일 값으로 교체하지 않는다.
+
+OCI Vault와 config-file 인증 init container는 현재 배포 adapter다. 다른 cloud에서도 같은 파일/bootstrap 및 최소권한
+계약을 구현할 수 있어야 한다. 2026-08-22 최초 production 전환 범위는 API의 SMTP username/password 두
+항목이며, 나머지 DB·MFA·결제·AI·Storage·Worker token은 기존 SealedSecret 소비 경로를 유지한다.
+
 ## 출시 게이트
 
 다음 조건을 모두 통과하기 전에는 운영에 배포하지 않는다.

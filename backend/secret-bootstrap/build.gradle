@@ -1,0 +1,16 @@
+plugins {
+    id 'org.springframework.boot'
+}
+
+dependencies {
+    implementation 'com.oracle.oci.sdk:oci-java-sdk-secrets:3.91.1'
+    implementation 'com.oracle.oci.sdk:oci-java-sdk-common-httpclient-jersey3:3.91.1'
+}
+
+springBoot {
+    mainClass = 'com.selfintro.secretbootstrap.OciStaticSecretBootstrap'
+}
+
+bootJar {
+    archiveFileName = 'secret-bootstrap.jar'
+}

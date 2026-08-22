@@ -12,6 +12,7 @@ COPY gradle gradle
 COPY build.gradle settings.gradle ./
 COPY api/build.gradle api/
 COPY ai-worker/build.gradle ai-worker/
+COPY secret-bootstrap/build.gradle secret-bootstrap/
 
 RUN chmod +x gradlew
 

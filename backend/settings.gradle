@@ -16,3 +16,4 @@ rootProject.name = 'self-intro-backend'
 
 include 'api'
 include 'ai-worker'
+include 'secret-bootstrap'

@@ -78,24 +78,35 @@
 말고, 클러스터의 Sealed Secrets 공개키로 바로 암호화한다. API Deployment에만 `envFrom`으로 연결하고
 Worker에는 주입하지 않는다.
 
-## 3. OCI Vault와 OKE workload identity
+## 3. OCI Vault와 OKE Basic 저비용 bootstrap
 
-### 3.1 OCI 리소스 만들기
+### 3.1 기존 OCI 리소스 확인과 정적 Secret 이전 승인
 
-OCI Console에서 다음 순서로 만든다.
+PLATFORM_OWNER preview의 사용자 제공 AI API key용 virtual Vault와 AES key는 이미 연결되어 있다. 먼저
+해당 Vault/key가 software-protected인지, 현재 청구가 없는지 확인한다. 없는 리소스를 새로 만들거나 정적
+운영 Secret을 이동하지 말고 `oci-vault-static-secret-migration.md`의 비용·장애 gate 승인을 먼저 받는다.
 
-1. `Identity & Security → Compartments`에서 결제·사용자 제공 AI API 키 secret 전용 compartment를 만든다.
-2. `Identity & Security → Vault`에서 Vault를 만든다.
-3. 같은 Vault 안에 AES 대칭키를 만든다. 비대칭키는 secret 암호화에 사용할 수 없다.
-4. compartment OCID, Vault OCID, Key OCID, region, OKE cluster OCID를 기록한다. 이 OCID들은 secret
+1. 기존 compartment, Vault, AES key, region과 OKE cluster OCID를 기록한다.
+2. API 전용·공용·Worker 전용 Secret read 경계를 검토한다. 별도 stage가 없으므로 IAM 권한은 CLI로
+   직접 bundle read를 검증하고 production에서는 한 Secret 그룹씩 기존 Ready Pod를 유지하며 전환한다.
+3. 기존 리소스를 재사용할 수 없을 때에만 승인 후 software-protected Vault/key/Secret을 만든다.
+4. OCID들은 secret
    원문은 아니지만 운영 구성값이므로 운영 가이드에서만 관리한다.
+5. 정적 Secret 전체 인벤토리와 회전·복구 순서는
+   `docs/operations/oci-vault-static-secret-migration.md`를 따른다.
 
-### 3.2 enhanced cluster 확인
+### 3.2 Basic cluster와 bootstrap 경계 확인
 
-OKE Console의 cluster 상세에서 enhanced cluster인지 확인한다. OKE workload identity는 enhanced
-cluster에서만 지원된다. 표준 basic cluster라면 먼저 enhanced 전환 가능 여부를 확인하고, 전환 전에는
-`instance-principal`을 임시 사용하되 node 전체가 과도한 권한을 갖지 않도록 dynamic group 범위를
-제한한다.
+OKE Console의 cluster 상세에서 `BASIC_CLUSTER`를 유지한다. 정적 Secret 이전을 위해 Enhanced
+cluster로 전환하거나 Secrets Store CSI Driver를 설치하지 않는다. API·Worker에 각각 전용 OCI IAM
+서비스 사용자와 API signing key를 배정하고, init container가 OCI config-file 인증으로 필요한
+Secret bundle만 읽어 memory-backed volume에 쓴다.
+
+- node instance principal은 정적 Secret 전체 읽기에 사용하지 않는다.
+- API signing private key는 최소 부트스트랩 SealedSecret으로만 배포하고 일반 환경변수로 주입하지 않는다.
+- main container는 Secret volume을 read-only로 mount하고 OCI 인증 파일은 mount하지 않는다.
+- OCI metadata 차단은 CNI의 외부 FQDN 허용 경로를 함께 검증한 뒤 적용한다. 그 전에는 signing credential을
+  init container에만 mount하고 workload별 read policy를 최소화한다.
 
 코드에는 다음 ServiceAccount가 이미 반영되어 있다.
 
@@ -103,54 +114,31 @@ cluster에서만 지원된다. 표준 basic cluster라면 먼저 enhanced 전환
 - API: `self-intro-api`
 - Worker: `self-intro-worker`
 
-### 3.3 IAM policy
+### 3.3 IAM 사용자·그룹·policy
 
-`<cluster-ocid>`와 `<secret-compartment>`를 실제 값으로 바꾼다. API는 생성·조회·예약 삭제가 필요하고,
-Worker는 사용자 제공 AI API 키 조회만 필요하다.
+인간 계정을 재사용하지 말고 `self-intro-api-static-reader`, `self-intro-worker-static-reader`,
+`self-intro-byok-manager`, `self-intro-secret-rotator`를 분리한다. API·Worker static reader에는 각자의
+Secret bundle read만 주고, 생성·새 version·예약 삭제는 BYOK manager와 rotation operator에만 준다.
+`<secret-compartment>`와 secret 이름을 실제 구성에 맞게 바꾼다.
 
 ```text
-Allow any-user to manage secrets in compartment <secret-compartment> where all {
-  request.principal.type = 'workload',
-  request.principal.namespace = 'self-intro',
-  request.principal.service_account = 'self-intro-api',
-  request.principal.cluster_id = '<cluster-ocid>'
-}
-Allow any-user to use vaults in compartment <secret-compartment> where all {
-  request.principal.type = 'workload',
-  request.principal.namespace = 'self-intro',
-  request.principal.service_account = 'self-intro-api',
-  request.principal.cluster_id = '<cluster-ocid>'
-}
-Allow any-user to use keys in compartment <secret-compartment> where all {
-  request.principal.type = 'workload',
-  request.principal.namespace = 'self-intro',
-  request.principal.service_account = 'self-intro-api',
-  request.principal.cluster_id = '<cluster-ocid>'
-}
-Allow any-user to read secret-bundles in compartment <secret-compartment> where all {
-  request.principal.type = 'workload',
-  request.principal.namespace = 'self-intro',
-  request.principal.service_account = 'self-intro-api',
-  request.principal.cluster_id = '<cluster-ocid>'
-}
-Allow any-user to read secret-bundles in compartment <secret-compartment> where all {
-  request.principal.type = 'workload',
-  request.principal.namespace = 'self-intro',
-  request.principal.service_account = 'self-intro-worker',
-  request.principal.cluster_id = '<cluster-ocid>'
-}
+Allow group 'Default'/'self-intro-api-static-readers' to read secret-bundles in compartment <secret-compartment>
+Allow group 'Default'/'self-intro-worker-static-readers' to read secret-bundles in compartment <secret-compartment>
+Allow group 'Default'/'self-intro-byok-managers' to manage secrets in compartment <secret-compartment>
+Allow group 'Default'/'self-intro-byok-managers' to use vaults in compartment <secret-compartment>
+Allow group 'Default'/'self-intro-byok-managers' to use keys in compartment <secret-compartment>
 ```
 
-다른 compartment에 있는 OKE workload가 Vault를 사용하면 OCI 문서의 workload mapping 절차도 추가한다.
-
-- https://docs.oracle.com/en-us/iaas/Content/ContEng/Tasks/contenggrantingworkloadaccesstoresources.htm
-- https://docs.oracle.com/en-us/iaas/Content/Identity/Reference/keypolicyreference.htm
+실제 policy는 `deploy/k8s/examples/oci-vault-static-secrets/iam-user-policy.example.txt`를 기준으로 secret
+이름 조건을 더 좁힌다. 서비스 사용자 생성, public API key upload, private key 회전은 추가 서비스
+요금이 없을 것으로 예상하지만 실제 생성 전에 사용자 승인을 받는다.
 
 ### 3.4 운영 구성값 반영
 
-현재 production은 BASIC_CLUSTER이므로 정확한 OKE node instance를 dynamic group으로 제한하고
-`instance-principal`을 사용한다. enhanced cluster로 전환하면 아래 workload identity 예시로 교체한다.
-현재 `backend-config`의 non-secret 값은 다음과 같다.
+현재 production의 사용자 제공 AI API key preview는 정확한 OKE node instance를 dynamic group으로
+제한한 `instance-principal`을 사용한다. 이 방식은 정적 Secret 전체 이전에 사용하지 않고,
+정적 Secret은 별도 config-file 인증 init container로 전환한다. 현재 `backend-config`의 preview용
+non-secret 값은 다음과 같다.
 
 ```text
 SECRET_PROVIDER_OCI_REGION=ap-chuncheon-1
@@ -165,13 +153,13 @@ SECRET_PROVIDER_OCI_RECOVERY_DAYS=7
 현재 API가 실행되는 정확한 node instance OCID만 포함하며, 해당 node 교체 전후에 membership을 갱신한다.
 Worker에는 Toss secret을 주입하지 않는다.
 
-## 4. stage 데이터베이스와 결제 smoke test
+## 4. production 데이터베이스와 결제 통제 smoke test
 
-운영 DB에 바로 migration을 적용하지 않는다.
+별도 stage가 없으므로 운영 DB 변경은 백업·preflight·한 번의 통제된 migration 순서를 지킨다.
 
-1. 운영 백업을 만든다.
-2. 개인정보를 마스킹한 stage clone을 만든다.
-3. stage API에 V8~V10을 적용한다.
+1. 운영 백업과 복구 가능 상태를 확인한다.
+2. migration SQL과 현재 `flyway_schema_history` 충돌을 read-only로 검사한다.
+3. production API rollout 전에 maintenance/rollback 기준을 기록하고 V8~V10을 적용한다.
 4. `flyway_schema_history`의 V8, V9, V10 `success=1`을 확인한다.
 5. 기존 Workspace마다 FREE subscription이 한 개만 생성됐는지 확인한다.
 6. 서로 다른 Workspace OWNER로 교차 조회·mutation이 404인지 확인한다.
@@ -218,7 +206,8 @@ flag를 모두 `false`로 유지한다. 단, `PLATFORM_OWNER_PREVIEW_ENABLED=tru
 `PLATFORM_OWNER_PREVIEW_WORKSPACE_SLUGS`가 일치하면 해당 Workspace에서만 Toss 샌드박스와 사용자 제공 AI API 키를
 허용한다. `PAID` 전환은 약관·PG·환불 준비를 마친 정식 유료 출시 작업에서만 수행한다.
 
-1. stage에서 `SECRET_PROVIDER=oci-vault`만 켜고 카드 등록/사용자 제공 AI API 키 저장·조회·폐기를 확인한다.
+1. 지정 `PLATFORM_OWNER` preview Workspace에서 `SECRET_PROVIDER=oci-vault` 카드 등록/사용자 제공 AI API 키
+   저장·조회·폐기를 확인한다.
 2. `BILLING_ENABLED=true`로 최초 결제만 연다. 갱신 scheduler는 계속 끈다.
 3. webhook과 reconciliation을 충분히 관찰한 뒤 `BILLING_RECONCILIATION_ENABLED=true`를 켠다.
 4. 갱신·실패·grace 검증 뒤 `BILLING_RENEWAL_ENABLED=true`를 켠다.

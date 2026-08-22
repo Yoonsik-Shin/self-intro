@@ -1,0 +1,20 @@
+# DESIGN ONLY. Replace placeholders, inspect the generated policy, and verify read access with
+# production Secret OCIDs before attaching it. This project does not operate a separate stage.
+# Put non-human OCI IAM users in these groups. Do not give them console passwords.
+
+# API init container: static API-only and shared runtime bundles, read only.
+Allow group 'Default'/'self-intro-api-static-readers' to read secret-bundles in compartment <api-secret-compartment>
+Allow group 'Default'/'self-intro-api-static-readers' to read secret-bundles in compartment <shared-secret-compartment>
+
+# Worker init container: static worker-only and shared runtime bundles, read only.
+Allow group 'Default'/'self-intro-worker-static-readers' to read secret-bundles in compartment <worker-secret-compartment>
+Allow group 'Default'/'self-intro-worker-static-readers' to read secret-bundles in compartment <shared-secret-compartment>
+
+# BYOK manager is deliberately separate from static readers. Narrow this group to the
+# dedicated BYOK compartment and verify the exact verbs required by the existing adapter.
+Allow group 'Default'/'self-intro-byok-managers' to manage secrets in compartment <byok-secret-compartment>
+Allow group 'Default'/'self-intro-byok-managers' to use vaults in compartment <byok-secret-compartment>
+Allow group 'Default'/'self-intro-byok-managers' to use keys in compartment <byok-secret-compartment>
+
+# Secret creation/version rotation for static runtime values stays outside application Pods.
+# Grant it to a separately authenticated operator/CI group only after an approved rehearsal.

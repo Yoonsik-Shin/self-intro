@@ -2797,7 +2797,7 @@ SELECT 'portfolio_case_study_study', COUNT(*) FROM portfolio_case_study_study;
   추가 좌석을 만든다. billing key와 payment key 원문은 DB에 저장하지 않고 외부 Secret reference와
   SHA-256 fingerprint만 저장한다. `SECRET_PROVIDER=none`이면 관련 mutation은 fail closed한다. 현재
   SecretProvider의 운영 adapter는 OCI Vault이며 AWS Secrets Manager 전용 adapter는 제거했다. OCI Vault와
-  OKE workload identity 권한 구성이 완료되기 전에는 활성화하지 않는다.
+  OCI IAM 인증·Vault 권한·bootstrap 구성이 완료되기 전에는 활성화하지 않는다.
   로컬 Toss 테스트에서는 `local` profile과 `SECRET_PROVIDER=local-memory`를 함께 사용한다. 이 adapter는
   메모리 밖에 Secret을 기록하지 않고 프로세스 재시작 시 모두 폐기되며, 다른 profile에서는 bean이 생성되지
   않아 운영 설정으로 잘못 지정해도 fail closed한다.
@@ -2898,17 +2898,17 @@ SELECT 'portfolio_case_study_study', COUNT(*) FROM portfolio_case_study_study;
 - OCI adapter 단위 테스트에서 Base64 저장·조회, Secret OCID 검증, 복구 가능 예약 삭제를 확인했고,
   `./gradlew spotlessCheck :api:test --tests
   com.selfintro.global.secret.OciVaultSecretProviderTest`가 통과했다. 빈 MySQL migration test와 Worker 전체
-  테스트도 각각 통과했다. 로컬 코드에만 반영했으며 OCI Vault 실제 리소스와 stage·운영에는 아직
-  연결하지 않았다.
+  테스트도 각각 통과했다. 이 문장은 최초 구현 당시의 검증 기록이다. 이후 15.50에서 운영 OCI Vault를
+  PLATFORM_OWNER 지정 Workspace의 사용자 제공 AI API key preview에 연결했다. DB·MFA·SMTP·결제·플랫폼
+  AI·Storage 같은 정적 Secret의 Vault 이전은 별도이며 15.52 기준 아직 실행하지 않았다.
 
 운영 활성화 전 필수 gate:
 
 1. 토스페이먼츠 자동결제 계약·심사와 test/live key 분리, sandbox 최초 결제/갱신/실패/해지/환불 smoke
-2. OCI Vault Secret Management에 AES key와 Vault를 만들고 enhanced OKE cluster의 workload identity
-   policy를 `self-intro-api`(manage secrets + read secret-bundles)와
-   `self-intro-worker`(read secret-bundles)로 분리한다. enhanced
-   cluster가 아니라면 전환 전까지 Instance Principal을 사용하고 node dynamic group 권한 범위를 별도로
-   제한한다. 실제 연결이 끝날 때만 `SECRET_PROVIDER=oci-vault`로 바꾼다.
+2. 기존 OCI Vault/AES key와 `SECRET_PROVIDER=oci-vault` 연결은 사용자 제공 AI API key preview에 한해
+   완료했다. 정적 Secret은 OKE Basic을 유지하고 API·Worker별 전용 OCI IAM 서비스 사용자와
+   config-file 인증 init container를 stage에서 검증한 뒤 read 권한으로 나눠 순차 이전한다. Basic
+   cluster의 Instance Principal은 해당 정적 Secret 전체 이전에 사용하지 않는다.
 3. 스트리밍 포함 실제 token/원가 계측 2~4주와 provider_price/환율 version, point 환산식 확정
 4. 중복 charge, timeout 뒤 order 조회, 다중 Pod lease, grace downgrade와 point 중복 지급 회귀 테스트
 5. 정기결제·환불·AI 처리·사용자 제공 AI API 키 약관과 개인정보 처리방침의 법률·세무·PG 검토
@@ -3210,3 +3210,115 @@ kubectl kustomize deploy/k8s/overlays/prod/backend >/tmp/self-intro-prod-backend
 교체 중 관찰된 `Too many pods`는 DiskPressure가 아니라 단일 노드 Pod 수 상한에 의한 일시적인 scheduler
 지연이다. 최종 node에는 pressure event가 없지만 CPU request가 약 94%라 다음 상시 workload 추가 전에는
 request 재산정 또는 node 확장을 비용과 함께 검토한다.
+
+### 15.52 정적 고위험 Secret의 OCI Vault 이전 준비 (초기 설계 기록)
+
+> 이 절의 stage 전제와 운영 미적용 판정은 초기 설계 당시의 기록이다. 현재 authoritative 절차와 실제
+> production 전환 상태는 15.54 및 `oci-vault-static-secret-migration.md`를 따른다.
+
+2026-08-22 기준 DB, MFA 암호화 key, 내부 Worker token, 플랫폼 AI Provider key, Storage, SMTP, Toss secret,
+Ko-fi token은 SealedSecret이 생성한 Kubernetes Secret을 API/Worker가 환경변수로 소비한다. 사용자 제공
+AI API key를 저장하는 기존 OCI Vault adapter와 이 bootstrap Secret 경계를 구분한다.
+
+정적 Secret은 OKE Basic을 유지한 채 API·Worker별 전용 OCI IAM 서비스 사용자와 config-file 인증을
+사용하는 init container가 Vault bundle을 `emptyDir.medium: Memory`에 기록하고 main container가 read-only로
+mount하는 구조를 선택했다. Kubernetes Secret 동기화, 환경변수 재복제, CSI Driver를 사용하지
+않는다. API 전용·공용·Worker 전용 read 그룹과 lifecycle 전용 rotation principal을 분리한다.
+전체 설계·회전·장애 복구 절차는 `docs/operations/oci-vault-static-secret-migration.md`에 기록했다.
+
+현행 production은 `BASIC_CLUSTER`이며 Enhanced control-plane으로 전환하지 않는다. Instance Principal은
+node 단위라 Pod를 구분하지 못하므로 정적 Secret 전체에 사용하지 않고 OCI metadata 주소를 Pod
+egress에서 차단한다. 전용 IAM 사용자의 API signing private key는 최소 부트스트랩 SealedSecret으로
+남으므로 90일 이내 회전하고 노출 시 public key 제거→신규 key 배포→Pod 재생성 순으로 복구한다.
+기존 software-protected virtual Vault/key와 node를 재사용하면 예상 추가 고정비는 `$0`이다. init
+container 추가로 node 증설이 필요하거나 유료 Vault/KMS 보호 수준이 필요하면 만들기 전 비용을
+다시 보고하고 승인을 받는다.
+
+코드 기준 인벤토리와 검증기는 production Kustomization에 포함되지 않는
+`deploy/k8s/examples/oci-vault-static-secrets/`에 두었다. Git의 7개 SealedSecret key 목록과 API/Worker가
+참조하는 총 9개 Secret group을 평문 출력 없이 대조한다. `backend-worker-db-secret`과
+`oracle-atp-worker-wallet`은 Git에 원본 manifest가 없으므로 실제 값이나 파일을 export하지 않고 live
+cluster의 key 이름만 추가 inventorize해야 한다.
+
+검증 명령은 다음과 같다.
+
+```bash
+python3 deploy/k8s/examples/oci-vault-static-secrets/validate_inventory.py
+kubectl kustomize deploy/k8s/overlays/prod/backend >/tmp/self-intro-prod-backend.yaml
+```
+
+2026-08-22 재설계 검증 결과:
+
+- `validate_inventory.py`: 9개 Secret group, 16개 이전 후보, 2개 workload consumer 정합성 통과
+- production backend Kustomize render: 539줄 생성, 오류 없음
+- `git diff --check`: whitespace 오류 없음
+- production Kustomization에는 이 설계 예제와 init container가 포함되지 않음을 확인
+
+이 초기 판정은 15.54의 production 직접 전환 작업으로 대체됐다. OKE Basic과 기존 Vault/key 재사용,
+추가 고정비 `$0`, Secret 그룹별 순차 이전 원칙은 유지한다.
+
+### 15.53 OKE Basic OCI Vault bootstrap 로컬 구현 (초기 구현 기록)
+
+> 이 절은 production 연결 전 로컬 검증 기록이다. stage 예제는 제거됐으며 현재 production manifest와
+> rollout 절차는 15.54가 기준이다.
+
+승인된 저비용안에 따라 `backend/secret-bootstrap` init image와 API·Worker 공용
+`StaticSecretFileEnvironmentPostProcessor`를 구현했다. bootstrap은 OCI config-file 인증과 Git에 값이 없는
+`KEY=SECRET_OCID` manifest만 받아 Base64 Secret bundle을 memory-backed volume에 원자적으로 기록한다.
+출력 파일은 owner read-only `0400`으로 제한하고 Secret 원문·OCID를 로그에 출력하지 않는다. manifest 누락,
+잘못된 key/OCID, 빈 bundle, unsafe output directory는 fail-closed한다.
+
+API·Worker adapter는 `STATIC_SECRET_DIRECTORY`의 대문자 파일을 Spring property source로 연결한다. 기존
+system environment를 더 높은 우선순위로 유지해 production rollback 경로를 보존하고,
+`STATIC_SECRET_DIRECTORY_REQUIRED=true`와 `STATIC_SECRET_REQUIRED_KEYS`로 production init에서 필수 파일
+누락을 즉시 실패시킨다. symlink·비정규 파일, unsafe filename과 NUL 값은 거부한다.
+
+SMTP username/password 두 항목을 시험했던 stage Kustomization은 별도 stage가 없다는 운영 구조를 확인한
+뒤 제거했다. OCI signing config/private key를 init container에만 mount하고 main container가 memory volume을
+read-only로 보는 계약은 production overlay로 이동했다.
+
+검증 결과는 다음과 같다.
+
+| 항목 | 결과 |
+| --- | --- |
+| API file adapter 단위 테스트·Spotless | 성공 |
+| bootstrap parser·atomic write·`0400` 권한 테스트 | 성공 |
+| `secret-bootstrap.jar` 생성 | 성공 |
+| `Dockerfile.secret-bootstrap` 로컬 image build | 성공 |
+| stage Kustomize render | 초기 설계 검증 기록, 현재 예제 제거 |
+| production backend render | 현재 authoritative manifest는 15.54 참조 |
+| inventory validator | 9개 group, 16개 후보, 2개 consumer 통과 |
+| 실제 OCI Secret reader bundle 조회 | production reader 권한으로 성공, 원문 비출력 |
+
+초기 로컬 구현 비용은 `$0`이었다. 이후 production 직접 전환에서도 기존 software-protected Vault/key와
+현재 node를 재사용하며 예상 추가 고정비는 `$0`이다. node 증설, private/HSM Vault 또는 유료 identity
+domain이 필요하면 즉시 중단하고 비용을 다시 승인받는다.
+
+### 15.54 stage 없는 production SMTP Vault 직접 전환
+
+개발 기간에는 별도 stage가 없고 `main`이 production으로 직접 배포된다. 이에 SMTP username/password만
+첫 전환 그룹으로 정하고 다음 리소스를 준비했다.
+
+- 비대화형 IAM 사용자 `self-intro-vault-reader`, 그룹 `self-intro-vault-readers`
+- `self-intro` compartment에서 Secret bundle read만 허용하는 `self-intro-vault-reader-policy`
+- 기존 DEFAULT Vault와 software-protected key로 암호화한 `self-intro-prod-smtp-username`,
+  `self-intro-prod-smtp-password`
+- config와 signing private key를 암호화한 `oci-api-static-reader-bootstrap` SealedSecret
+
+전용 reader가 두 bundle을 읽을 수 있음을 OCI CLI로 검증했으며 Secret 원문은 출력하지 않았다. API image는
+bootstrap JAR을 포함하고 init container가 두 값을 memory-backed volume에 `0400` 파일로 기록한다. main
+container에는 OCI 인증 자료를 mount하지 않으며 `backend-mail-secret` 환경변수 주입을 제거한다. 기존
+SealedSecret resource는 즉시 rollback을 위해 당분간 유지한다.
+
+단일 OKE Basic node는 CPU request가 약 94%라 API의 surge Pod를 동시에 수용하기 어렵다. API 웹 트래픽을
+중단하지 않기 위해 Deployment를 `RollingUpdate(maxUnavailable: 0, maxSurge: 1)`로 설정하고 rollout 직전에
+AI Worker를 일시적으로 0으로 내린다. 새 API의 init·readiness·외부 smoke가 통과하면 Worker를 즉시 원복한다.
+Argo CD self-heal, scheduling, Pod restart를 그동안 계속 관찰한다. 신규 node는 만들지 않는다.
+
+배포 전 검증은 API/bootstrap 단위 테스트·Spotless·bootJar, API image 내부 bootstrap JAR, inventory validator,
+production Kustomize render와 whitespace 검사를 포함한다. 배포 후에는 GitHub Actions, GitOps revision,
+Argo CD `Synced/Healthy`, API/Worker Ready·restart, init 종료 상태, 외부 health/readiness/home, 실제 가입 메일,
+OCI 401/403과 mail authentication 오류를 확인한다.
+
+예상 추가 고정비는 `$0`이다. IAM 사용자·그룹·policy·API key는 별도 고정비가 없고 기존 Vault/key/node를
+재사용한다. 다음 Secret 그룹은 SMTP 안정화와 복구 검증 전에는 이동하지 않는다.
