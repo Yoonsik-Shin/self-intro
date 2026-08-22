@@ -3359,8 +3359,16 @@ capability 제거·read-only root filesystem·RuntimeDefault seccomp를 함께 �
 
 운영 Kubernetes는 `1.36.1`이며 2026-08-22 OCI 지원표에 맞춰 Cluster Autoscaler
 `1.34.3-323`, Metrics Server `0.7.2` 조합을 고정했다. production backend·frontend·monitoring·exporter·
-RabbitMQ overlay render와 `git diff --check`는 통과했다. 아직 main push와 Argo CD sync 전이므로 이
-manifest들이 운영 클러스터에 적용됐다고 간주하지 않는다.
+RabbitMQ overlay render와 `git diff --check`를 통과했고 main push와 Argo CD sync까지 완료했다.
+Cluster Autoscaler는 secondary node에서 instance principal로 leader lease를 획득하고 burst pool을
+인식했으며, Metrics API도 `Available=True`다.
+
+3대가 모두 A1 1 OCPU/4GB인 임시 구성에서는 전체 Argo 재동기화 직후 API와 Worker의 Spring 초기화가
+기존 45초 liveness 시작 한도를 초과했다. 컨테이너 종료 코드는 각각 143·137이었고 시작 로그에는 probe가
+개입하기 전의 치명적 application failure가 없었다. API와 Worker에 최대 6분의 `startupProbe`를 두어
+기동이 끝나기 전에는 liveness가 개입하지 않게 했고, readiness·liveness timeout은 3초로 완화했다.
+이 설정은 장애가 난 프로세스를 계속 살려 두는 용도가 아니라 저사양 node의 정상 초기화와 런타임 장애
+판정을 분리하기 위한 것이다.
 
 최종 목표는 fixed-primary A1 2 OCPU/8GB 1대, fixed-secondary A1 1 OCPU/4GB 1대, 평상시 0대인 burst
 A1 1 OCPU/4GB node pool이다. 하지만 primary가 현재 1/4이므로 capacity 안전을 위해 burst pool을 임시로
