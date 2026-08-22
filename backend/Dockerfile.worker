@@ -30,18 +30,22 @@ WORKDIR /app
 
 ENV PLAYWRIGHT_BROWSERS_PATH=/ms-playwright
 
+ARG APP_UID=10001
+ARG APP_GID=10001
+
 RUN --mount=type=bind,from=builder,source=/app/ai-worker/build/playwright-classpath,target=/tmp/playwright-classpath \
     apt-get update \
     && java -cp "/tmp/playwright-classpath/*" com.microsoft.playwright.CLI install --with-deps \
     && rm -rf /var/lib/apt/lists/* \
-    && groupadd -r spring && useradd -r -g spring spring \
+    && groupadd --gid "${APP_GID}" spring \
+    && useradd --uid "${APP_UID}" --gid spring --no-create-home --shell /usr/sbin/nologin spring \
     && mkdir -p /app/logs \
     && chown -R spring:spring /app /ms-playwright
 
 COPY --from=builder /app/ai-worker/build/libs/ai-worker-0.1.0.jar app.jar
 
 
-USER spring:spring
+USER 10001:10001
 
 EXPOSE 9090 8081
 

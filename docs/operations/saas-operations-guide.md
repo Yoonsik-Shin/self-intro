@@ -3171,6 +3171,9 @@ Deployment secret 소비자, SealedSecret 동기화와 외부 endpoint를 각각
 API와 Worker Pod에는 `RuntimeDefault` seccomp, `runAsNonRoot`, `allowPrivilegeEscalation=false`, Linux
 capability `ALL` 제거를 적용한다. NetworkPolicy는 API·Worker의 ingress를 기본 차단하고 같은 namespace와
 `ingress-nginx` namespace에서 오는 API 포트만 허용한다. Worker는 외부 Ingress에서 직접 접근할 수 없다.
+컨테이너 계정은 이름만 있는 `spring`이 아니라 Docker 이미지와 Deployment 양쪽에서 UID/GID `10001`로
+고정한다. Kubernetes는 이미지의 문자열 사용자 이름만으로 비루트 여부를 검증할 수 없으므로
+`runAsNonRoot`와 이름 기반 `USER spring:spring`을 함께 사용하면 `CreateContainerConfigError`가 발생한다.
 OCI Vault, AI Provider와 외부 결제 API는 FQDN과 동적 주소를 사용하므로 egress 기본 차단은 현재 rollout에
 포함하지 않는다. CNI가 FQDN policy 또는 검증된 egress proxy를 제공한 뒤 별도 단계로 적용한다.
 
