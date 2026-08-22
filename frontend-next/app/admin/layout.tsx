@@ -28,10 +28,10 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
                 router.replace(
                     requestedNext?.startsWith('/') && !requestedNext.startsWith('//')
                         ? requestedNext
-                        : `/workspace/${encodeURIComponent(workspace.slug)}/manage`
+                        : `/workspace/${encodeURIComponent(workspace.slug)}/manage?tab=WORKSPACE_HOME`
                 );
             } else if (me) {
-                router.replace('/onboarding/workspace');
+                router.replace(me.platformRoles.length > 0 ? '/ops' : '/onboarding/workspace');
             }
         }
     }, [isChecking, isAuthenticated, me, pathname, router]);

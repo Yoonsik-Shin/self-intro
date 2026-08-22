@@ -26,11 +26,11 @@ function postLoginDestination(me: MeResponse, requestedNext: string | null): str
             me.workspaces.some((workspace) => workspace.slug === requestedWorkspaceSlug));
 
     if (canUseRequestedRoute) return safeNext;
-    if (me.platformRoles.length > 0) return '/ops';
     const firstWorkspace = me.workspaces[0];
-    return firstWorkspace
-        ? `/workspace/${encodeURIComponent(firstWorkspace.slug)}/manage`
-        : '/onboarding/workspace';
+    if (firstWorkspace) {
+        return `/workspace/${encodeURIComponent(firstWorkspace.slug)}/manage?tab=WORKSPACE_HOME`;
+    }
+    return me.platformRoles.length > 0 ? '/ops' : '/onboarding/workspace';
 }
 
 export default function LoginPage() {

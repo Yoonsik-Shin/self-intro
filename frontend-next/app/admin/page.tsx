@@ -18,13 +18,17 @@ export default function AdminRedirectPage() {
         }
 
         if (!isAuthenticated) {
-            router.replace('/login?redirect=/admin');
+            router.replace('/login?next=/admin');
             return;
         }
 
         const workspace = me?.workspaces?.[0];
         if (workspace?.slug) {
-            router.replace(`/workspace/${encodeURIComponent(workspace.slug)}/manage`);
+            router.replace(
+                `/workspace/${encodeURIComponent(workspace.slug)}/manage?tab=WORKSPACE_HOME`
+            );
+        } else if (me?.platformRoles?.length) {
+            router.replace('/ops');
         } else {
             router.replace('/onboarding/workspace');
         }
