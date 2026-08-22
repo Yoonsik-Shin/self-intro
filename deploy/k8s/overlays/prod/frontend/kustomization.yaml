@@ -14,4 +14,4 @@ patches:
 images:
   - name: self-intro-frontend
     newName: yny.ocir.io/axrywc89b6lf/self-intro/frontend
-    newTag: "60be505"
+    newTag: "24887fc"
