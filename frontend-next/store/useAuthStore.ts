@@ -1,5 +1,5 @@
 import { create } from 'zustand';
-import { authApi } from '@/lib/api';
+import { authApi, ApiError } from '@/lib/api';
 import type { MeResponse } from '@/lib/api/auth';
 import { publishAuthSessionEvent } from '@/lib/auth/sessionEvents';
 
@@ -40,7 +40,13 @@ export const useAuthStore = create<AuthState>((set) => ({
                 reauthenticationExpiresAt: me.reauthenticationExpiresAtEpochMillis,
                 explicitReauthenticationExpiresAt: me.explicitReauthenticationExpiresAtEpochMillis,
             });
-        } catch {
+        } catch (error) {
+            const isAuthError =
+                error instanceof ApiError && (error.status === 401 || error.status === 403);
+            if (!isAuthError) {
+                set({ isChecking: false });
+                return;
+            }
             set({
                 isAuthenticated: false,
                 isChecking: false,
