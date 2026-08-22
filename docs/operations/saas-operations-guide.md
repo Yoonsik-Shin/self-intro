@@ -3433,3 +3433,11 @@ Deployment와 고정 node의 DaemonSet은 desired/ready 상태이며 전체 Argo
 이동하는 HTTP 302를 반환했고 Prometheus의 `up{job="tempo"}` 값은 1이다. autoscaler 로그에는 OCI IAM
 403·Forbidden·Unauthorized가 없고 마지막 scale-down 삭제 시각도 기록됐다. 따라서 저비용
 오토스케일링 전환과 운영 검증은 완료로 판정한다.
+
+Grafana의 `[Infra] Kubernetes Node Resources` 대시보드는 Kubernetes의
+`self-intro.io/node-role=primary|secondary|burst` 라벨을 노드 IP와 함께 표시한다. 이를 위해
+kube-state-metrics는 전체 라벨이 아니라 `nodes=[self-intro.io/node-role]` 하나만 허용해
+`kube_node_labels`로 노출하며, 각 node-exporter 시계열은 해당 라벨과 조인한다. 역할을 확인할 때는
+대시보드의 `primary · <node IP>`, `secondary · <node IP>`, `burst · <node IP>` 범례를 기준으로 한다.
+burst pool이 0대인 평상시에는 primary와 secondary만 표시되는 것이 정상이다. 이 변경은 기존 메트릭의
+표시 이름만 보강하며 별도의 OCI 리소스나 추가 비용을 만들지 않는다.
