@@ -262,8 +262,7 @@ flag를 모두 `false`로 유지한다. 단, `PLATFORM_OWNER_PREVIEW_ENABLED=tru
 - 2026-08-22 월 2만원 상한, fixed-secondary A1 1/4, burst A1 1/4 `0..1` 구성을 승인받았다.
   self-intro compartment에 17 SGD Budget과 forecast 70%, actual 85%, actual 100% 경보를 생성해 모두
   ACTIVE임을 확인했다. Budget은 자동 차단이 아니므로 운영 중단 절차를 별도로 유지한다.
-- live primary는 아직 2 OCPU/12GB다. 추가 boot volume과 기존 Registry 비용까지 합치면 secondary를 바로
-  생성할 때 상한을 넘길 가능성이 있으므로 primary를 2 OCPU/8GB로 축소하고 Ready·route 검증을 통과하기
-  전에는 node pool을 생성하지 않는다.
+- live primary를 2 OCPU/8GB로 교체하고 Ready·route·workload 재배치를 검증했다. fixed-secondary는
+  1 OCPU/4GB로 상시 유지하고 burst는 1 OCPU/4GB `0..1`로 전환한다.
 - primary drain 중 핵심 route의 축소 운영, burst `0 -> 1 -> 0`, rollback rehearsal가 모두 끝나기 전에는
   무중단 또는 자동 복구 완료로 표시하지 않는다.

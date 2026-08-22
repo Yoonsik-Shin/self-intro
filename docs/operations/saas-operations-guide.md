@@ -3342,10 +3342,10 @@ CPU 확보를 위해 일시 중지한 뒤 replica 1로 복원했다. inventory �
 ### 15.56 OKE Basic 저비용 복원력·오토스케일링 준비
 
 2026-08-22 OKE Enhanced 없이 단일 노드의 Pod 상한과 배포 surge 부족을 완화하는 저비용 구성을 실제
-production에 준비했다. 현재 Ready node는 primary·secondary·burst 각 A1 1 OCPU/4GB로 총 3대다. 기존
-primary 2 OCPU/12GB instance는 종료됐고 목표 primary A1 2 OCPU/8GB는 OCI capacity를 확보하지 못해
-생성 요청이 대기열에 남아 있는 상태가 아니다. OKE node 생성 실패는 예약이나 대기 신청으로 유지되지
-않으므로 별도 재시도가 필요하다.
+production에 준비했다. 현재 fixed-primary는 A1 2 OCPU/8GB, fixed-secondary와 전환 검증 중인 burst는
+각 A1 1 OCPU/4GB다. 새 primary `10.0.20.254`가 Ready가 된 뒤 이전 primary `10.0.20.5`를 안전하게
+drain하고 node pool 크기를 차감했다. 교체 중 API·frontend는 Ready를 유지했고 전체 workload와 시스템
+DaemonSet의 재배치를 확인했다.
 
 production overlay에는 Metrics Server, API·frontend HPA, 역할별 scheduling, workload priority,
 RabbitMQ overlay, Prometheus HPA·node capacity 경보와 Tempo metric scrape를 연결했다. Cluster Autoscaler
@@ -3363,17 +3363,16 @@ RabbitMQ overlay render와 `git diff --check`를 통과했고 main push와 Argo 
 Cluster Autoscaler는 secondary node에서 instance principal로 leader lease를 획득하고 burst pool을
 인식했으며, Metrics API도 `Available=True`다.
 
-3대가 모두 A1 1 OCPU/4GB인 임시 구성에서는 전체 Argo 재동기화 직후 API와 Worker의 Spring 초기화가
+교체 전 3대가 모두 A1 1 OCPU/4GB인 임시 구성에서는 전체 Argo 재동기화 직후 API와 Worker의 Spring 초기화가
 기존 45초 liveness 시작 한도를 초과했다. 컨테이너 종료 코드는 각각 143·137이었고 시작 로그에는 probe가
 개입하기 전의 치명적 application failure가 없었다. API와 Worker에 최대 6분의 `startupProbe`를 두어
 기동이 끝나기 전에는 liveness가 개입하지 않게 했고, readiness·liveness timeout은 3초로 완화했다.
 이 설정은 장애가 난 프로세스를 계속 살려 두는 용도가 아니라 저사양 node의 정상 초기화와 런타임 장애
 판정을 분리하기 위한 것이다.
 
-최종 목표는 fixed-primary A1 2 OCPU/8GB 1대, fixed-secondary A1 1 OCPU/4GB 1대, 평상시 0대인 burst
-A1 1 OCPU/4GB node pool이다. 하지만 primary가 현재 1/4이므로 capacity 안전을 위해 burst pool을 임시로
-`1..1`로 고정한다. primary 2/8이 Ready이고 workload·volume·공개 route 검증이 끝난 뒤에만 autoscaler
-인수를 `0:1:<BURST_NODE_POOL_OCID>`로 바꾼다. fixed pool은 autoscaler 대상에 넣지 않는다.
+최종 목표인 fixed-primary A1 2 OCPU/8GB 1대, fixed-secondary A1 1 OCPU/4GB 1대, 평상시 0대인 burst
+A1 1 OCPU/4GB node pool로 전환했다. primary 2/8의 Ready, workload·volume·공개 route 검증 후
+autoscaler 인수를 `0:1:<BURST_NODE_POOL_OCID>`로 변경했다. fixed pool은 autoscaler 대상에 넣지 않는다.
 
 장애 복구와 트래픽 확장은 별개다. primary 장애 시 핵심 workload를 secondary·burst에 재배치하고,
 Worker·Tempo·Prometheus·Loki·Grafana·exporter는 필요하면 우선순위에 따라 축소할 수 있다. Cluster
