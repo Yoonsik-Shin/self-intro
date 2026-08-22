@@ -10,6 +10,9 @@
 `deploy/k8s/overlays/prod/backend`에 있다. production 적용 전 코드·image·Kustomize를 검증하고 한 Secret
 그룹씩 전환한다.
 
+2026-08-22 production에는 SMTP username/password 두 항목만 적용했다. 현재 inventory 상태는
+`PROD_SMTP_APPLIED`이며 나머지 항목은 이전 후보일 뿐 적용됐다는 의미가 아니다.
+
 ```bash
 python3 deploy/k8s/examples/oci-vault-static-secrets/validate_inventory.py
 kubectl kustomize deploy/k8s/overlays/prod/backend

@@ -35,9 +35,9 @@ IAM 사용자·그룹·policy 생성에 별도 서비스 요금은 예상하지 
 request로 기존 node 수용량을 넘거나 유료 Vault/KMS 보호 수준이 필요해지면 생성 전 비용을 다시
 보고하고 승인을 받는다.
 
-### 실제 준비된 SMTP Vault 전환 리소스
+### 실제 적용된 SMTP Vault 전환 리소스
 
-2026-08-22 현재 별도 stage나 신규 node를 만들지 않고 다음 리소스를 준비했다.
+2026-08-22 별도 stage나 신규 node를 만들지 않고 다음 리소스를 production에 적용했다.
 
 - 기존 DEFAULT Vault `self-intro-private-beta-vault`와 software-protected key
   `self-intro-byok-kek` 재사용
@@ -52,6 +52,7 @@ request로 기존 node 수용량을 넘거나 유료 Vault/KMS 보호 수준이 
 policy·API key는 별도 고정비가 없고 기존 Vault/key/node를 재사용하므로 이번 SMTP 전환의 예상 추가
 고정비는 `$0`이다. API surge에 필요한 CPU는 rollout 동안 AI Worker를 일시적으로 0으로 내려 확보하고,
 새 API가 Ready가 되면 즉시 원복한다. 이 방식은 신규 node나 OKE Enhanced 비용을 발생시키지 않는다.
+실제 rollout에서도 Worker를 복원한 뒤 API·Worker Ready 1/1, restart 0과 외부 health/readiness를 확인했다.
 
 ## 비용 승인 순서
 

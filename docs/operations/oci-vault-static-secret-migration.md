@@ -3,6 +3,7 @@
 - 기준일: 2026-08-22
 - 환경: 별도 stage 없음. 개발 기간에는 `main`이 production으로 직접 배포된다.
 - 현재 범위: API SMTP username/password 2개
+- 적용 상태: production 적용·검증 완료 (`PROD_SMTP_APPLIED`)
 - 비용: 기존 OCI DEFAULT Vault, software-protected key, OKE Basic node 재사용. 예상 추가 고정비 `$0`
 - 제외: OKE Enhanced, Secrets Store CSI Driver, 신규 node, Private Vault/HSM
 
@@ -21,6 +22,10 @@ Workspace 사용자가 연결한 AI API key용 `SecretProvider`와 애플리케�
    파일명, symlink, NUL 값은 fail-closed한다.
 7. production API는 `backend-mail-secret`을 `envFrom`으로 소비하지 않는다. 기존 SealedSecret은 즉시
    rollback용으로만 남긴다.
+
+ConfigMap volume 자체는 Kubernetes가 symlink로 제공하므로 fail-closed 정규 파일 검사와 충돌한다.
+따라서 manifest 한 파일만 `subPath`로 init container에 mount한다. OCI config와 API signing private key의
+container 내부 경로는 `/run/oci/oci_api_key.pem`으로 고정하며 로컬 생성 경로를 config에 남기지 않는다.
 
 Bootstrap API signing private key는 SealedSecret에 남는 최소 잔여 위험이다. workload read 범위만 갖고
 console password와 Secret lifecycle 권한은 없다. 90일 이내 회전하며 노출이 의심되면 OCI에서 fingerprint를
@@ -66,6 +71,15 @@ kubectl kustomize deploy/k8s/overlays/prod/backend >/tmp/self-intro-prod-backend
 - SMTP username/password 환경변수가 main container에 없고, memory file은 존재·`0400`이나 원문은 출력하지 않음
 - 가입 확인 메일 실제 수신
 - OCI 401/403, init error, Spring mail authentication error, 5xx가 없음
+
+2026-08-22 production 확인 결과:
+
+- API init container가 Secret 2개를 읽고 정상 종료했으며 결과 파일은 모두 `0400`이다.
+- 새 API와 복원한 Worker는 Ready 1/1, restart 0이다.
+- main API에는 `/run/oci`가 mount되지 않고 SMTP username/password 환경변수도 없다.
+- 외부 API health/readiness는 `UP`, 서비스 홈은 HTTP 200이다.
+- 단일 node CPU 여유 확보를 위해 Worker를 잠시 0으로 내렸다가 API 전환 직후 1로 복원했다.
+- 신규 node, OKE Enhanced, CSI Driver를 만들지 않아 추가 고정비는 `$0`이다.
 
 ## 4. 회전과 장애 복구
 

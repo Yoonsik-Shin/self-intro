@@ -3322,3 +3322,19 @@ OCI 401/403과 mail authentication 오류를 확인한다.
 
 예상 추가 고정비는 `$0`이다. IAM 사용자·그룹·policy·API key는 별도 고정비가 없고 기존 Vault/key/node를
 재사용한다. 다음 Secret 그룹은 SMTP 안정화와 복구 검증 전에는 이동하지 않는다.
+
+#### production 적용 결과
+
+2026-08-22 운영 직접 rollout을 완료했다. 최초 init 검증에서 OCI config의 private key 경로가 로컬 경로를
+가리키는 문제와 ConfigMap volume symlink가 fail-closed 정규 파일 검사에 걸리는 문제를 확인했다. config의
+key 경로를 container 내부 `/run/oci/oci_api_key.pem`으로 교정하고 manifest만 `subPath`로 mount해 보안 검사를
+완화하지 않고 해결했다.
+
+최종적으로 init container는 두 Secret을 `0400` memory file로 만들고 정상 종료했다. API와 Worker는 각각
+Ready 1/1·restart 0이며 외부 health/readiness는 `UP`, 서비스 홈은 HTTP 200이다. main API에는 OCI
+credential mount와 SMTP credential 환경변수가 없다. rollout 동안 기존 API는 계속 Ready였고 AI Worker는
+CPU 확보를 위해 일시 중지한 뒤 replica 1로 복원했다. inventory 상태는 `PROD_SMTP_APPLIED`다.
+
+이 완료 판정은 SMTP username/password에만 적용한다. DB, MFA, 결제, 플랫폼 AI, Storage, Worker token은
+여전히 기존 SealedSecret 경로를 사용한다. 다음 그룹을 이전할 때는 이 결과를 자동 승인으로 간주하지 않고
+별도 비용·회전·rollback 검토를 다시 수행한다.

@@ -230,8 +230,10 @@ flag를 모두 `false`로 유지한다. 단, `PLATFORM_OWNER_PREVIEW_ENABLED=tru
   `AI_GENERATION_ENABLED=false`, `AI_USAGE_ENFORCEMENT_ENABLED=false`를 유지한다. preview policy는
   `PLATFORM_OWNER`와 지정 Workspace에만 이 전역 차단의 제한적 예외를 적용하고, AI usage 예약·정산은
   preview 요청에서도 항상 강제한다.
-- OCI Email Delivery용 `backend-mail-secret` SealedSecret과 배포 참조를 확인하고
-  `REGISTRATION_EMAIL_ENABLED=true`, `ACCOUNT_RECOVERY_EMAIL_ENABLED=true`인 렌더링 결과를 검증한다.
+- OCI Email Delivery의 SMTP username/password는 OCI Vault에서 init container의 memory file로 전달되고
+  main API에 환경변수나 OCI credential이 노출되지 않는지 확인한다. `backend-mail-secret`은 rollback용으로만
+  유지한다. `REGISTRATION_EMAIL_ENABLED=true`, `ACCOUNT_RECOVERY_EMAIL_ENABLED=true`인 렌더링 결과도
+  함께 검증한다.
 - 2026-08-21 운영 확인에서 Tempo가 51회 재시작 후 최근에도 `OOMKilled`됐고 Oracle exporter도
   3회 재시작 후 `OOMKilled`된 이력이 확인됐다. 베타 배포 manifest에는 Tempo `384Mi/1Gi`, Oracle
   exporter `96Mi/256Mi`의 메모리 request/limit를 사용하고, 배포 뒤 최소 24시간 재시작 수와 메모리를
