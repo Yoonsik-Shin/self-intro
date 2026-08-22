@@ -101,7 +101,7 @@ spec:
             - --scale-down-delay-after-add=10m
             - --scale-down-unneeded-time=15m
             - --ignore-daemonsets-utilization=true
-            - --scale-down-utilization-threshold=0.8
+            - --scale-down-utilization-threshold=0.9
             - --max-nodes-total=3
             - --leader-elect=true
             - --skip-nodes-with-local-storage=false

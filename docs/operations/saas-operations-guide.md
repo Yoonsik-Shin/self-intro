@@ -3415,7 +3415,8 @@ burst pool을 `0..1`로 전환한 첫 축소 관찰에서는 burst node의 reque
 88%로 계산되어 기본 scale-down utilization threshold를 넘었다. 이 값에는 모든 node에서 반드시
 실행되는 OKE·관측 DaemonSet request도 포함되어 실제 일반 workload 재배치 가능성과 다르게 축소가
 보류됐다. burst는 배포 surge 전용 pool이므로 `--ignore-daemonsets-utilization=true`와
-`--scale-down-utilization-threshold=0.8`을 적용한다. 일반 Pod request는 약 74%여서 유휴 후보가 되지만,
+`--scale-down-utilization-threshold=0.9`를 적용한다. DaemonSet을 제외한 일반 Pod request는 실제 운영 배치에서
+약 86.1%여서 유휴 후보가 되지만,
 삭제 전 scheduler simulation과 Pod 제약 검사는 그대로 수행되므로 fixed node에 재배치할 수 없으면
 축소하지 않는다. 실제 `1 -> 0 -> 1 -> 0` rehearsal와 전체 route·monitoring 재검증 전에는 전환 완료로
 판정하지 않는다.

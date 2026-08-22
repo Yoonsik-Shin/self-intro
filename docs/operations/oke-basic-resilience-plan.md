@@ -56,7 +56,7 @@ OCI Cost Analysis·Usage API·Budget 경보의 실제 계정 데이터로 판단
 
 burst node에는 모든 node에서 실행되는 OKE·관측 DaemonSet이 있어 기본 utilization 계산만 사용하면
 실제 이동 대상이 아닌 request 때문에 축소가 막힌다. 운영 manifest는 DaemonSet utilization을 유휴
-판정에서 제외하고 일반 Pod request 80% 미만을 후보로 삼는다. 이후에도 scheduler simulation과 Pod
+판정에서 제외하고 일반 Pod request 90% 미만을 후보로 삼는다. 이후에도 scheduler simulation과 Pod
 제약 검사를 통과해야만 node를 삭제한다.
 
 GitOps manifest는 primary 교체 검증 후 burst pool을 `0:1`로 전환했다. scale-up·scale-down rehearsal를
@@ -65,7 +65,7 @@ GitOps manifest는 primary 교체 검증 후 burst pool을 `0:1`로 전환했다
 ```text
 --nodes=0:1:ocid1.nodepool.oc1.ap-chuncheon-1.aaaaaaaa5v62pdcfrbw6u3ajp7xb73d357wvsowm6rxyfucatn4ec276223a
 --ignore-daemonsets-utilization=true
---scale-down-utilization-threshold=0.8
+--scale-down-utilization-threshold=0.9
 ```
 
 Worker는 queue backlog가 병목 신호이므로 CPU HPA를 적용하지 않는다. KEDA 또는 Prometheus Adapter는

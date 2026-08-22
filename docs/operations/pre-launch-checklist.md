@@ -267,5 +267,5 @@ flag를 모두 `false`로 유지한다. 단, `PLATFORM_OWNER_PREVIEW_ENABLED=tru
 - primary drain 중 핵심 route의 축소 운영, burst `0 -> 1 -> 0`, rollback rehearsal가 모두 끝나기 전에는
   무중단 또는 자동 복구 완료로 표시하지 않는다.
 - burst의 OKE·관측 DaemonSet request 때문에 기본 scale-down threshold가 축소를 막는 경우
-  DaemonSet utilization을 제외하고 일반 Pod 80% 기준을 사용한다. scheduler simulation을 건너뛰거나
+  DaemonSet utilization을 제외하고 일반 Pod 90% 기준을 사용한다. scheduler simulation을 건너뛰거나
   node pool 크기를 강제로 낮추지 않는다.
