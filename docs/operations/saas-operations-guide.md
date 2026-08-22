@@ -3483,3 +3483,23 @@ git diff --check
 배포 완료 판정은 Argo CD `self-intro-monitoring`의 `Synced/Healthy`, Prometheus rule health,
 두 신규 경보의 정상 로드, Grafana 프로비저닝 JSON의 신규 panel title, API·Worker working set/CPU 시계열
 반환과 관련 Pod의 Ready·restart 상태를 모두 확인한 경우에만 내린다.
+
+2026-08-22 커밋 `9f677a5c`를 운영에 반영한 뒤 Argo CD `self-intro-monitoring`이
+`Synced/Healthy`임을 확인했다. Grafana 컨테이너의 프로비저닝 JSON에는
+`Java API & Worker Load / Memory Trend`, `Java API & Worker Memory Working Set`,
+`Java API & Worker Load` 패널이 모두 존재한다. 검증 시점의 working set은 API 약 633 MiB,
+Worker 약 634 MiB였고, 5분 CPU 증가율은 각각 약 0.0040 core와 0.0047 core였다.
+
+Prometheus ConfigMap 변경은 실행 중인 Prometheus 프로세스에 자동 반영되지 않으므로, 규칙 파일이
+마운트된 것을 확인한 후 다음 명령으로 Prometheus만 롤링 재시작한다.
+
+```bash
+kubectl -n self-intro rollout restart deployment/prometheus
+kubectl -n self-intro rollout status deployment/prometheus --timeout=180s
+```
+
+재시작 후 Rules API에서 `SelfIntroNodeMemoryAvailableLow`와
+`SelfIntroNodeMemoryUsageHigh`가 모두 `health=ok`, `state=inactive`, `duration=600`으로 평가됐다.
+전체 `self-intro` Pod는 Ready이고 새 Prometheus Pod의 restart는 0회였다. 외부 검증은 서비스 홈,
+API `/actuator/health`, Grafana 로그인 경로가 모두 HTTP 200을 반환했다. 이 결과를 기준으로 패널·경보
+구현과 운영 배포를 완료로 판정한다.
