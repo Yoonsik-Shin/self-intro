@@ -3548,6 +3548,13 @@ Prometheus는 자체적으로 OCI Object Storage를 장기 저장소로 사용�
    `sealed-rabbitmq-credentials.yaml`에 암호문으로 기록한다. `guest` 계정의 원격 접속은 허용하지 않는다.
    이 절차는 아직 시작하지 않은 새 RabbitMQ의 최초 자격 증명 생성에만 사용한다. 운영 중인 RabbitMQ의
    자격 증명을 회전할 때는 기존 데이터와 클라이언트 전환을 포함한 별도 복구 절차를 사용한다.
+
+   A1 노드의 자원 압박이나 PVC 복구가 겹치면 `rabbitmq-diagnostics`가 1초를 넘길 수 있다.
+   Kubernetes exec probe의 기본 timeout 1초를 그대로 쓰면 정상 부팅 중인 RabbitMQ를 liveness 실패로
+   재시작시키므로, `startupProbe`는 최대 3분(`10초 × 18회`), readiness·liveness의 `timeoutSeconds`는
+   5초로 유지한다. 시작이 느리다는 이유만으로 PVC를 삭제하거나 RabbitMQ를 재초기화하지 않는다.
+   변경 검증 순서는 prod overlay 렌더링, Argo CD 동기화, StatefulSet rollout, Pod event,
+   API·Worker의 AMQP 연결 확인이다.
 6. monitoring overlay만 먼저 반영하고 Loki 로그 조회, Tempo trace 조회, Pod 재시작 후 과거 데이터 조회와
    Object Storage 객체 증가를 검증한다.
 7. 24시간 이상 정상 동작한 뒤에만 기존 Loki·Tempo PVC를 명시적으로 삭제한다. 실패하면 새 workload를
