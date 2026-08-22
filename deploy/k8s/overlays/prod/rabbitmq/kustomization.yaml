@@ -5,6 +5,7 @@ namespace: self-intro
 
 resources:
   - ../../../base/rabbitmq
+  - sealed-rabbitmq-credentials.yaml
 
 patches:
   - path: patch-scheduling.yaml

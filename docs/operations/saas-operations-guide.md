@@ -3536,8 +3536,18 @@ Prometheus는 자체적으로 OCI Object Storage를 장기 저장소로 사용�
 4. 아래 키를 가진 `observability-object-storage-secret`을 SealedSecret으로 생성한다.
    `LOKI_S3_BUCKET`, `TEMPO_S3_BUCKET`, `OCI_S3_ENDPOINT`, `OCI_S3_REGION`,
    `OCI_S3_ACCESS_KEY_ID`, `OCI_S3_SECRET_ACCESS_KEY`.
-5. 아래 키를 가진 `rabbitmq-credentials`를 SealedSecret으로 생성한다.
-   `RABBITMQ_USERNAME`, `RABBITMQ_PASSWORD`. `guest` 계정의 원격 접속은 허용하지 않는다.
+5. 최초 RabbitMQ 부트스트랩 전 아래 스크립트로 `rabbitmq-credentials` SealedSecret을 생성한다.
+
+   ```bash
+   cd deploy/k8s/overlays/prod/rabbitmq
+   ./generate-rabbitmq-sealed-secret.sh
+   ```
+
+   스크립트는 Kubernetes context가 `self-intro-oke`인지 확인하고 운영 클러스터 확인을 요구한다.
+   평문을 저장소나 명령행 인자에 남기지 않으며 `RABBITMQ_USERNAME`, `RABBITMQ_PASSWORD` 두 키만
+   `sealed-rabbitmq-credentials.yaml`에 암호문으로 기록한다. `guest` 계정의 원격 접속은 허용하지 않는다.
+   이 절차는 아직 시작하지 않은 새 RabbitMQ의 최초 자격 증명 생성에만 사용한다. 운영 중인 RabbitMQ의
+   자격 증명을 회전할 때는 기존 데이터와 클라이언트 전환을 포함한 별도 복구 절차를 사용한다.
 6. monitoring overlay만 먼저 반영하고 Loki 로그 조회, Tempo trace 조회, Pod 재시작 후 과거 데이터 조회와
    Object Storage 객체 증가를 검증한다.
 7. 24시간 이상 정상 동작한 뒤에만 기존 Loki·Tempo PVC를 명시적으로 삭제한다. 실패하면 새 workload를
