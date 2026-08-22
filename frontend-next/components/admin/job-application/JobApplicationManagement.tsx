@@ -2029,6 +2029,7 @@ function AppealAnalysisView({
 }
 
 const WEEKDAY_LABELS = ['일', '월', '화', '수', '목', '금', '토'];
+const CELL_VISIBLE_ITEMS = 3;
 
 function toDateKey(date: Date): string {
     return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
@@ -2050,6 +2051,17 @@ function buildCalendarCells(monthStart: Date): CalendarCell[] {
     }
     while (cells.length % 7 !== 0) cells.push({ date: null });
     return cells;
+}
+
+function buildWeekCells(anchor: Date): CalendarCell[] {
+    const start = new Date(
+        anchor.getFullYear(),
+        anchor.getMonth(),
+        anchor.getDate() - anchor.getDay()
+    );
+    return Array.from({ length: 7 }, (_, i) => ({
+        date: new Date(start.getFullYear(), start.getMonth(), start.getDate() + i),
+    }));
 }
 
 const emptyForm: JobPostingRequest = {
@@ -2096,6 +2108,11 @@ export function JobApplicationManagement({
         const now = new Date();
         return new Date(now.getFullYear(), now.getMonth(), 1);
     });
+    const [calendarGranularity, setCalendarGranularity] = useState<'MONTH' | 'WEEK'>('WEEK');
+    const [weekAnchor, setWeekAnchor] = useState(() => new Date());
+    const [selectedDateKey, setSelectedDateKey] = useState<string | null>(null);
+    const [showMonthPicker, setShowMonthPicker] = useState(false);
+    const [expandedDateKeys, setExpandedDateKeys] = useState<Set<string>>(new Set());
 
     useEffect(() => {
         onViewModeChange?.(viewMode);
@@ -2995,6 +3012,8 @@ export function JobApplicationManagement({
     }, [filteredApplications]);
 
     const calendarCells = useMemo(() => buildCalendarCells(calendarMonth), [calendarMonth]);
+    const monthRowCount = calendarCells.length / 7;
+    const weekCells = useMemo(() => buildWeekCells(weekAnchor), [weekAnchor]);
 
     const deadlineEventsByDate = useMemo(() => {
         const map = new Map<string, { applications: JobPosting[]; candidates: JobPosting[] }>();
@@ -3015,8 +3034,37 @@ export function JobApplicationManagement({
         return map;
     }, [applications, candidates]);
 
-    function shiftCalendarMonth(delta: number) {
-        setCalendarMonth((prev) => new Date(prev.getFullYear(), prev.getMonth() + delta, 1));
+    function shiftCalendar(delta: number) {
+        if (calendarGranularity === 'WEEK') {
+            setWeekAnchor((prev) => {
+                const next = new Date(prev);
+                next.setDate(next.getDate() + delta * 7);
+                return next;
+            });
+        } else {
+            setCalendarMonth((prev) => new Date(prev.getFullYear(), prev.getMonth() + delta, 1));
+        }
+    }
+
+    function jumpToMonth(year: number, month: number) {
+        setCalendarMonth(new Date(year, month, 1));
+        setWeekAnchor(new Date(year, month, 1));
+        setShowMonthPicker(false);
+    }
+
+    function goToToday() {
+        const now = new Date();
+        setCalendarMonth(new Date(now.getFullYear(), now.getMonth(), 1));
+        setWeekAnchor(now);
+    }
+
+    function toggleDateExpand(dateKey: string) {
+        setExpandedDateKeys((prev) => {
+            const next = new Set(prev);
+            if (next.has(dateKey)) next.delete(dateKey);
+            else next.add(dateKey);
+            return next;
+        });
     }
 
     function openCreateDrawer() {
@@ -4608,89 +4656,348 @@ export function JobApplicationManagement({
                     </div>
                 </div>
             ) : viewMode === 'CALENDAR' ? (
-                <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
-                    <div className="mb-3 flex items-center justify-between">
-                        <button
-                            type="button"
-                            onClick={() => shiftCalendarMonth(-1)}
-                            className="rounded-lg p-1.5 text-slate-400 hover:bg-slate-100 hover:text-slate-700"
-                        >
-                            <ChevronLeft className="h-4 w-4" />
-                        </button>
-                        <span className="text-sm font-black text-slate-900">
-                            {calendarMonth.getFullYear()}년 {calendarMonth.getMonth() + 1}월
-                        </span>
-                        <button
-                            type="button"
-                            onClick={() => shiftCalendarMonth(1)}
-                            className="rounded-lg p-1.5 text-slate-400 hover:bg-slate-100 hover:text-slate-700"
-                        >
-                            <ChevronRight className="h-4 w-4" />
-                        </button>
-                    </div>
-                    <div className="mb-1 grid grid-cols-7 gap-1 text-center text-[11px] font-bold text-slate-400">
-                        {WEEKDAY_LABELS.map((label) => (
-                            <div key={label}>{label}</div>
-                        ))}
-                    </div>
-                    <div className="grid grid-cols-7 gap-1">
-                        {calendarCells.map((cell, index) => {
-                            if (!cell.date) {
-                                return (
-                                    <div
-                                        key={`blank-${index}`}
-                                        className="min-h-[92px] rounded-lg bg-slate-50"
-                                    />
-                                );
-                            }
-                            const dateKey = toDateKey(cell.date);
-                            const events = deadlineEventsByDate.get(dateKey);
-                            const isToday = dateKey === toDateKey(new Date());
-                            return (
-                                <div
-                                    key={dateKey}
-                                    className={`min-h-[92px] rounded-lg border p-1.5 ${
-                                        isToday
-                                            ? 'border-slate-900'
-                                            : 'border-slate-100 bg-slate-50/50'
+                <div className="flex min-h-0 flex-1 flex-col overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
+                    <div className="flex-shrink-0 p-4 pb-2">
+                        <div className="mb-3 grid grid-cols-[auto_1fr_auto] items-center gap-2">
+                            <button
+                                type="button"
+                                onClick={() => shiftCalendar(-1)}
+                                className="rounded-lg p-1.5 text-slate-400 hover:bg-slate-100 hover:text-slate-700"
+                            >
+                                <ChevronLeft className="h-4 w-4" />
+                            </button>
+                            <div className="relative justify-self-center">
+                                <button
+                                    type="button"
+                                    onClick={() => setShowMonthPicker((prev) => !prev)}
+                                    className="rounded-lg px-2 py-1 text-base font-black text-slate-900 hover:bg-slate-100"
+                                >
+                                    {calendarGranularity === 'MONTH'
+                                        ? `${calendarMonth.getFullYear()}년 ${calendarMonth.getMonth() + 1}월`
+                                        : weekCells[0]?.date && weekCells[6]?.date
+                                          ? weekCells[0]!.date!.getMonth() ===
+                                            weekCells[6]!.date!.getMonth()
+                                              ? `${weekCells[0]!.date!.getFullYear()}년 ${weekCells[0]!.date!.getMonth() + 1}월 ${weekCells[0]!.date!.getDate()}~${weekCells[6]!.date!.getDate()}일`
+                                              : `${weekCells[0]!.date!.getMonth() + 1}.${weekCells[0]!.date!.getDate()} ~ ${weekCells[6]!.date!.getMonth() + 1}.${weekCells[6]!.date!.getDate()}`
+                                          : ''}
+                                </button>
+                                {showMonthPicker && (
+                                    <div className="absolute left-1/2 top-full z-20 mt-2 -translate-x-1/2 rounded-2xl border border-slate-100 bg-white p-3 shadow-xl">
+                                        <div className="flex items-center gap-2">
+                                            <select
+                                                value={calendarMonth.getFullYear()}
+                                                onChange={(e) =>
+                                                    jumpToMonth(
+                                                        Number(e.target.value),
+                                                        calendarMonth.getMonth()
+                                                    )
+                                                }
+                                                className="rounded-full bg-slate-50 px-3 py-1.5 text-sm font-bold text-slate-700 hover:bg-slate-100"
+                                            >
+                                                {Array.from({ length: 11 }, (_, i) => {
+                                                    const year = new Date().getFullYear() - 5 + i;
+                                                    return (
+                                                        <option key={year} value={year}>
+                                                            {year}년
+                                                        </option>
+                                                    );
+                                                })}
+                                            </select>
+                                            <select
+                                                value={calendarMonth.getMonth()}
+                                                onChange={(e) =>
+                                                    jumpToMonth(
+                                                        calendarMonth.getFullYear(),
+                                                        Number(e.target.value)
+                                                    )
+                                                }
+                                                className="rounded-full bg-slate-50 px-3 py-1.5 text-sm font-bold text-slate-700 hover:bg-slate-100"
+                                            >
+                                                {Array.from({ length: 12 }, (_, i) => (
+                                                    <option key={i} value={i}>
+                                                        {i + 1}월
+                                                    </option>
+                                                ))}
+                                            </select>
+                                        </div>
+                                    </div>
+                                )}
+                            </div>
+                            <button
+                                type="button"
+                                onClick={() => shiftCalendar(1)}
+                                className="rounded-lg p-1.5 text-slate-400 hover:bg-slate-100 hover:text-slate-700"
+                            >
+                                <ChevronRight className="h-4 w-4" />
+                            </button>
+                        </div>
+                        <div className="mb-2 flex items-center justify-end gap-2">
+                            <button
+                                type="button"
+                                onClick={goToToday}
+                                className="rounded-full px-3 py-1 text-sm font-bold text-slate-500 hover:bg-slate-100 hover:text-slate-700"
+                            >
+                                오늘로 이동
+                            </button>
+                            <div className="inline-flex rounded-full bg-slate-100 p-1 text-sm font-bold">
+                                <button
+                                    type="button"
+                                    onClick={() => setCalendarGranularity('MONTH')}
+                                    className={`rounded-full px-3 py-1 transition ${
+                                        calendarGranularity === 'MONTH'
+                                            ? 'bg-white text-slate-900 shadow-sm'
+                                            : 'text-slate-400 hover:text-slate-600'
                                     }`}
                                 >
-                                    <p
-                                        className={`mb-1 text-[11px] font-bold ${
-                                            isToday ? 'text-slate-900' : 'text-slate-400'
+                                    월
+                                </button>
+                                <button
+                                    type="button"
+                                    onClick={() => setCalendarGranularity('WEEK')}
+                                    className={`rounded-full px-3 py-1 transition ${
+                                        calendarGranularity === 'WEEK'
+                                            ? 'bg-white text-slate-900 shadow-sm'
+                                            : 'text-slate-400 hover:text-slate-600'
+                                    }`}
+                                >
+                                    주
+                                </button>
+                            </div>
+                        </div>
+                        {calendarGranularity === 'MONTH' && (
+                            <div className="grid grid-cols-7 gap-1 text-center text-xs font-bold text-slate-400">
+                                {WEEKDAY_LABELS.map((label) => (
+                                    <div key={label}>{label}</div>
+                                ))}
+                            </div>
+                        )}
+                    </div>
+                    {calendarGranularity === 'WEEK' ? (
+                        <div className="flex min-h-0 flex-1 gap-1.5 overflow-hidden px-3 pb-2">
+                            {weekCells.map((cell) => {
+                                const date = cell.date!;
+                                const dateKey = toDateKey(date);
+                                const events = deadlineEventsByDate.get(dateKey);
+                                const isToday = dateKey === toDateKey(new Date());
+                                const isSelected = selectedDateKey === dateKey;
+                                const dayItems = [
+                                    ...(events?.applications ?? []).map((item) => ({
+                                        item,
+                                        isCandidate: false as const,
+                                    })),
+                                    ...(events?.candidates ?? []).map((item) => ({
+                                        item,
+                                        isCandidate: true as const,
+                                    })),
+                                ];
+                                return (
+                                    <div
+                                        key={dateKey}
+                                        className={`flex min-h-0 min-w-0 flex-1 basis-0 flex-col rounded-xl border transition-colors ${
+                                            isToday
+                                                ? `border-neutral-200 bg-neutral-100 ${isSelected ? 'ring-2 ring-blue-400' : ''}`
+                                                : isSelected
+                                                  ? 'border-blue-100 bg-blue-50/70'
+                                                  : 'border-slate-100 hover:bg-slate-50'
                                         }`}
                                     >
-                                        {cell.date.getDate()}
-                                    </p>
-                                    <div className="space-y-1">
-                                        {events?.applications.map((item) => (
-                                            <button
-                                                key={`app-${item.id}`}
-                                                type="button"
-                                                onClick={() => openDrawer(item)}
-                                                title={`${item.companyName} · 마감일`}
-                                                className="block w-full truncate rounded bg-blue-50 px-1 py-0.5 text-left text-[10px] font-bold text-blue-700 transition hover:bg-blue-100"
+                                        <button
+                                            type="button"
+                                            onClick={() =>
+                                                setSelectedDateKey((prev) =>
+                                                    prev === dateKey ? null : dateKey
+                                                )
+                                            }
+                                            className={`flex flex-shrink-0 cursor-pointer flex-col items-center gap-1 border-b py-2.5 ${
+                                                isToday ? 'border-neutral-200' : 'border-slate-100'
+                                            }`}
+                                        >
+                                            <span
+                                                className={`text-xs font-bold ${
+                                                    isToday
+                                                        ? 'text-slate-600'
+                                                        : isSelected
+                                                          ? 'text-blue-600'
+                                                          : 'text-slate-400'
+                                                }`}
                                             >
-                                                {item.companyName}
-                                            </button>
-                                        ))}
-                                        {events?.candidates.map((item) => (
-                                            <button
-                                                key={`cand-${item.id}`}
-                                                type="button"
-                                                onClick={() => openDrawer(item)}
-                                                title={`${item.companyName} · ${item.source} (수집됨)`}
-                                                className="block w-full truncate rounded border border-dashed border-slate-300 px-1 py-0.5 text-left text-[10px] font-bold text-slate-500 transition hover:bg-slate-100"
+                                                {WEEKDAY_LABELS[date.getDay()]}
+                                            </span>
+                                            <span
+                                                className={`flex items-center justify-center rounded-full font-black transition-all ${
+                                                    isToday
+                                                        ? 'h-9 w-9 text-base bg-slate-900 text-white shadow-sm'
+                                                        : isSelected
+                                                          ? 'h-9 w-9 text-base bg-blue-600 text-white shadow-sm'
+                                                          : 'h-8 w-8 text-sm text-slate-700'
+                                                }`}
                                             >
-                                                {item.companyName}
-                                            </button>
-                                        ))}
+                                                {date.getDate()}
+                                            </span>
+                                            {dayItems.length > 0 && (
+                                                <span className="text-xs font-bold text-slate-400">
+                                                    {dayItems.length}건
+                                                </span>
+                                            )}
+                                        </button>
+                                        <div className="min-h-0 flex-1 space-y-1.5 overflow-y-auto p-1.5">
+                                            {dayItems.length === 0 ? (
+                                                <p className="pt-4 text-center text-xs text-slate-300">
+                                                    일정 없음
+                                                </p>
+                                            ) : (
+                                                dayItems.map(({ item, isCandidate }) => (
+                                                    <button
+                                                        key={`${isCandidate ? 'cand' : 'app'}-${item.id}`}
+                                                        type="button"
+                                                        onClick={() => openDrawer(item)}
+                                                        className={`block w-full rounded-lg px-2 py-1.5 text-left transition ${
+                                                            isCandidate
+                                                                ? 'border border-dashed border-slate-300 hover:bg-slate-100'
+                                                                : 'bg-blue-50 hover:bg-blue-100'
+                                                        }`}
+                                                    >
+                                                        <p
+                                                            className={`truncate text-sm font-bold ${
+                                                                isCandidate
+                                                                    ? 'text-slate-600'
+                                                                    : 'text-blue-700'
+                                                            }`}
+                                                        >
+                                                            {item.companyName}
+                                                        </p>
+                                                        {item.positionTitle && (
+                                                            <p className="truncate text-xs text-slate-400">
+                                                                {item.positionTitle}
+                                                            </p>
+                                                        )}
+                                                    </button>
+                                                ))
+                                            )}
+                                        </div>
                                     </div>
-                                </div>
-                            );
-                        })}
-                    </div>
-                    <div className="mt-3 flex items-center gap-4 text-[11px] font-semibold text-slate-400">
+                                );
+                            })}
+                        </div>
+                    ) : (
+                        <div className="min-h-0 flex-1 overflow-hidden px-4 pb-2">
+                            <div
+                                className="grid h-full grid-cols-7 gap-1"
+                                style={{
+                                    gridTemplateRows: `repeat(${monthRowCount}, minmax(0, 1fr))`,
+                                }}
+                            >
+                                {calendarCells.map((cell, index) => {
+                                    if (!cell.date) {
+                                        return (
+                                            <div
+                                                key={`blank-${index}`}
+                                                className="min-h-0 rounded-lg bg-slate-50"
+                                            />
+                                        );
+                                    }
+                                    const dateKey = toDateKey(cell.date);
+                                    const events = deadlineEventsByDate.get(dateKey);
+                                    const isToday = dateKey === toDateKey(new Date());
+                                    const cellApplications = events?.applications ?? [];
+                                    const cellCandidates = events?.candidates ?? [];
+                                    const totalCount =
+                                        cellApplications.length + cellCandidates.length;
+                                    const visibleApplications = cellApplications.slice(
+                                        0,
+                                        CELL_VISIBLE_ITEMS
+                                    );
+                                    const visibleCandidates = cellCandidates.slice(
+                                        0,
+                                        Math.max(0, CELL_VISIBLE_ITEMS - visibleApplications.length)
+                                    );
+                                    const isExpanded = expandedDateKeys.has(dateKey);
+                                    const shownApplications = isExpanded
+                                        ? cellApplications
+                                        : visibleApplications;
+                                    const shownCandidates = isExpanded
+                                        ? cellCandidates
+                                        : visibleCandidates;
+                                    const hiddenCount =
+                                        totalCount -
+                                        visibleApplications.length -
+                                        visibleCandidates.length;
+                                    const isSelected = selectedDateKey === dateKey;
+                                    return (
+                                        <div
+                                            key={dateKey}
+                                            className={`flex min-h-0 flex-col rounded-lg border p-1.5 ${
+                                                isToday
+                                                    ? `border-neutral-200 bg-neutral-100 ${isSelected ? 'ring-1 ring-blue-400' : ''}`
+                                                    : isSelected
+                                                      ? 'border-blue-500 bg-blue-50/60 ring-1 ring-blue-500'
+                                                      : 'border-slate-100 bg-slate-50/50'
+                                            }`}
+                                        >
+                                            <div className="mb-1 flex flex-shrink-0 items-center justify-between">
+                                                <button
+                                                    type="button"
+                                                    onClick={() =>
+                                                        setSelectedDateKey((prev) =>
+                                                            prev === dateKey ? null : dateKey
+                                                        )
+                                                    }
+                                                    className={`flex h-6 w-6 items-center justify-center rounded-full text-sm font-black transition-all ${
+                                                        isToday
+                                                            ? `bg-slate-900 text-white shadow-sm ${isSelected ? 'ring-2 ring-blue-400 ring-offset-1' : ''}`
+                                                            : isSelected
+                                                              ? 'bg-blue-600 text-white'
+                                                              : 'text-slate-400 hover:bg-slate-100'
+                                                    }`}
+                                                >
+                                                    {cell.date.getDate()}
+                                                </button>
+                                                {totalCount > 0 && (
+                                                    <span className="rounded-full bg-slate-100 px-1.5 py-px text-[10px] font-bold text-slate-500">
+                                                        {totalCount}건
+                                                    </span>
+                                                )}
+                                            </div>
+                                            <div className="min-h-0 flex-1 space-y-1 overflow-y-auto">
+                                                {shownApplications.map((item) => (
+                                                    <button
+                                                        key={`app-${item.id}`}
+                                                        type="button"
+                                                        onClick={() => openDrawer(item)}
+                                                        title={`${item.companyName} · 마감일`}
+                                                        className="block w-full truncate rounded bg-blue-50 px-1 py-0.5 text-left text-xs font-bold text-blue-700 transition hover:bg-blue-100"
+                                                    >
+                                                        {item.companyName}
+                                                    </button>
+                                                ))}
+                                                {shownCandidates.map((item) => (
+                                                    <button
+                                                        key={`cand-${item.id}`}
+                                                        type="button"
+                                                        onClick={() => openDrawer(item)}
+                                                        title={`${item.companyName} · ${item.source} (수집됨)`}
+                                                        className="block w-full truncate rounded border border-dashed border-slate-300 px-1 py-0.5 text-left text-xs font-bold text-slate-500 transition hover:bg-slate-100"
+                                                    >
+                                                        {item.companyName}
+                                                    </button>
+                                                ))}
+                                                {hiddenCount > 0 && (
+                                                    <button
+                                                        type="button"
+                                                        onClick={() => toggleDateExpand(dateKey)}
+                                                        className="block w-full text-center text-xs font-bold text-slate-400 hover:text-blue-600"
+                                                    >
+                                                        {isExpanded ? '접기' : `+${hiddenCount}개`}
+                                                    </button>
+                                                )}
+                                            </div>
+                                        </div>
+                                    );
+                                })}
+                            </div>
+                        </div>
+                    )}
+                    <div className="flex flex-shrink-0 items-center gap-4 border-t border-slate-100 p-4 pt-3 text-xs font-semibold text-slate-400">
                         <span className="flex items-center gap-1.5">
                             <span className="h-2 w-2 rounded-sm bg-blue-100" /> 지원 공고 마감일
                         </span>
