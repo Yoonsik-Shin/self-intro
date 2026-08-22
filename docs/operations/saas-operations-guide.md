@@ -3190,3 +3190,23 @@ kubectl kustomize deploy/k8s/overlays/prod/backend >/tmp/self-intro-prod-backend
 단위·통합 테스트와 production manifest render가 모두 성공해야 한다. 이 강화는 새 OCI 유료 리소스를
 생성하지 않으며 기존 Pod의 Argon2 연산에 따른 CPU·메모리 사용량만 소폭 증가한다. 운영 rollout 후 로그인
 응답시간, 인증 실패율, Pod restart와 OOM을 확인하고 필요하면 Argon2 매개변수 상향을 별도 부하 시험한다.
+
+2026-08-22 운영 rollout에서는 최초 보안 manifest가 문자열 image user `spring`을 비루트로 검증하지
+못해 API와 Worker가 `CreateContainerConfigError`가 됐다. Docker image의 `USER`와 Pod
+`runAsUser`/`runAsGroup`을 모두 `10001:10001`로 고정한 PR #6을 즉시 배포해 복구했다. 문자열 사용자로
+되돌리거나 `runAsNonRoot`를 해제하는 방식으로 보안 수준을 낮추지 않았다.
+
+| 항목 | 최종 증거 |
+| --- | --- |
+| 보안 강화 merge | PR #5, `1736f3eb` |
+| numeric user 보정 merge | PR #6, `152a0af7` |
+| Deploy API | run `32551167550` 성공 |
+| Deploy Worker | run `32551167555` 성공 |
+| GitOps | revision `f317f816`, `Synced/Healthy` |
+| API·Worker | image `152a0af`, 각각 Ready 1/1, 재시작 0 |
+| 외부 확인 | API readiness HTTP 200/`UP`, 서비스 홈 HTTP 200 |
+| Node condition | Ready, MemoryPressure·DiskPressure·PIDPressure 모두 `False` |
+
+교체 중 관찰된 `Too many pods`는 DiskPressure가 아니라 단일 노드 Pod 수 상한에 의한 일시적인 scheduler
+지연이다. 최종 node에는 pressure event가 없지만 CPU request가 약 94%라 다음 상시 workload 추가 전에는
+request 재산정 또는 node 확장을 비용과 함께 검토한다.
