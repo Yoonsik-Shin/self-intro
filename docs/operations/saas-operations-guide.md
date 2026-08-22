@@ -3341,35 +3341,43 @@ CPU 확보를 위해 일시 중지한 뒤 replica 1로 복원했다. inventory �
 
 ### 15.56 OKE Basic 저비용 복원력·오토스케일링 준비
 
-2026-08-22 단일 노드의 Pod 상한과 배포 surge 부족을 완화하기 위해 OKE Enhanced 없이 사용할 저비용
-전환안을 준비했다. 이 변경은 설계·예제 manifest만 추가한 것이며 OCI node pool, Metrics Server,
-Cluster Autoscaler, HPA를 production에 활성화하지 않았다.
+2026-08-22 OKE Enhanced 없이 단일 노드의 Pod 상한과 배포 surge 부족을 완화하는 저비용 구성을 실제
+production에 준비했다. 현재 Ready node는 primary·secondary·burst 각 A1 1 OCPU/4GB로 총 3대다. 기존
+primary 2 OCPU/12GB instance는 종료됐고 목표 primary A1 2 OCPU/8GB는 OCI capacity를 확보하지 못해
+생성 요청이 대기열에 남아 있는 상태가 아니다. OKE node 생성 실패는 예약이나 대기 신청으로 유지되지
+않으므로 별도 재시도가 필요하다.
 
-목표 구조는 fixed-primary A1 2 OCPU/8GB 1대, fixed-secondary A1 1 OCPU/4GB 1대, 평상시 0대인
-burst A1 1 OCPU/4GB node pool이다. 두 고정 pool은 autoscaler에서 제외하고 burst pool만 `0..1`로
-관리한다. HPA가 API·frontend Pod를 최대 2개로 확장하고, 이 Pod가 request 부족으로 Pending일 때에만
-Cluster Autoscaler가 burst를 증설한다. Metrics Server가 없으면 HPA가 동작하지 않으며 Cluster
-Autoscaler만으로는 트래픽 증가를 감지할 수 없다.
+production overlay에는 Metrics Server, API·frontend HPA, 역할별 scheduling, workload priority,
+RabbitMQ overlay, Prometheus HPA·node capacity 경보와 Tempo metric scrape를 연결했다. Cluster Autoscaler
+manifest도 `deploy/k8s/infrastructure/cluster-autoscaler/`에 추가했다. HPA는 API·frontend를 `1..2`로
+확장하고 Metrics Server가 제공하는 CPU·memory metric을 사용한다. Cluster Autoscaler는 HPA가 만든
+Pending Pod의 request를 보고 burst pool을 조정하며 트래픽 자체를 직접 감지하지 않는다.
 
-장애 복구와 트래픽 확장을 구분한다. primary 장애 시 Deployment가 API·frontend·Redis·RabbitMQ를
-secondary에 우선 재배치하고, 부족한 request는 burst가 수용한다. Worker·Tempo·Prometheus·Loki·Grafana·
-exporter는 축소 운영 중 중지할 수 있다. Cluster Autoscaler는 node health를 복구하지 않고 Pending Pod를
-위한 capacity만 추가하며 새 node 준비에는 최대 수십 분이 걸릴 수 있으므로 무중단 구성이 아니다.
+운영 Kubernetes는 `1.36.1`이며 2026-08-22 OCI 지원표에 맞춰 Cluster Autoscaler
+`1.34.3-323`, Metrics Server `0.7.2` 조합을 고정했다. production backend·frontend·monitoring·exporter·
+RabbitMQ overlay render와 `git diff --check`는 통과했다. 아직 main push와 Argo CD sync 전이므로 이
+manifest들이 운영 클러스터에 적용됐다고 간주하지 않는다.
 
-적용 전 예제는 `deploy/k8s/examples/oke-basic-resilience/`, 전체 비용·장애 레벨·적용·rollback 절차는
-`docs/operations/oke-basic-resilience-plan.md`에 기록했다. 현재 production overlay는 이 예제를 참조하지
-않는다. 2026-08-22 Usage API에서 춘천 A1 CPU·메모리 계산 금액 0 SGD와 공식 단가를 확인했다. 사용자는
-월 2만원 상한, fixed-secondary A1 1/4, burst A1 1/4 `0..1`과 비용 중단 기준을 승인했다. self-intro
-compartment에는 17 SGD Budget과 forecast 70%, actual 85%, actual 100% 경보를 만들고 모두 ACTIVE임을
-확인했다. Budget 경보는 리소스를 자동 중지하지 않는다.
+최종 목표는 fixed-primary A1 2 OCPU/8GB 1대, fixed-secondary A1 1 OCPU/4GB 1대, 평상시 0대인 burst
+A1 1 OCPU/4GB node pool이다. 하지만 primary가 현재 1/4이므로 capacity 안전을 위해 burst pool을 임시로
+`1..1`로 고정한다. primary 2/8이 Ready이고 workload·volume·공개 route 검증이 끝난 뒤에만 autoscaler
+인수를 `0:1:<BURST_NODE_POOL_OCID>`로 바꾼다. fixed pool은 autoscaler 대상에 넣지 않는다.
 
-live primary는 아직 2 OCPU/12GB이며 boot 47GB와 세 개의 50GB block volume으로 197GB를 사용한다.
-secondary의 기본 50GB boot volume과 기존 Container Image Storage 비용을 합치면 승인된 상한을 넘길
-가능성이 있으므로 node pool은 생성하지 않았다. primary를 목표 2 OCPU/8GB로 축소하는 별도 변경을
-승인·적용하고 Ready·route를 확인한 뒤에만 node pool을 생성한다. label보다 scheduling patch를 먼저
-적용하면 현행 node에서 모든 Pod가 Pending이 될 수 있으므로 문서 순서를 바꾸지 않는다.
+장애 복구와 트래픽 확장은 별개다. primary 장애 시 핵심 workload를 secondary·burst에 재배치하고,
+Worker·Tempo·Prometheus·Loki·Grafana·exporter는 필요하면 우선순위에 따라 축소할 수 있다. Cluster
+Autoscaler는 장애 node를 수리하지 않으며 새 node 준비에는 최대 수십 분이 걸릴 수 있어 이 구성은
+무중단 보장을 의미하지 않는다.
 
-이 cluster는 OKE Basic이므로 managed node cycling으로 기존 primary를 갱신할 수 없다. 축소 승인을 받은
-뒤 fixed-secondary와 일시적인 burst를 먼저 Ready로 만들고, primary pool의 신규 shape config를 2/8로
-바꾼 다음 기존 primary를 cordon·drain·수동 교체한다. RWO volume detach/attach와 공개 route를 확인하며,
-실패 시 신규 primary 교체를 중단하고 기존 workload 복구를 우선한다.
+사용자는 월 2만원 상한, fixed-secondary A1 1/4, burst A1 1/4 `0..1`, primary 2/12를 2/8로 수동
+교체하는 방향과 모니터링 연결을 승인했다. self-intro compartment에는 17 SGD Budget과 forecast 70%,
+actual 85%, actual 100% 경보가 ACTIVE다. Budget은 알림만 보내고 리소스를 자동 중지하지 않는다.
+
+OKE Basic Cluster Autoscaler는 workload identity를 사용할 수 없어 instance principal을 사용한다.
+autoscaler를 secondary에 고정하기 위한 exact-match dynamic group
+`self-intro-oke-autoscaler-secondary`는 ACTIVE다. 사용자의 명시적 승인 후
+`self-intro-oke-autoscaler-policy`
+(`ocid1.policy.oc1..aaaaaaaaljnpj5nz5hxipcldlztsk363xr3n6v2m4uummjf2whrkmwq2hcfa`)를 생성해
+`ACTIVE` 상태를 확인했다. 이 policy는 `self-intro` compartment의 node pool·instance-family 관리,
+subnet·VNIC 사용과 필요한 네트워크·compartment 조회만 허용한다. policy 자체의 추가 고정비는 없지만
+autoscaler가 생성한 worker node 사용량은 과금될 수 있다. 전체 현재 상태·적용 gate·rollback은
+`docs/operations/oke-basic-resilience-plan.md`를 기준으로 한다.

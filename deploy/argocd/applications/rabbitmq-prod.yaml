@@ -8,7 +8,7 @@ spec:
   source:
     repoURL: https://github.com/Yoonsik-Shin/self-intro.git
     targetRevision: HEAD
-    path: deploy/k8s/base/rabbitmq
+    path: deploy/k8s/overlays/prod/rabbitmq
   destination:
     server: https://kubernetes.default.svc
     namespace: self-intro

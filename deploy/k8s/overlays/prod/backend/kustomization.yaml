@@ -15,9 +15,11 @@ resources:
   - sealed-billing-secret.yaml
   - sealed-kofi-secret.yaml
   - sealed-oci-api-static-reader-bootstrap.yaml
+  - hpa.yaml
 
 patches:
   - path: patch-api-static-secrets.yaml
+  - path: patch-scheduling.yaml
 
 images:
   - name: self-intro-backend

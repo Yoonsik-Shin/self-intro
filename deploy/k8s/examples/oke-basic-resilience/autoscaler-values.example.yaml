@@ -18,7 +18,7 @@ burstNodePool:
   labels:
     self-intro.io/node-role: burst
 clusterAutoscaler:
-  deploymentReplicas: 2
+  deploymentReplicas: 1
   # OKE Cluster Autoscaler add-on configuration arguments. Register only the
   # burst pool; fixed-primary and fixed-secondary must never appear here.
   addonArguments:
@@ -28,7 +28,7 @@ clusterAutoscaler:
     scaleDownUnneededTime: "15m"
     maxNodesTotal: "3"
   placement:
-    runOnlyOnFixedNodes: true
-    spreadAcrossFixedPools: true
+    nodeSelector:
+      self-intro.io/node-role: secondary
 metricsServer:
   required: true

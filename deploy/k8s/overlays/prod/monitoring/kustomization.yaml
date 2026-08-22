@@ -3,4 +3,24 @@ kind: Kustomization
 
 resources:
   - ../../../base/monitoring
+  - ../../../infrastructure/cluster-autoscaler
+  - ../../../infrastructure/metrics-server
   - sealed-grafana-secret.yaml
+  - priority-classes.yaml
+
+patches:
+  - path: patch-deferrable.yaml
+    target:
+      group: apps
+      version: v1
+      kind: Deployment
+      name: prometheus|grafana|loki|tempo|kube-state-metrics
+  - target:
+      group: apps
+      version: v1
+      kind: DaemonSet
+      name: alloy|node-exporter
+    patch: |-
+      - op: add
+        path: /spec/template/spec/priorityClassName
+        value: self-intro-deferrable

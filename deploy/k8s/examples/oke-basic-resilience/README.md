@@ -1,7 +1,8 @@
 # OKE Basic 저비용 복원력 예제
 
-이 디렉터리는 OKE Basic을 유지하면서 고정 노드 2대와 burst 노드풀 1대를 사용하는 **적용 전 예제**다.
-production Kustomization에서 참조하지 않으므로 커밋·배포만으로 운영 클러스터가 바뀌지 않는다.
+이 디렉터리는 OKE Basic 저비용 복원력 설계의 참고 예제다. 실제 production 구현은
+`deploy/k8s/infrastructure/cluster-autoscaler/`와 `deploy/k8s/overlays/prod/`를 기준으로 하며, 적용 전에
+node pool OCID, label, taint와 사용 가능한 metric을 반드시 live 값으로 확인한다.
 
 ## 목표 구조
 
@@ -42,7 +43,8 @@ Cluster Autoscaler는 CPU 사용률을 직접 보고 Pod를 만들지 않는다.
 
 1. 비용 승인 후 OCI에서 세 노드풀을 구성한다.
 2. 각 노드에 `self-intro.io/node-role=primary|secondary|burst` label을 부여한다.
-3. Metrics Server와 두 replica의 Cluster Autoscaler가 고정 노드에 분산됐는지 확인한다.
+3. Metrics Server가 정상이고 Cluster Autoscaler 1개가 fixed-secondary에 배치됐는지 확인한다. 이 소규모
+   구성에서는 두 replica가 동시에 같은 node pool을 변경할 수 있으므로 사용하지 않는다.
 4. burst 노드풀에만 autoscaler `min=0`, `max=1`을 연결한다.
 5. `priority-classes.yaml`, scheduling patch, HPA 순서로 적용한다.
 6. primary drain, burst scale-up·scale-down, rollback rehearsal를 통과한 뒤 production overlay에 편입한다.

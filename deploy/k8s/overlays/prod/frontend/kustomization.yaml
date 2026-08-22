@@ -6,6 +6,10 @@ namespace: self-intro
 resources:
   - ../../../base/frontend
   - ingress.yaml
+  - hpa.yaml
+
+patches:
+  - path: patch-scheduling.yaml
 
 images:
   - name: self-intro-frontend
