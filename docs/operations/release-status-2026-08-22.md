@@ -50,8 +50,8 @@
 | 복구·릴리스 gate | backend, Worker, frontend, manifest, recovery evidence 자동 검사 | PR 필수 검사 통과 |
 | 보안 검사 | OCI OCID 공개 형식 문자열의 GitGuardian 오탐을 확인하고 안전한 상수 표현으로 수정 | 최종 검사 통과 |
 | 프런트 재현성 | npm 10 기준 lockfile을 동기화하고 CI `npm ci` 실패를 해결 | 최종 빌드 통과 |
-| 비밀번호 해시 | 신규 비밀번호는 Argon2id(`m=19 MiB`, `t=2`, `p=1`)로 저장하고 기존 BCrypt는 성공 인증 시 점진 재해시 | 코드·회귀 테스트 완료, 운영 rollout 전 |
-| Pod·네트워크 경계 | API·Worker에 non-root, RuntimeDefault seccomp, capability 전체 제거와 ingress NetworkPolicy 적용 | manifest render·전체 테스트 완료, 운영 rollout 전 |
+| 비밀번호 해시 | 신규 비밀번호는 Argon2id(`m=19 MiB`, `t=2`, `p=1`)로 저장하고 기존 BCrypt는 성공 인증 시 점진 재해시 | 운영 배포·회귀 테스트 완료 |
+| Pod·네트워크 경계 | API·Worker에 숫자 UID/GID 기반 non-root, RuntimeDefault seccomp, capability 전체 제거와 ingress NetworkPolicy 적용 | 운영 배포·readiness 검증 완료 |
 
 구현 또는 정책 문서가 존재한다는 사실만으로 정식 운영 활성화를 의미하지 않는다. Toss 테스트 결제와
 OCI Vault 사용자 제공 AI API 키는 지정 운영자 preview에만 사용한다. Workspace DEK, 내부 mTLS와 WORM 감사는 후속 보안
@@ -122,6 +122,28 @@ release gate의 billing Secret 소비자 검증은 `a60fc315`에서 API Deployme
 따라서 **비공개 베타 배포 준비도와 운영 배포 완료도는 100%**다. 운영 가입 확인·계정 복구 메일의 실제
 수신 및 링크 host 검증과 24시간 인프라 관찰은 배포 후 운영 확인으로 계속 수행한다. 이 두 항목은 현재
 앱 rollout, health와 공개 route가 정상임을 뒤집는 배포 차단 조건은 아니다.
+
+Argon2id와 Pod·NetworkPolicy 강화는 PR #5와 숫자 container user 보정 PR #6으로 추가 배포했다. 최초
+manifest는 image의 문자열 사용자 `spring`을 `runAsNonRoot`에서 검증할 수 없어 API·Worker가
+`CreateContainerConfigError`가 됐고, Docker image와 Pod security context를 `10001:10001`로 통일해
+복구했다. 최종 배포 증거는 다음과 같다.
+
+| 보안 강화 배포 검사 | 결과 |
+| --- | --- |
+| PR #5 merge | `1736f3eb` |
+| PR #6 numeric user 보정 merge | `152a0af7` |
+| Deploy API `32551167550` | 성공 |
+| Deploy Worker `32551167555` | 성공 |
+| GitOps revision | `f317f816`, `Synced/Healthy` |
+| API·Worker 이미지 | 모두 `152a0af` |
+| Pod 상태 | 모두 Ready, 재시작 0 |
+| API 외부 readiness | HTTP 200, `{"status":"UP"}` |
+| 서비스 홈 | HTTP 200 |
+| OKE node condition | Ready, Memory/Disk/PIDPressure 모두 `False` |
+
+이 작업으로 오늘 변경 사항의 정책·구현·배포·비용 문서화 상태는 **100%**다. 이는 아래에 명시한
+Workspace DEK·mTLS·WORM·egress 후속 구현이나 정식 유료 서비스의 외부 계약까지 완료됐다는 뜻은
+아니다.
 
 ### 3.4 배포 직후 필수 확인
 
@@ -195,7 +217,7 @@ Vault·샌드박스 경계는 유지되지만 위 보안 항목을 마치기 전
 | 6 | 비공개 베타 초대와 피드백 운영 | 사용자 | 시작 가능 |
 | 7 | 사업자·PG·법률·AI Provider 계약 준비 | 사용자 | 정식 출시 전 필수 |
 | 8 | Vault·샌드박스·사용자 제공 AI API 키 지정 Workspace preview | Codex | 구현·검증·배포 완료 |
-| 9 | Argon2id 점진 재해시와 Pod·NetworkPolicy 강화 | Codex | 구현·검증 완료, 배포 예정 |
+| 9 | Argon2id 점진 재해시와 Pod·NetworkPolicy 강화 | Codex | 구현·검증·운영 배포 완료 |
 | 10 | Workspace DEK·내부 mTLS·WORM·egress 강화 | Codex 구현 + 사용자 비용·보존 잠금 승인 | 비용 승인 전 대기 |
 
 현재 비공개 베타와 지정 owner preview는 **배포 가능하며 운영 배포와 1차 안정화 검증까지 완료**했다.
