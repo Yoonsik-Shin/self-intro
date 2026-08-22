@@ -3,7 +3,7 @@
 - 기준일: 2026-08-22
 - 적용 환경: production 단일 환경
 - 서비스 상태: 외부 route와 핵심 workload 정상 운영
-- 인프라 전환 상태: primary 교체와 Metrics Server·HPA·Cluster Autoscaler 운영 배포 완료, burst `0..1` 전환 중
+- 인프라 전환 상태: primary 교체와 Metrics Server·HPA·Cluster Autoscaler 운영 배포, burst `0..1` 리허설 완료
 - 비용 원칙: 월 2만원 상한과 OCI Budget 경보를 유지하고, 새 유료 리소스는 생성 전에 다시 승인받는다.
 
 ## 1. 현재 실제 상태
@@ -12,11 +12,11 @@
 | --- | --- | --- | --- |
 | primary | A1 2 OCPU / 8GB | Ready | IP `10.0.20.254` |
 | fixed-secondary | A1 1 OCPU / 4GB | Ready | IP `10.0.20.235` |
-| burst | A1 1 OCPU / 4GB | Ready | IP `10.0.20.101`, `0..1` 전환 전 마지막 검증 node |
+| burst | A1 1 OCPU / 4GB | Scaled to 0 | 마지막 리허설 IP `10.0.20.116`, OCI `DELETED` |
 | 이전 primary | A1 1 OCPU / 4GB | Deleted | IP `10.0.20.5`, 안전 drain 후 pool 크기 차감 |
 | 최초 primary | A1 2 OCPU / 12GB | Terminated | 재사용·재시작할 수 없음 |
 
-현재 실행 합계는 burst 포함 4 OCPU/16GB이고, burst가 0으로 축소되면 상시 합계는 3 OCPU/12GB다.
+현재 상시 실행 합계는 3 OCPU/12GB이고, burst 활성 중에는 4 OCPU/16GB다.
 새 primary `10.0.20.254`는 Ready와 시스템 DaemonSet을 확인한 뒤 이전 primary `10.0.20.5`를
 cordon·drain하고 OKE node pool 크기를 1로 차감했다. API·frontend는 교체 중에도 Ready를 유지했고,
 RWO volume을 사용하는 Tempo의 일시적 Multi-Attach도 detach/attach 완료 후 자동 복구됐다.
@@ -59,8 +59,8 @@ burst node에는 모든 node에서 실행되는 OKE·관측 DaemonSet이 있어 
 판정에서 제외하고 일반 Pod request 90% 미만을 후보로 삼는다. 이후에도 scheduler simulation과 Pod
 제약 검사를 통과해야만 node를 삭제한다.
 
-GitOps manifest는 primary 교체 검증 후 burst pool을 `0:1`로 전환했다. scale-up·scale-down rehearsal를
-통과해야 최종 완료로 판정한다.
+GitOps manifest는 primary 교체 검증 후 burst pool을 `0:1`로 전환했고 실제 scale-up·scale-down
+rehearsal를 통과했다.
 
 ```text
 --nodes=0:1:ocid1.nodepool.oc1.ap-chuncheon-1.aaaaaaaa5v62pdcfrbw6u3ajp7xb73d357wvsowm6rxyfucatn4ec276223a
@@ -149,20 +149,30 @@ GitOps가 동시에 같은 pool 크기를 수정하지 않는다.
 ## 10. 활성화 Gate
 
 - [x] 월 2만원 상한과 17 SGD Budget 경보
-- [x] primary 2 OCPU/8GB, secondary·burst 각 1 OCPU/4GB Ready
+- [x] primary 2 OCPU/8GB와 secondary 1 OCPU/4GB Ready, burst 1 OCPU/4GB template 검증
 - [x] 이전 primary 안전 drain·삭제와 최초 2 OCPU/12GB primary 종료 확인
 - [x] production Metrics Server·HPA·scheduling·priority·Tempo manifest 작성
 - [x] production Cluster Autoscaler manifest 작성, burst `0..1`
 - [x] autoscaler용 exact-match dynamic group 생성
 - [x] autoscaler OCI IAM policy 명시적 승인·생성 및 `ACTIVE` 확인
 - [x] production Kustomize render 및 Git diff 검증
-- [x] GitHub Actions·Argo CD `Synced/Healthy` (`0..1` 전환 배포는 재확인 중)
+- [x] GitHub Actions·Argo CD `Synced/Healthy`
 - [x] Metrics API, HPA, Autoscaler Ready
 - [x] Tempo scrape target 정상
 - [x] stale system Pod 정리 후 전체 Pod Ready/Pending/restart 확인
-- [x] 외부 health/readiness/home smoke (`0..1` 전환 후 재확인 중)
+- [x] 외부 health/readiness/home smoke
 - [x] 2/8 primary 확보·Ready와 이전 primary 삭제
-- [ ] burst `0..1` 전환과 scale-up·scale-down rehearsal
+- [x] burst `0..1` 전환과 scale-up·scale-down rehearsal
 
-현재 서비스는 배포 가능한 상태지만 이 저비용 오토스케일링 전환은 위 Gate가 끝나기 전까지 완료로
-판정하지 않는다.
+## 11. 실제 리허설 증거
+
+- 첫 burst node `10.0.20.101`: scale-down 후 OCI `DELETED`, pool size 0 확인
+- 시험 Deployment: burst nodeSelector를 가진 Pending Pod로 0에서 1 확장 유도
+- 새 burst node `10.0.20.116`: 약 5분 28초 뒤 Ready, 시험 Pod Running 확인
+- 시험 namespace 삭제: 20:17:52 KST unneeded, 20:33:03 cordon, 20:34:29 node 제거
+- 최종 OCI: burst pool size 0, `10.0.20.116` node `DELETED`
+- 최종 Kubernetes: 고정 node 2대 Ready, 비정상 Pod 없음, Deployment·DaemonSet 정상
+- 최종 운영 경로: 전체 Argo CD `Synced/Healthy`, API health·readiness `UP`, 홈 200, Grafana 302,
+  Tempo scrape `up=1`, autoscaler OCI IAM 권한 오류 없음
+
+현재 서비스와 저비용 오토스케일링 구성은 배포 가능한 상태이며 이 문서의 활성화 Gate를 모두 통과했다.

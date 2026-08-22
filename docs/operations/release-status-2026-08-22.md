@@ -229,11 +229,11 @@ fixed-secondary 1 OCPU/4GB를 상시 유지하고 burst 1 OCPU/4GB만 `0..1`로 
 최신 OCI 공식 단가와 이 테넌시의 A1 무료 공제 실청구 확인, 월 2만원 상한 구성의 사용자 승인은
 완료했다. self-intro compartment에는 17 SGD Budget과 forecast 70%, actual 85%, actual 100% 경보가
 ACTIVE다. live primary 2/8 교체, fixed-secondary와 burst node pool, Metrics Server, Cluster Autoscaler,
-scheduling policy와 HPA 적용을 완료했다. primary drain·삭제와 workload·route 검증도 통과했다. 남은
-완료 조건은 GitOps의 burst `0..1` 반영 후 실제 `burst 1 -> 0` 축소와 필요 시 `0 -> 1` 확장 rehearsal다.
-첫 축소 관찰에서는 DaemonSet을 포함한 burst CPU request가 약 88%로 계산되어 기본 utilization 기준이
-축소를 보류했다. DaemonSet utilization 제외와 일반 Pod 90% 기준을 반영했으며 실제 rehearsal 결과를
-확인하기 전에는 완료로 표시하지 않는다.
+scheduling policy와 HPA 적용을 완료했다. primary drain·삭제와 workload·route 검증도 통과했다. 첫 축소
+관찰에서 DaemonSet request가 기본 utilization 기준을 높인 문제는 DaemonSet utilization 제외와 일반 Pod
+90% 기준으로 해결했다. 실제 `burst 1 -> 0 -> 1 -> 0` rehearsal도 통과했다. 새 burst node는 Pending
+시험 Pod 발생 후 약 5분 28초에 Ready가 됐고 시험 workload 삭제 뒤 15분 유예를 거쳐 제거됐다. 최종
+pool size는 0이며 고정 node 2대, 전체 workload·DaemonSet·Argo CD·외부 route·Tempo scrape가 정상이다.
 
 현재 비공개 베타와 지정 owner preview는 **배포 가능하며 운영 배포와 1차 안정화 검증까지 완료**했다.
 필수 사용자 작업은 없다. 다음 단계는 실제 베타 초대 운영이며, 가입 확인·계정 복구 메일의 링크 host와

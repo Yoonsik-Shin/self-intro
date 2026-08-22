@@ -3342,8 +3342,8 @@ CPU 확보를 위해 일시 중지한 뒤 replica 1로 복원했다. inventory �
 ### 15.56 OKE Basic 저비용 복원력·오토스케일링 준비
 
 2026-08-22 OKE Enhanced 없이 단일 노드의 Pod 상한과 배포 surge 부족을 완화하는 저비용 구성을 실제
-production에 준비했다. 현재 fixed-primary는 A1 2 OCPU/8GB, fixed-secondary와 전환 검증 중인 burst는
-각 A1 1 OCPU/4GB다. 새 primary `10.0.20.254`가 Ready가 된 뒤 이전 primary `10.0.20.5`를 안전하게
+production에 준비했다. 현재 fixed-primary는 A1 2 OCPU/8GB, fixed-secondary는 A1 1 OCPU/4GB이고,
+평상시 0대인 burst의 node template은 A1 1 OCPU/4GB다. 새 primary `10.0.20.254`가 Ready가 된 뒤 이전 primary `10.0.20.5`를 안전하게
 drain하고 node pool 크기를 차감했다. 교체 중 API·frontend는 Ready를 유지했고 전체 workload와 시스템
 DaemonSet의 재배치를 확인했다.
 
@@ -3418,5 +3418,18 @@ burst pool을 `0..1`로 전환한 첫 축소 관찰에서는 burst node의 reque
 `--scale-down-utilization-threshold=0.9`를 적용한다. DaemonSet을 제외한 일반 Pod request는 실제 운영 배치에서
 약 86.1%여서 유휴 후보가 되지만,
 삭제 전 scheduler simulation과 Pod 제약 검사는 그대로 수행되므로 fixed node에 재배치할 수 없으면
-축소하지 않는다. 실제 `1 -> 0 -> 1 -> 0` rehearsal와 전체 route·monitoring 재검증 전에는 전환 완료로
-판정하지 않는다.
+축소하지 않는다.
+
+2026-08-22 실제 `1 -> 0 -> 1 -> 0` rehearsal를 완료했다. 첫 burst node `10.0.20.101`이 OCI에서
+`DELETED`가 되고 pool 크기가 0이 된 것을 확인한 뒤, burst 역할을 요구하는 임시 Deployment를 배치했다.
+Pending Pod를 감지한 autoscaler가 pool을 0에서 1로 확장했고 새 node `10.0.20.116`은 약 5분 28초 뒤
+Ready가 되어 시험 Pod를 실행했다. 임시 namespace 삭제 후 node는 20:17:52 KST부터 unneeded로 판정됐고,
+20:33:03 cordon, 20:34:29 Kubernetes에서 제거됐다. 최종 OCI 상태는 pool size 0, 해당 node
+`DELETED`다.
+
+리허설 종료 후 고정 node `10.0.20.235`, `10.0.20.254`만 Ready이고 비정상 Pod가 없음을 확인했다. 모든
+Deployment와 고정 node의 DaemonSet은 desired/ready 상태이며 전체 Argo CD 애플리케이션은
+`Synced/Healthy`다. API health·readiness는 `UP`, 서비스 홈은 HTTP 200, Grafana는 로그인 화면으로
+이동하는 HTTP 302를 반환했고 Prometheus의 `up{job="tempo"}` 값은 1이다. autoscaler 로그에는 OCI IAM
+403·Forbidden·Unauthorized가 없고 마지막 scale-down 삭제 시각도 기록됐다. 따라서 저비용
+오토스케일링 전환과 운영 검증은 완료로 판정한다.

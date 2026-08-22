@@ -263,9 +263,10 @@ flag를 모두 `false`로 유지한다. 단, `PLATFORM_OWNER_PREVIEW_ENABLED=tru
   self-intro compartment에 17 SGD Budget과 forecast 70%, actual 85%, actual 100% 경보를 생성해 모두
   ACTIVE임을 확인했다. Budget은 자동 차단이 아니므로 운영 중단 절차를 별도로 유지한다.
 - live primary를 2 OCPU/8GB로 교체하고 Ready·route·workload 재배치를 검증했다. fixed-secondary는
-  1 OCPU/4GB로 상시 유지하고 burst는 1 OCPU/4GB `0..1`로 전환한다.
-- primary drain 중 핵심 route의 축소 운영, burst `0 -> 1 -> 0`, rollback rehearsal가 모두 끝나기 전에는
-  무중단 또는 자동 복구 완료로 표시하지 않는다.
+  1 OCPU/4GB로 상시 유지하고 burst는 1 OCPU/4GB `0..1`로 전환했다.
+- [x] primary drain 중 핵심 route를 유지했고 실제 burst `1 -> 0 -> 1 -> 0` rehearsal를 완료했다.
+  scale-up은 약 5분 28초, scale-down은 unneeded 판정 뒤 15분 유예를 거쳐 완료됐으며 최종 pool size는
+  0이다. 이는 node 장애의 즉시 무중단 복구를 보장한다는 의미는 아니다.
 - burst의 OKE·관측 DaemonSet request 때문에 기본 scale-down threshold가 축소를 막는 경우
   DaemonSet utilization을 제외하고 일반 Pod 90% 기준을 사용한다. scheduler simulation을 건너뛰거나
   node pool 크기를 강제로 낮추지 않는다.
