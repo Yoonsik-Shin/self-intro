@@ -3353,6 +3353,10 @@ manifest도 `deploy/k8s/infrastructure/cluster-autoscaler/`에 추가했다. HPA
 확장하고 Metrics Server가 제공하는 CPU·memory metric을 사용한다. Cluster Autoscaler는 HPA가 만든
 Pending Pod의 request를 보고 burst pool을 조정하며 트래픽 자체를 직접 감지하지 않는다.
 
+OCI Cluster Autoscaler 이미지는 이미지 메타데이터에 non-root 사용자가 선언되어 있지 않으므로
+`runAsNonRoot: true`만 지정하면 kubelet이 실행을 거부한다. 운영 manifest는 UID/GID `65532`를 명시하고,
+capability 제거·read-only root filesystem·RuntimeDefault seccomp를 함께 유지한다.
+
 운영 Kubernetes는 `1.36.1`이며 2026-08-22 OCI 지원표에 맞춰 Cluster Autoscaler
 `1.34.3-323`, Metrics Server `0.7.2` 조합을 고정했다. production backend·frontend·monitoring·exporter·
 RabbitMQ overlay render와 `git diff --check`는 통과했다. 아직 main push와 Argo CD sync 전이므로 이
