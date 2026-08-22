@@ -3552,5 +3552,26 @@ Prometheus는 자체적으로 OCI Object Storage를 장기 저장소로 사용�
 Storage는 테넌시 전체 저장량과 API 요청량이 무료 한도 안일 때만 추가 저장 비용이 0원이다. 실제 리소스
 생성 전 OCI Cost Estimator와 테넌시 사용량으로 다시 확인해야 한다.
 
-이 절은 코드·manifest·migration 준비 상태를 설명한다. bucket, IAM principal/customer secret key,
-SealedSecret 생성과 실제 rollout은 아직 수행하지 않았으며 별도 운영 승인 없이는 배포하지 않는다.
+현재 운영 준비 상태는 다음과 같다.
+
+- 완료: private Standard bucket `self-intro-loki-prod`, `self-intro-tempo-prod`
+- 완료: IAM group `self-intro-observability-writers`, 전용 사용자
+  `self-intro-observability-s3`, 두 bucket으로 범위를 제한한 IAM policy
+- 운영자 완료 보고: 전용 사용자의 OCI Customer Secret Key 생성
+- 완료: Object Storage 자격 증명용 SealedSecret 생성 스크립트와 monitoring overlay 연결
+- 완료: Loki와 Tempo가 함께 사용하는 `OCI_S3_ENDPOINT`를 URL이 아닌 호스트명(`axrywc89b6lf.compat.objectstorage.ap-chuncheon-1.oraclecloud.com`)으로 저장한 SealedSecret 재생성 및 monitoring overlay 렌더링 검증
+- 미완료: Loki·Tempo rollout 및 Object Storage 쓰기/조회 검증
+
+Customer Secret은 채팅, shell 인자, Git 평문 파일에 입력하지 않는다. 운영자 Mac에서 다음 스크립트를
+직접 실행하면 현재 `kubectl` context의 Sealed Secrets controller 공개키로 암호화된 manifest만 생성된다.
+
+```bash
+cd deploy/k8s/overlays/prod/monitoring
+./generate-observability-sealed-secret.sh
+```
+
+스크립트가 표시한 context가 prod 클러스터인지 확인하고 `yes`를 입력한 뒤, OCI 화면에서 한 번만
+표시된 액세스 키와 비밀 키를 프롬프트에 붙여 넣는다. 결과물은
+`sealed-observability-object-storage-secret.yaml`이며 평문 파일은 임시 파일 삭제와 함께 제거된다.
+생성 뒤에는 `encryptedData` 아래 여섯 키가 모두 존재하는지만 검증하고, 평문 복호화나 출력은 하지 않는다.
+2026-08-22 호스트명 형식으로 SealedSecret을 재생성했고 monitoring overlay 렌더링에서 암호화된 여섯 키와 Loki·Tempo의 Secret 참조를 확인했다. Customer Secret 값은 터미널 기록이나 Git diff에 출력하지 않는다.

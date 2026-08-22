@@ -6,6 +6,7 @@ resources:
   - ../../../infrastructure/cluster-autoscaler
   - ../../../infrastructure/metrics-server
   - sealed-grafana-secret.yaml
+  - sealed-observability-object-storage-secret.yaml
   - priority-classes.yaml
 
 patches:
