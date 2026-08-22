@@ -52,5 +52,6 @@ subprojects {
 
     tasks.named('test') {
         useJUnitPlatform()
+        systemProperty 'messaging.outbox.enabled', 'false'
     }
 }

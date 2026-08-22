@@ -68,6 +68,10 @@ spring:
     port: ${RABBITMQ_PORT:5672}
     username: ${RABBITMQ_USERNAME:guest}
     password: ${RABBITMQ_PASSWORD:guest}
+    publisher-confirm-type: correlated
+    publisher-returns: true
+    template:
+      mandatory: true
   mail:
     # 로컬 기본값은 Mailpit이다. OCI Email Delivery의 465 포트는 연결 시작부터 TLS를
     # 사용하는 implicit TLS이므로 ssl=true, starttls=false로 주입한다.

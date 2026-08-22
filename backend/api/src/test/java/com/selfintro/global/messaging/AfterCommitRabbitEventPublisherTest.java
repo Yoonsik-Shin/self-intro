@@ -1,73 +1,56 @@
 package com.selfintro.global.messaging;
 
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.verify;
-import static org.mockito.Mockito.verifyNoInteractions;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
-import org.springframework.amqp.rabbit.core.RabbitTemplate;
-import org.springframework.transaction.support.TransactionSynchronization;
+import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.transaction.support.TransactionSynchronizationManager;
 
 @ExtendWith(MockitoExtension.class)
 class AfterCommitRabbitEventPublisherTest {
 
-    @Mock private RabbitTemplate rabbitTemplate;
+    @Mock private JdbcTemplate jdbcTemplate;
 
     @AfterEach
     void cleanUpTransactionState() {
-        if (TransactionSynchronizationManager.isSynchronizationActive()) {
-            TransactionSynchronizationManager.clearSynchronization();
-        }
         TransactionSynchronizationManager.setActualTransactionActive(false);
     }
 
     @Test
-    void publishesImmediatelyWithoutTransaction() {
-        Object event = new Object();
+    void recordsEventInsideActiveTransaction() {
         AfterCommitRabbitEventPublisher publisher =
-                new AfterCommitRabbitEventPublisher(rabbitTemplate);
+                new AfterCommitRabbitEventPublisher(jdbcTemplate, new ObjectMapper());
+        TransactionSynchronizationManager.setActualTransactionActive(true);
 
-        publisher.publish("exchange", "route", event);
+        publisher.publish("exchange", "route", new TestEvent(1));
 
-        verify(rabbitTemplate).convertAndSend("exchange", "route", event);
+        verify(jdbcTemplate)
+                .update(
+                        any(String.class),
+                        any(),
+                        eq("exchange"),
+                        eq("route"),
+                        eq(TestEvent.class.getName()),
+                        eq("{\"id\":1}"));
     }
 
     @Test
-    void defersPublishUntilCommitCallback() {
-        Object event = new Object();
+    void rejectsPublishWithoutActiveTransaction() {
         AfterCommitRabbitEventPublisher publisher =
-                new AfterCommitRabbitEventPublisher(rabbitTemplate);
-        TransactionSynchronizationManager.setActualTransactionActive(true);
-        TransactionSynchronizationManager.initSynchronization();
+                new AfterCommitRabbitEventPublisher(jdbcTemplate, new ObjectMapper());
 
-        publisher.publish("exchange", "route", event);
-        verifyNoInteractions(rabbitTemplate);
-
-        TransactionSynchronizationManager.getSynchronizations()
-                .forEach(synchronization -> synchronization.afterCommit());
-
-        verify(rabbitTemplate).convertAndSend("exchange", "route", event);
+        assertThatThrownBy(() -> publisher.publish("exchange", "route", new TestEvent(1)))
+                .isInstanceOf(IllegalStateException.class)
+                .hasMessageContaining("transaction");
     }
 
-    @Test
-    void doesNotPublishWhenTransactionFinishesWithoutCommit() {
-        Object event = new Object();
-        AfterCommitRabbitEventPublisher publisher =
-                new AfterCommitRabbitEventPublisher(rabbitTemplate);
-        TransactionSynchronizationManager.setActualTransactionActive(true);
-        TransactionSynchronizationManager.initSynchronization();
-
-        publisher.publish("exchange", "route", event);
-        TransactionSynchronizationManager.getSynchronizations()
-                .forEach(
-                        synchronization ->
-                                synchronization.afterCompletion(
-                                        TransactionSynchronization.STATUS_ROLLED_BACK));
-
-        verifyNoInteractions(rabbitTemplate);
-    }
+    private record TestEvent(int id) {}
 }

@@ -32,7 +32,7 @@ class FlywayMySqlMigrationIntegrationTest {
                         .load();
 
         assertThat(flyway.migrate().success).isTrue();
-        assertThat(flyway.info().current().getVersion().getVersion()).isEqualTo("10");
+        assertThat(flyway.info().current().getVersion().getVersion()).isEqualTo("11");
 
         try (Connection connection = MYSQL.createConnection("");
                 Statement statement = connection.createStatement();
@@ -40,7 +40,7 @@ class FlywayMySqlMigrationIntegrationTest {
                         statement.executeQuery(
                                 "SELECT COUNT(*) FROM flyway_schema_history WHERE success = 1")) {
             assertThat(resultSet.next()).isTrue();
-            assertThat(resultSet.getInt(1)).isEqualTo(10);
+            assertThat(resultSet.getInt(1)).isEqualTo(11);
         }
     }
 }

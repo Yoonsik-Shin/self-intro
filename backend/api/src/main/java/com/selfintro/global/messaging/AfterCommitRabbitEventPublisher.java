@@ -1,49 +1,50 @@
 package com.selfintro.global.messaging;
 
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import java.util.UUID;
 import lombok.RequiredArgsConstructor;
-import lombok.extern.slf4j.Slf4j;
-import org.springframework.amqp.rabbit.core.RabbitTemplate;
+import org.springframework.beans.factory.annotation.Value;
+import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Component;
-import org.springframework.transaction.support.TransactionSynchronization;
 import org.springframework.transaction.support.TransactionSynchronizationManager;
 
 /**
- * 업무 transaction이 commit된 뒤 RabbitMQ event를 발행한다. rollback된 원본 변경이 vector index에 반영되는 것을 막기 위한 최소
- * 경계이며, commit과 broker publish 사이의 유실 창까지 제거하는 transactional outbox를 대체하지는 않는다.
+ * 업무 데이터 변경과 같은 DB transaction에 발행 대상을 기록한다. 실제 RabbitMQ 발행은 {@link TransactionalOutboxRelay}가
+ * 담당한다.
  */
-@Slf4j
 @Component
 @RequiredArgsConstructor
 public class AfterCommitRabbitEventPublisher {
 
-    private final RabbitTemplate rabbitTemplate;
+    private final JdbcTemplate jdbcTemplate;
+    private final ObjectMapper objectMapper;
+
+    @Value("${messaging.outbox.enabled:true}")
+    private boolean enabled = true;
 
     public void publish(String exchange, String routingKey, Object event) {
-        if (!TransactionSynchronizationManager.isActualTransactionActive()
-                || !TransactionSynchronizationManager.isSynchronizationActive()) {
-            send(exchange, routingKey, event);
+        if (!enabled) {
             return;
         }
-
-        TransactionSynchronizationManager.registerSynchronization(
-                new TransactionSynchronization() {
-                    @Override
-                    public void afterCommit() {
-                        send(exchange, routingKey, event);
-                    }
-                });
-    }
-
-    private void send(String exchange, String routingKey, Object event) {
+        if (!TransactionSynchronizationManager.isActualTransactionActive()) {
+            throw new IllegalStateException("Transactional outbox 기록에는 활성 DB transaction이 필요합니다.");
+        }
         try {
-            rabbitTemplate.convertAndSend(exchange, routingKey, event);
-        } catch (RuntimeException exception) {
-            log.error(
-                    "[AfterCommitEvent] RabbitMQ 발행 실패 - exchange={}, routingKey={}, eventType={}",
+            jdbcTemplate.update(
+                    """
+                    INSERT INTO message_outbox
+                        (id, exchange_name, routing_key, event_type, payload, status,
+                         attempts, next_attempt_at, created_at)
+                    VALUES (?, ?, ?, ?, ?, 'PENDING', 0, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
+                    """,
+                    UUID.randomUUID().toString(),
                     exchange,
                     routingKey,
-                    event.getClass().getSimpleName(),
-                    exception);
+                    event.getClass().getName(),
+                    objectMapper.writeValueAsString(event));
+        } catch (JsonProcessingException exception) {
+            throw new IllegalArgumentException("Outbox event 직렬화에 실패했습니다.", exception);
         }
     }
 }
